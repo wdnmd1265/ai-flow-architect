@@ -6,6 +6,8 @@ from typing import Dict, Any, List
 from pydantic import BaseModel, Field
 from loguru import logger
 
+from ..utils.llm_client import LLMClient
+
 
 class AnalysisResult(BaseModel):
     """需求分析结果"""
@@ -32,6 +34,7 @@ class BrainOne:
             model: 使用的模型
         """
         self.model = model
+        self.llm_client = LLMClient(model)
         self.conversation_history = []
         logger.info(f"一号脑初始化完成，使用模型: {model}")
     
@@ -47,25 +50,57 @@ class BrainOne:
         """
         logger.info(f"开始分析用户需求: {user_input[:50]}...")
         
-        # 这里实现需求分析逻辑
-        # 目前返回模拟结果
+        # 系统提示词
+        system_prompt = """你是一名资深的需求分析师和架构师。
+你的任务是分析用户的需求，澄清模糊点，识别关键约束，并输出结构化的分析结果。
+
+请按以下格式输出：
+1. 澄清后的需求（列表）
+2. 提出的问题（列表）
+3. 假设条件（列表）
+4. 约束条件（列表）
+5. 置信度分数（0-1 之间的小数）
+
+请用 JSON 格式输出，格式如下：
+{
+  "clarified_requirements": ["需求1", "需求2"],
+  "questions_asked": ["问题1", "问题2"],
+  "assumptions": ["假设1", "假设2"],
+  "constraints": ["约束1", "约束2"],
+  "confidence_score": 0.85
+}"""
         
-        # 模拟反向提问过程
-        questions = await self._ask_clarifying_questions(user_input)
-        
-        # 基于问答生成分析结果
-        analysis_result = AnalysisResult(
-            original_input=user_input,
-            clarified_requirements=[
-                "需求已澄清",
-                "功能范围已确定",
-                "技术约束已明确",
-            ],
-            questions_asked=questions,
-            assumptions=["假设用户有基本的技术背景"],
-            constraints=["需要考虑Token消耗", "需要保证输出质量"],
-            confidence_score=0.85,
+        # 调用 LLM 分析需求
+        response = await self.llm_client.analyze(
+            system_prompt=system_prompt,
+            user_input=user_input,
+            temperature=0.7,
         )
+        
+        # 解析响应
+        try:
+            import json
+            result = json.loads(response)
+            
+            analysis_result = AnalysisResult(
+                original_input=user_input,
+                clarified_requirements=result.get("clarified_requirements", []),
+                questions_asked=result.get("questions_asked", []),
+                assumptions=result.get("assumptions", []),
+                constraints=result.get("constraints", []),
+                confidence_score=result.get("confidence_score", 0.8),
+            )
+        except Exception as e:
+            logger.warning(f"解析 LLM 响应失败: {e}，使用默认结果")
+            # 如果解析失败，使用默认结果
+            analysis_result = AnalysisResult(
+                original_input=user_input,
+                clarified_requirements=["需求已澄清", "功能范围已确定", "技术约束已明确"],
+                questions_asked=["您希望这个功能的主要使用场景是什么？", "有没有特定的技术栈偏好？"],
+                assumptions=["假设用户有基本的技术背景"],
+                constraints=["需要考虑Token消耗", "需要保证输出质量"],
+                confidence_score=0.8,
+            )
         
         logger.info("需求分析完成")
         return analysis_result
@@ -80,15 +115,43 @@ class BrainOne:
         Returns:
             提出的问题列表
         """
-        # 这里实现提问逻辑
-        # 实际应用中应该调用AI模型生成问题
+        # 系统提示词
+        system_prompt = """你是一名资深的需求分析师。
+你的任务是针对用户的需求提出澄清问题，帮助更好地理解需求。
+
+请提出 3-5 个关键问题，帮助澄清需求的：
+1. 使用场景
+2. 技术约束
+3. 性能要求
+4. 安全要求
+5. 其他关键点
+
+请用 JSON 格式输出，格式如下：
+{
+  "questions": ["问题1", "问题2", "问题3"]
+}"""
         
-        questions = [
-            "您希望这个功能的主要使用场景是什么？",
-            "有没有特定的技术栈偏好？",
-            "预期的用户规模是多少？",
-            "有没有性能或安全方面的特殊要求？",
-        ]
+        # 调用 LLM 生成问题
+        response = await self.llm_client.analyze(
+            system_prompt=system_prompt,
+            user_input=user_input,
+            temperature=0.7,
+        )
+        
+        # 解析响应
+        try:
+            import json
+            result = json.loads(response)
+            questions = result.get("questions", [])
+        except Exception as e:
+            logger.warning(f"解析 LLM 响应失败: {e}，使用默认问题")
+            # 如果解析失败，使用默认问题
+            questions = [
+                "您希望这个功能的主要使用场景是什么？",
+                "有没有特定的技术栈偏好？",
+                "预期的用户规模是多少？",
+                "有没有性能或安全方面的特殊要求？",
+            ]
         
         logger.info(f"提出 {len(questions)} 个澄清问题")
         return questions
@@ -107,8 +170,8 @@ class BrainOne:
         # 基于分析结果动态评估任务复杂度
         complexity = self._assess_overall_complexity(analysis_result)
 
-        # 动态构建执行步骤：每步含角色、任务描述、一号脑撰写的专人提示词
-        steps = self._build_steps(analysis_result, complexity)
+        # 使用 LLM 生成执行步骤
+        steps = await self._generate_steps_with_llm(analysis_result, complexity)
 
         # 已使用的专家去重列表
         used_experts = list(dict.fromkeys(s["expert"] for s in steps))
@@ -133,6 +196,71 @@ class BrainOne:
             f"专家角色={used_experts}"
         )
         return blueprint
+
+    async def _generate_steps_with_llm(self, result: AnalysisResult, complexity: str) -> List[dict]:
+        """
+        使用 LLM 动态生成执行步骤。
+        
+        Args:
+            result: 分析结果
+            complexity: 复杂度
+            
+        Returns:
+            执行步骤列表
+        """
+        # 系统提示词
+        system_prompt = f"""你是一名资深的任务规划师。
+你的任务是根据需求分析结果，生成执行步骤。
+
+任务复杂度：{complexity}
+
+请生成 {2 if complexity == "low" else 3 if complexity == "medium" else 4} 个执行步骤。
+
+每个步骤包含：
+1. name: 步骤名称
+2. expert: 专家角色（evaluator/programmer/creative/reviewer）
+3. task: 任务描述
+4. prompt: 为该专家撰写的专属提示词
+5. complexity: 步骤复杂度（low/medium/high）
+
+请用 JSON 格式输出，格式如下：
+{{
+  "steps": [
+    {{
+      "name": "步骤名称",
+      "expert": "专家角色",
+      "task": "任务描述",
+      "prompt": "专属提示词",
+      "complexity": "low"
+    }}
+  ]
+}}"""
+        
+        # 构建用户输入
+        user_input = f"""需求分析结果：
+- 原始需求：{result.original_input}
+- 澄清后的需求：{result.clarified_requirements}
+- 约束条件：{result.constraints}
+- 置信度：{result.confidence_score}"""
+        
+        # 调用 LLM 生成步骤
+        response = await self.llm_client.analyze(
+            system_prompt=system_prompt,
+            user_input=user_input,
+            temperature=0.7,
+        )
+        
+        # 解析响应
+        try:
+            import json
+            result = json.loads(response)
+            steps = result.get("steps", [])
+        except Exception as e:
+            logger.warning(f"解析 LLM 响应失败: {e}，使用默认步骤")
+            # 如果解析失败，使用默认步骤
+            steps = self._build_steps(result, complexity)
+        
+        return steps
 
     def _assess_overall_complexity(self, result: AnalysisResult) -> str:
         """

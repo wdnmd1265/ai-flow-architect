@@ -92,12 +92,13 @@ AI Flow Architect supports multiple API providers. Add new providers by updating
 | Provider | Models | API Key | Auto-fallback |
 |----------|--------|---------|---------------|
 | **OpenAI** | gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-3.5-turbo | `OPENAI_API_KEY` | ✅ |
-| **Anthropic** | claude-3-5-sonnet, claude-3-haiku, claude-3-opus | `ANTHROPIC_API_KEY` | ✅ |
+| **Anthropic** | claude-3-5-sonnet-20241022, claude-3-5-haiku-20240620, claude-3-opus | `ANTHROPIC_API_KEY` | ✅ |
 | **通义千问** | qwen-max, qwen-plus, qwen-turbo | `DASHSCOPE_API_KEY` | ✅ |
 | **智谱 GLM** | glm-4, glm-4-flash, glm-3-turbo | `ZHIPU_API_KEY` | ✅ |
 | **月之暗面** | moonshot-v1-8k, moonshot-v1-32k, moonshot-v1-128k | `MOONSHOT_API_KEY` | ✅ |
 | **DeepSeek** | deepseek-chat, deepseek-coder | `DEEPSEEK_API_KEY` | ✅ |
 | **Ollama (本地)** | llama3, qwen2.5-coder, ... | 无需 API key | ✅ |
+| **自定义 API** | custom-model | `CUSTOM_API_KEY` + `CUSTOM_BASE_URL` | ✅ |
 
 **Adding a new provider:**
 1. Add provider config to `models.yaml` → `providers` section
@@ -154,6 +155,15 @@ ANTHROPIC_API_KEY=sk-ant-your-key
 # Pull model: ollama pull llama3
 # Then in config: "brain2": "llama3" or "qwen2.5-coder"
 # Note: model name matches Ollama official, no ollama- prefix needed
+```
+
+**Custom OpenAI-compatible API:**
+```bash
+# If you have other OpenAI-compatible APIs (vLLM, LocalAI, proxy services, etc.)
+# Set these environment variables:
+CUSTOM_API_KEY=sk-your-custom-api-key
+CUSTOM_BASE_URL=https://your-custom-api.com/v1
+# Then in config: "brain1": "custom-model" or "brain2": "custom-model"
 ```
 
 ### 3. Run

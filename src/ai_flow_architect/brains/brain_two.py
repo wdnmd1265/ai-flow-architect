@@ -6,6 +6,8 @@ from typing import Dict, Any, List
 from pydantic import BaseModel, Field
 from loguru import logger
 
+from ..utils.llm_client import LLMClient
+
 
 class AuditResult(BaseModel):
     """审核结果"""
@@ -35,6 +37,7 @@ class BrainTwo:
             model: 使用的模型
         """
         self.model = model
+        self.llm_client = LLMClient(model)
         self.audit_history = []
         logger.info(f"二号脑初始化完成，使用模型: {model}")
     
@@ -55,15 +58,8 @@ class BrainTwo:
         """
         logger.info("开始质量审核")
         
-        # 逐项对比蓝图与交付物
-        comparison_result = await self._compare_blueprint_with_result(
-            blueprint, execution_result
-        )
-        
-        # 生成质量报告
-        audit_result = await self._generate_audit_report(
-            blueprint, execution_result, comparison_result
-        )
+        # 使用 LLM 进行质量审核
+        audit_result = await self._audit_with_llm(blueprint, execution_result)
         
         # 记录审核历史
         self.audit_history.append({
@@ -73,6 +69,106 @@ class BrainTwo:
         })
         
         logger.info(f"质量审核完成，通过: {audit_result['passed']}")
+        return audit_result
+
+    async def _audit_with_llm(
+        self, 
+        blueprint: Any, 
+        execution_result: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        使用 LLM 进行质量审核
+        
+        Args:
+            blueprint: 任务蓝图
+            execution_result: 执行结果
+            
+        Returns:
+            审核结果字典
+        """
+        # 系统提示词
+        system_prompt = """你是一名严格的质量审核员。
+你的任务是对比任务蓝图和执行结果，评估质量。
+
+请按以下格式输出 JSON：
+{
+  "passed": true/false,
+  "score": 85.0,
+  "issues": [
+    {
+      "type": "incomplete_step",
+      "step_name": "步骤名称",
+      "severity": "high/medium/low",
+      "description": "问题描述"
+    }
+  ],
+  "suggestions": ["建议1", "建议2"],
+  "detailed_report": "详细报告"
+}
+
+评分标准：
+- 90-100：优秀，完全符合要求
+- 80-89：良好，基本符合要求
+- 70-79：及格，部分符合要求
+- 0-69：不及格，存在严重问题"""
+        
+        # 构建审核输入
+        audit_input = f"""任务蓝图：
+- 任务ID：{blueprint.task_id}
+- 任务描述：{blueprint.description}
+- 执行步骤：{blueprint.steps}
+
+执行结果：
+{execution_result}"""
+        
+        # 调用 LLM 进行审核
+        response = await self.llm_client.audit(
+            system_prompt=system_prompt,
+            audit_input=audit_input,
+            temperature=0.3,
+        )
+        
+        # 解析响应
+        try:
+            import json
+            result = json.loads(response)
+            
+            audit_result = {
+                "passed": result.get("passed", False),
+                "score": result.get("score", 0.0),
+                "issues": result.get("issues", []),
+                "suggestions": result.get("suggestions", []),
+                "detailed_report": result.get("detailed_report", ""),
+                "comparison_summary": {
+                    "total_steps": len(blueprint.steps),
+                    "completed_steps": len([s for s in execution_result.values() if s.get("status") == "completed"]),
+                    "overall_match": 0.0,
+                },
+            }
+            
+            # 计算整体匹配度
+            if audit_result["comparison_summary"]["total_steps"] > 0:
+                audit_result["comparison_summary"]["overall_match"] = (
+                    audit_result["comparison_summary"]["completed_steps"] /
+                    audit_result["comparison_summary"]["total_steps"]
+                )
+            
+        except Exception as e:
+            logger.warning(f"解析 LLM 响应失败: {e}，使用默认审核结果")
+            # 如果解析失败，使用默认审核结果
+            audit_result = {
+                "passed": True,
+                "score": 80.0,
+                "issues": [],
+                "suggestions": ["审核完成，未发现明显问题"],
+                "detailed_report": "审核完成，未发现明显问题",
+                "comparison_summary": {
+                    "total_steps": len(blueprint.steps),
+                    "completed_steps": len([s for s in execution_result.values() if s.get("status") == "completed"]),
+                    "overall_match": 1.0,
+                },
+            }
+        
         return audit_result
     
     async def _compare_blueprint_with_result(

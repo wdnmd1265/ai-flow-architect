@@ -55,6 +55,15 @@ providers:
     endpoint: "http://localhost:11434"
     timeout: 60
 
+  # 自定义 OpenAI 兼容接口
+  # 用户可以在这里配置自己的 OpenAI 兼容 API
+  # 只需要设置 base_url 和 api_key 环境变量
+  custom:
+    api_key: "${CUSTOM_API_KEY}"
+    base_url: "${CUSTOM_BASE_URL}"
+    timeout: 30
+    max_retries: 3
+
 # 模型详细配置
 models:
   # OpenAI 模型
@@ -373,6 +382,22 @@ models:
     cost_per_1k_prompt: 0.001
     cost_per_1k_completion: 0.002
     recommended_for: ["代码生成", "代码审查", "技术文档"]
+
+  # ====================
+  # 自定义模型（用户可配置）
+  # ====================
+  # 用户可以通过环境变量 CUSTOM_BASE_URL 和 CUSTOM_API_KEY 配置自己的 OpenAI 兼容 API
+  custom-model:
+    provider: "custom"
+    display_name: "自定义模型"
+    description: "用户自定义的 OpenAI 兼容模型"
+    context_window: 4096
+    max_output_tokens: 2048
+    supports_functions: false
+    supports_vision: false
+    cost_per_1k_prompt: 0.0
+    cost_per_1k_completion: 0.0
+    recommended_for: ["自定义任务"]
 
 # 模型选择策略
 selection_strategy:
