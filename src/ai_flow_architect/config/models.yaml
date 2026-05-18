@@ -81,6 +81,30 @@ models:
     cost_per_1k_prompt: 0.01
     cost_per_1k_completion: 0.03
     recommended_for: ["长文档处理", "多模态任务", "日常使用"]
+
+  gpt-4o:
+    provider: "openai"
+    display_name: "GPT-4o"
+    description: "OpenAI 最强模型，多模态支持"
+    context_window: 128000
+    max_output_tokens: 16384
+    supports_functions: true
+    supports_vision: true
+    cost_per_1k_prompt: 0.0025
+    cost_per_1k_completion: 0.01
+    recommended_for: ["复杂推理", "多模态任务", "代码生成"]
+
+  gpt-4o-mini:
+    provider: "openai"
+    display_name: "GPT-4o Mini"
+    description: "轻量版 GPT-4o，性价比极高"
+    context_window: 128000
+    max_output_tokens: 16384
+    supports_functions: true
+    supports_vision: true
+    cost_per_1k_prompt: 0.00015
+    cost_per_1k_completion: 0.0006
+    recommended_for: ["简单任务", "快速原型", "brain2 质检"]
   
   gpt-3.5-turbo:
     provider: "openai"
@@ -130,6 +154,55 @@ models:
     cost_per_1k_prompt: 0.00025
     cost_per_1k_completion: 0.00125
     recommended_for: ["简单任务", "快速响应", "高并发场景"]
+
+  # Claude 3.5 模型
+  claude-3-5-sonnet:
+    provider: "anthropic"
+    display_name: "Claude 3.5 Sonnet"
+    description: "Claude 3.5 系列，性能更强"
+    context_window: 200000
+    max_output_tokens: 8192
+    supports_functions: false
+    supports_vision: true
+    cost_per_1k_prompt: 0.003
+    cost_per_1k_completion: 0.015
+    recommended_for: ["复杂推理", "代码生成", "创意写作"]
+
+  claude-3-5-sonnet-20241022:
+    provider: "anthropic"
+    display_name: "Claude 3.5 Sonnet (2024-10-22)"
+    description: "Claude 3.5 Sonnet 最新版本"
+    context_window: 200000
+    max_output_tokens: 8192
+    supports_functions: false
+    supports_vision: true
+    cost_per_1k_prompt: 0.003
+    cost_per_1k_completion: 0.015
+    recommended_for: ["复杂推理", "代码生成", "创意写作"]
+
+  claude-3-5-haiku:
+    provider: "anthropic"
+    display_name: "Claude 3.5 Haiku"
+    description: "Claude 3.5 快速版本"
+    context_window: 200000
+    max_output_tokens: 8192
+    supports_functions: false
+    supports_vision: true
+    cost_per_1k_prompt: 0.001
+    cost_per_1k_completion: 0.005
+    recommended_for: ["日常任务", "快速响应", "成本敏感场景"]
+
+  claude-3-5-haiku-20240620:
+    provider: "anthropic"
+    display_name: "Claude 3.5 Haiku (2024-06-20)"
+    description: "Claude 3.5 Haiku 早期版本"
+    context_window: 200000
+    max_output_tokens: 8192
+    supports_functions: false
+    supports_vision: true
+    cost_per_1k_prompt: 0.001
+    cost_per_1k_completion: 0.005
+    recommended_for: ["日常任务", "快速响应", "成本敏感场景"]
 
   # Ollama 本地模型（免费，详见 .env.example）
   ollama-llama3:
@@ -398,6 +471,17 @@ fallbacks:
     glm-4: "glm-4-flash"
     glm-4-flash: "glm-3-turbo"
     glm-3-turbo: "glm-4-flash"
+
+  # 月之暗面 Kimi 降级路径
+  moonshot:
+    moonshot-v1-8k: "moonshot-v1-32k"
+    moonshot-v1-32k: "moonshot-v1-128k"
+    moonshot-v1-128k: "moonshot-v1-32k"
+
+  # DeepSeek 降级路径
+  deepseek:
+    deepseek-chat: "deepseek-coder"
+    deepseek-coder: "deepseek-chat"
 
   # Ollama 本地模型降级路径
   local:
