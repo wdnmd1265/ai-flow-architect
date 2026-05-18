@@ -85,6 +85,28 @@ AI Flow Architect enforces a **fixed three-phase workflow** with two independent
 
 If you need maximum flexibility, use LangChain or CrewAI. If you need **auditable quality with minimal configuration**, this is it.
 
+## Supported Providers
+
+AI Flow Architect supports multiple API providers. Add new providers by updating `models.yaml` — no Python code changes needed.
+
+| Provider | Models | API Key | Auto-fallback |
+|----------|--------|---------|---------------|
+| **OpenAI** | gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-3.5-turbo | `OPENAI_API_KEY` | ✅ |
+| **Anthropic** | claude-3-5-sonnet, claude-3-haiku, claude-3-opus | `ANTHROPIC_API_KEY` | ✅ |
+| **通义千问** | qwen-max, qwen-plus, qwen-turbo | `DASHSCOPE_API_KEY` | ✅ |
+| **智谱 GLM** | glm-4, glm-4-flash, glm-3-turbo | `ZHIPU_API_KEY` | ✅ |
+| **月之暗面** | moonshot-v1-8k, moonshot-v1-32k, moonshot-v1-128k | `MOONSHOT_API_KEY` | ✅ |
+| **DeepSeek** | deepseek-chat, deepseek-coder | `DEEPSEEK_API_KEY` | ✅ |
+| **Ollama (本地)** | llama3, qwen2.5-coder, ... | 无需 API key | ✅ |
+
+**Adding a new provider:**
+1. Add provider config to `models.yaml` → `providers` section
+2. Add model entries to `models.yaml` → `models` section
+3. Add fallback paths to `models.yaml` → `fallbacks` section
+4. Add API key to `.env.example`
+
+See `models.yaml` for the full configuration structure.
+
 ## Token-Saving Mechanisms
 
 All four work out of the box, zero configuration:

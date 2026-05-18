@@ -186,3 +186,43 @@ monitoring:
       - "log"
       - "email"
       - "webhook"
+
+# brain2 自动降级路径
+# 当用户只配置 brain1 时，框架自动选择同提供商的更便宜模型作为 brain2。
+# 添加新提供商只需在此处添加对应映射，无需修改 Python 代码。
+fallbacks:
+  # OpenAI 模型降级路径
+  openai:
+    gpt-4o: "gpt-4o-mini"
+    gpt-4o-mini: "gpt-3.5-turbo"
+    gpt-4-turbo: "gpt-4o-mini"
+    gpt-4: "gpt-3.5-turbo"
+    gpt-3.5-turbo: "gpt-4o-mini"
+
+  # Anthropic 模型降级路径
+  anthropic:
+    claude-3-5-sonnet-20241022: "claude-3-5-haiku-20240620"
+    claude-3-5-sonnet: "claude-3-5-haiku"
+    claude-3-opus: "claude-3-haiku"
+    claude-3-sonnet: "claude-3-haiku"
+    claude-3-haiku: "claude-3-sonnet"
+
+  # 通义千问（DashScope）降级路径
+  dashscope:
+    qwen-max: "qwen-plus"
+    qwen-plus: "qwen-turbo"
+    qwen-turbo: "qwen-plus"
+
+  # 智谱 GLM 降级路径
+  zhipu:
+    glm-4: "glm-4-flash"
+    glm-4-flash: "glm-3-turbo"
+    glm-3-turbo: "glm-4-flash"
+
+  # Ollama 本地模型降级路径
+  local:
+    ollama-llama3: "ollama-qwen2.5-coder"
+    ollama-qwen2.5-coder: "ollama-llama3"
+
+  # 默认兜底（当模型不在上述任何映射中时使用）
+  default_fallback: "gpt-4o-mini"

@@ -67,59 +67,78 @@ class FlowArchitect:
 
         logger.info(f"AI Flow Architect 初始化完成 | 一号脑: {brain1_model} | 二号脑: {brain2_model}")
 
+    def _load_models_config(self) -> Dict[str, Any]:
+        """
+        加载 models.yaml 配置文件。
+        
+        Returns:
+            配置字典
+        """
+        import yaml
+        from pathlib import Path
+        
+        config_path = Path(__file__).parent.parent / "config" / "models.yaml"
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                return yaml.safe_load(f)
+        except Exception as e:
+            logger.warning(f"加载 models.yaml 失败: {e}，使用空配置")
+            return {}
+    
     def _resolve_brain2(self, brain1_model: str) -> str:
         """
         单 key 自动降级：根据 brain1 的模型自动选择 brain2。
-
-        同提供商不同模型 = 独立实例 = 基本有效的质检。
-        跨提供商 = 最佳效果，但需要额外的 API key。
+        
+        从 models.yaml 的 fallbacks 配置段读取降级路径，
+        添加新提供商只需修改 yaml，无需改代码。
         """
-        # OpenAI 模型降级路径
-        openai_fallbacks = {
-            "gpt-4o": "gpt-4o-mini",
-            "gpt-4o-mini": "gpt-3.5-turbo",
-            "gpt-4-turbo": "gpt-4o-mini",
-            "gpt-4": "gpt-3.5-turbo",
-            "gpt-3.5-turbo": "gpt-4o-mini",
-        }
-        # Anthropic 模型降级路径
-        anthropic_fallbacks = {
-            "claude-3-5-sonnet-20241022": "claude-3-5-haiku-20240620",
-            "claude-3-5-sonnet": "claude-3-5-haiku",
-            "claude-3-opus": "claude-3-haiku",
-            "claude-3-sonnet": "claude-3-haiku",
-            "claude-3-haiku": "claude-3-sonnet",
-        }
-
+        # 加载配置
+        config = self._load_models_config()
+        fallbacks = config.get("fallbacks", {})
+        
+        # 从配置中获取所有提供商的降级路径
+        all_fallbacks = {}
+        for provider, mappings in fallbacks.items():
+            if provider == "default_fallback":
+                continue
+            if isinstance(mappings, dict):
+                all_fallbacks.update(mappings)
+        
         # 优先精确匹配
-        if brain1_model in openai_fallbacks:
-            fallback = openai_fallbacks[brain1_model]
-            logger.info(
-                f"检测到单 OpenAI key：brain2 自动降级为 '{fallback}'。"
-                f"如需最佳质检效果，请配置 ANTHROPIC_API_KEY 并设置 brain2 为 Claude 模型。"
-            )
+        if brain1_model in all_fallbacks:
+            fallback = all_fallbacks[brain1_model]
+            # 找出是哪个提供商
+            for provider, mappings in fallbacks.items():
+                if provider == "default_fallback":
+                    continue
+                if isinstance(mappings, dict) and brain1_model in mappings:
+                    logger.info(
+                        f"检测到单 {provider} key：brain2 自动降级为 '{fallback}'。"
+                        f"如需最佳质检效果，请配置跨提供商的 API key。"
+                    )
+                    break
             return fallback
-        if brain1_model in anthropic_fallbacks:
-            fallback = anthropic_fallbacks[brain1_model]
-            logger.info(
-                f"检测到单 Anthropic key：brain2 自动降级为 '{fallback}'。"
-                f"如需最佳质检效果，请配置 OPENAI_API_KEY 并设置 brain2 为 GPT 模型。"
-            )
-            return fallback
-
+        
         # 前缀匹配兜底（处理 claude-3-5-sonnet-20241022 这类带日期后缀的）
-        for key, val in anthropic_fallbacks.items():
-            if brain1_model.startswith(key.rsplit("-", 1)[0]) and "haiku" not in brain1_model:
-                logger.info(f"检测到 Anthropic 模型：brain2 自动降级为 '{val}'")
-                return val
-
-        # 默认兜底
+        for provider, mappings in fallbacks.items():
+            if provider == "default_fallback":
+                continue
+            if isinstance(mappings, dict):
+                for key, val in mappings.items():
+                    # 提取模型名称前缀（去掉最后一个 -xxx 部分）
+                    prefix = key.rsplit("-", 1)[0] if "-" in key else key
+                    if brain1_model.startswith(prefix) and "haiku" not in brain1_model:
+                        logger.info(f"检测到 {provider} 模型：brain2 自动降级为 '{val}'")
+                        return val
+        
+        # 使用默认兜底
+        default_fallback = fallbacks.get("default_fallback", "gpt-4o-mini")
         logger.warning(
             f"无法为模型 '{brain1_model}' 自动选择 brain2，"
-            f"将使用 gpt-4o-mini（需 OPENAI_API_KEY）。"
+            f"将使用默认兜底 '{default_fallback}'。"
             f"建议手动配置 brain2 以确保正常工作。"
         )
-        return "gpt-4o-mini"
+        return default_fallback
     
     async def run(self, user_input: str) -> Dict[str, Any]:
         """
