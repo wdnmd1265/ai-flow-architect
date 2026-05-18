@@ -13,6 +13,13 @@ import yaml
 from loguru import logger
 from openai import AsyncOpenAI
 
+# 尝试导入 Anthropic SDK（可选）
+try:
+    import anthropic
+    ANTHROPIC_AVAILABLE = True
+except ImportError:
+    ANTHROPIC_AVAILABLE = False
+
 
 class LLMClient:
     """
@@ -71,13 +78,15 @@ class LLMClient:
         
         return provider_config
     
-    def _create_client(self) -> AsyncOpenAI:
+    def _create_client(self):
         """
-        创建 AsyncOpenAI 客户端
+        创建客户端（支持 OpenAI 和 Anthropic）
         
         Returns:
-            AsyncOpenAI 客户端实例
+            客户端实例
         """
+        provider_name = self.provider_config.get("name", "openai")
+        
         # 获取 API key
         api_key_env = self.provider_config.get("api_key", "")
         if api_key_env.startswith("${") and api_key_env.endswith("}"):
@@ -88,19 +97,38 @@ class LLMClient:
             api_key = api_key_env
         
         # 获取 base_url
-        base_url = self.provider_config.get("base_url", "https://api.openai.com/v1")
+        base_url_env = self.provider_config.get("base_url", "https://api.openai.com/v1")
+        if base_url_env.startswith("${") and base_url_env.endswith("}"):
+            # 从环境变量读取
+            env_var = base_url_env[2:-1]
+            base_url = os.getenv(env_var, "https://api.openai.com/v1")
+        else:
+            base_url = base_url_env
         
         # 获取超时和重试配置
         timeout = self.provider_config.get("timeout", 30)
         max_retries = self.provider_config.get("max_retries", 3)
         
-        # 创建客户端
-        client = AsyncOpenAI(
-            api_key=api_key,
-            base_url=base_url,
-            timeout=timeout,
-            max_retries=max_retries,
-        )
+        # 根据 provider 创建不同的客户端
+        if provider_name == "anthropic":
+            # Anthropic 客户端
+            if not ANTHROPIC_AVAILABLE:
+                raise ImportError(
+                    "Anthropic SDK 未安装。请运行: pip install anthropic"
+                )
+            client = anthropic.AsyncAnthropic(
+                api_key=api_key,
+                timeout=timeout,
+                max_retries=max_retries,
+            )
+        else:
+            # OpenAI 兼容客户端（OpenAI、通义千问、智谱、月之暗面、DeepSeek 等）
+            client = AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                timeout=timeout,
+                max_retries=max_retries,
+            )
         
         return client
     
@@ -126,25 +154,14 @@ class LLMClient:
         try:
             logger.info(f"发送聊天请求 | 模型: {self.model} | 消息数: {len(messages)}")
             
-            # 构建请求参数
-            params = {
-                "model": self.model,
-                "messages": messages,
-                "temperature": temperature,
-            }
+            provider_name = self.provider_config.get("name", "openai")
             
-            # 添加 max_tokens（如果指定）
-            if max_tokens is not None:
-                params["max_tokens"] = max_tokens
-            
-            # 添加其他参数
-            params.update(kwargs)
-            
-            # 发送请求
-            response = await self.client.chat.completions.create(**params)
-            
-            # 提取响应文本
-            result = response.choices[0].message.content
+            if provider_name == "anthropic":
+                # Anthropic API 调用
+                result = await self._chat_anthropic(messages, temperature, max_tokens)
+            else:
+                # OpenAI 兼容 API 调用
+                result = await self._chat_openai(messages, temperature, max_tokens, **kwargs)
             
             logger.info(f"聊天请求完成 | 模型: {self.model} | 响应长度: {len(result)}")
             return result
@@ -152,6 +169,73 @@ class LLMClient:
         except Exception as e:
             logger.error(f"聊天请求失败 | 模型: {self.model} | 错误: {e}")
             raise
+
+    async def _chat_openai(
+        self,
+        messages: List[Dict[str, str]],
+        temperature: float,
+        max_tokens: Optional[int],
+        **kwargs
+    ) -> str:
+        """
+        OpenAI 兼容 API 调用
+        """
+        # 构建请求参数
+        params = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": temperature,
+        }
+        
+        # 添加 max_tokens（如果指定）
+        if max_tokens is not None:
+            params["max_tokens"] = max_tokens
+        
+        # 添加其他参数
+        params.update(kwargs)
+        
+        # 发送请求
+        response = await self.client.chat.completions.create(**params)
+        
+        # 提取响应文本
+        return response.choices[0].message.content
+
+    async def _chat_anthropic(
+        self,
+        messages: List[Dict[str, str]],
+        temperature: float,
+        max_tokens: Optional[int],
+    ) -> str:
+        """
+        Anthropic API 调用
+        """
+        # Anthropic 的消息格式：system 消息需要单独处理
+        system_message = ""
+        anthropic_messages = []
+        
+        for msg in messages:
+            if msg["role"] == "system":
+                system_message = msg["content"]
+            else:
+                anthropic_messages.append(msg)
+        
+        # 构建请求参数
+        params = {
+            "model": self.model,
+            "messages": anthropic_messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens or 4096,
+        }
+        
+        # 添加 system 消息（如果有）
+        if system_message:
+            params["system"] = system_message
+        
+        # 发送请求
+        response = await self.client.messages.create(**params)
+        
+        # 提取响应文本
+        return response.content[0].text
     
     async def analyze(
         self,

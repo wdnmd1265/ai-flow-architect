@@ -307,7 +307,7 @@ ai-flow-architect/
 - [ ] **CLI interface** — `ai-flow run "design a system"`
 - [ ] **Expert team templates** — Pre-configured teams for web dev, data analysis, content creation
 - [ ] **Web UI** — Visual blueprint editor and execution monitor
-- [ ] **More model providers** — Gemini, Mistral, local models via Ollama
+- [x] **More model providers** — OpenAI, Anthropic, 通义千问, 智谱, 月之暗面, DeepSeek, Ollama, 自定义 API
 - [ ] **Parallel execution** — Independent steps run concurrently
 - [ ] **Streaming output** — Real-time expert output streaming
 

@@ -504,8 +504,8 @@ fallbacks:
 
   # 月之暗面 Kimi 降级路径
   moonshot:
-    moonshot-v1-8k: "moonshot-v1-32k"
-    moonshot-v1-32k: "moonshot-v1-128k"
+    moonshot-v1-8k: "moonshot-v1-8k"
+    moonshot-v1-32k: "moonshot-v1-8k"
     moonshot-v1-128k: "moonshot-v1-32k"
 
   # DeepSeek 降级路径
