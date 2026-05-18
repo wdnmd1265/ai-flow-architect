@@ -480,17 +480,21 @@ fallbacks:
 
   # Anthropic 模型降级路径
   anthropic:
+    # Claude 3.5 系列（最新）
     claude-3-5-sonnet-20241022: "claude-3-5-haiku-20240620"
     claude-3-5-sonnet: "claude-3-5-haiku"
-    claude-3-opus: "claude-3-haiku"
-    claude-3-sonnet: "claude-3-haiku"
-    claude-3-haiku: "claude-3-sonnet"
+    claude-3-5-haiku-20240620: "claude-3-5-sonnet-20241022"
+    claude-3-5-haiku: "claude-3-5-sonnet"
+    # Claude 3 系列（旧版，降级到 3.5 系列）
+    claude-3-opus: "claude-3-5-haiku-20240620"
+    claude-3-sonnet: "claude-3-5-haiku"
+    claude-3-haiku: "claude-3-5-haiku"
 
   # 通义千问（DashScope）降级路径
   dashscope:
     qwen-max: "qwen-plus"
     qwen-plus: "qwen-turbo"
-    qwen-turbo: "qwen-plus"
+    qwen-turbo: "qwen-turbo"
 
   # 智谱 GLM 降级路径
   zhipu:

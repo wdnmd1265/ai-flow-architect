@@ -98,7 +98,7 @@ AI Flow Architect supports multiple API providers. Add new providers by updating
 | **月之暗面** | moonshot-v1-8k, moonshot-v1-32k, moonshot-v1-128k | `MOONSHOT_API_KEY` | ✅ |
 | **DeepSeek** | deepseek-chat, deepseek-coder | `DEEPSEEK_API_KEY` | ✅ |
 | **Ollama (本地)** | llama3, qwen2.5-coder, ... | 无需 API key | ✅ |
-| **自定义 API** | custom-model | `CUSTOM_API_KEY` + `CUSTOM_BASE_URL` | ⚠️ 需手动配置 |
+| **自定义 API** | custom-model | `CUSTOM_API_KEY` + `CUSTOM_BASE_URL` | ✅ |
 
 **Adding a new provider:**
 1. Add provider config to `models.yaml` → `providers` section
