@@ -39,9 +39,16 @@ class LLMClient:
         self.model = model
         self.config = self._load_config()
         self.provider_config = self._get_provider_config()
-        self.client = self._create_client()
+        self._client = None  # Lazy init：第一次调用时才创建客户端
         
         logger.info(f"LLMClient 初始化完成 | 模型: {model} | 提供商: {self.provider_config.get('name', 'unknown')}")
+
+    @property
+    def client(self):
+        """懒加载客户端，第一次调用时创建"""
+        if self._client is None:
+            self._client = self._create_client()
+        return self._client
     
     def _load_config(self) -> Dict[str, Any]:
         """

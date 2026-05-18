@@ -15,12 +15,13 @@ from unittest.mock import AsyncMock, patch, MagicMock
 class TestArchitectInit:
     """框架初始化——模型校验"""
 
-    def test_brain2_missing_raises_error(self):
-        """brain2未配置应抛出ValueError"""
+    def test_brain2_missing_auto_resolves(self):
+        """brain2未配置时应自动降级，不抛错"""
         from ai_flow_architect.core.architect import FlowArchitect
 
-        with pytest.raises(ValueError, match="必须配置 brain2"):
-            FlowArchitect(config={"brain1": "gpt-4o"})
+        architect = FlowArchitect(config={"brain1": "gpt-4o"})
+        # brain2 自动降级为 gpt-4o-mini
+        assert architect.brain_two.model == "gpt-4o-mini"
 
     def test_brain1_brain2_same_generates_warning(self):
         """brain1和brain2相同模型应发出警告（不阻塞）"""

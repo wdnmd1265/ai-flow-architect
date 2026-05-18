@@ -10,7 +10,7 @@
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.9%2B-3776AB.svg" alt="Python 3.9+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-4CAF50.svg" alt="License"></a>
   <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/status-alpha-FF9800.svg" alt="Alpha"></a>
-  <a href="https://github.com/wdnmd1265/ai-flow-architect/actions"><img src="https://img.shields.io/badge/tests-107%20passing-4CAF50.svg" alt="Tests"></a>
+  <a href="https://github.com/wdnmd1265/ai-flow-architect/actions"><img src="https://img.shields.io/badge/tests-114%20passing-4CAF50.svg" alt="Tests"></a>
 </p>
 
 <p align="center">
@@ -218,7 +218,7 @@ Steps:
 
 ```bash
 pip install pytest pytest-asyncio
-pytest tests/unit/ -v    # 107 tests
+pytest tests/unit/ -v    # 114 tests
 ```
 
 ## Architecture Deep Dive
@@ -286,7 +286,7 @@ ai-flow-architect/
 │       ├── token_counter.py     # Token counting + cost estimation
 │       ├── compressor.py        # Context compression
 │       └── validator.py         # Input validation
-├── tests/unit/                  # 107 unit tests
+├── tests/unit/                  # 114 unit tests
 │   ├── test_scheduler.py        # 57 tests
 │   ├── test_cache.py            # 22 tests
 │   ├── test_context.py          # 18 tests
