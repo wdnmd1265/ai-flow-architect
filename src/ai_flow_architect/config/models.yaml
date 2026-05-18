@@ -1,0 +1,163 @@
+# AI模型配置
+
+# 模型提供商配置
+providers:
+  openai:
+    api_key: "${OPENAI_API_KEY}"
+    base_url: "https://api.openai.com/v1"
+    timeout: 30
+    max_retries: 3
+  
+  anthropic:
+    api_key: "${ANTHROPIC_API_KEY}"
+    base_url: "https://api.anthropic.com"
+    timeout: 30
+    max_retries: 3
+  
+  local:
+    enabled: false
+    endpoint: "http://localhost:11434"
+    timeout: 60
+
+# 模型详细配置
+models:
+  # OpenAI 模型
+  gpt-4:
+    provider: "openai"
+    display_name: "GPT-4"
+    description: "最强大的GPT模型，适合复杂任务"
+    context_window: 8192
+    max_output_tokens: 4096
+    supports_functions: true
+    supports_vision: false
+    cost_per_1k_prompt: 0.03
+    cost_per_1k_completion: 0.06
+    recommended_for: ["复杂推理", "代码生成", "创意写作"]
+  
+  gpt-4-turbo:
+    provider: "openai"
+    display_name: "GPT-4 Turbo"
+    description: "GPT-4的优化版本，更快更便宜"
+    context_window: 128000
+    max_output_tokens: 4096
+    supports_functions: true
+    supports_vision: true
+    cost_per_1k_prompt: 0.01
+    cost_per_1k_completion: 0.03
+    recommended_for: ["长文档处理", "多模态任务", "日常使用"]
+  
+  gpt-3.5-turbo:
+    provider: "openai"
+    display_name: "GPT-3.5 Turbo"
+    description: "快速且经济实惠的模型"
+    context_window: 16385
+    max_output_tokens: 4096
+    supports_functions: true
+    supports_vision: false
+    cost_per_1k_prompt: 0.0015
+    cost_per_1k_completion: 0.002
+    recommended_for: ["简单任务", "快速原型", "成本敏感场景"]
+  
+  # Anthropic 模型
+  claude-3-opus:
+    provider: "anthropic"
+    display_name: "Claude 3 Opus"
+    description: "最强大的Claude模型，适合复杂分析"
+    context_window: 200000
+    max_output_tokens: 4096
+    supports_functions: false
+    supports_vision: true
+    cost_per_1k_prompt: 0.015
+    cost_per_1k_completion: 0.075
+    recommended_for: ["深度分析", "复杂推理", "长文档处理"]
+  
+  claude-3-sonnet:
+    provider: "anthropic"
+    display_name: "Claude 3 Sonnet"
+    description: "平衡性能和成本的模型"
+    context_window: 200000
+    max_output_tokens: 4096
+    supports_functions: false
+    supports_vision: true
+    cost_per_1k_prompt: 0.003
+    cost_per_1k_completion: 0.015
+    recommended_for: ["日常任务", "代码辅助", "文档处理"]
+  
+  claude-3-haiku:
+    provider: "anthropic"
+    display_name: "Claude 3 Haiku"
+    description: "最快速的Claude模型"
+    context_window: 200000
+    max_output_tokens: 4096
+    supports_functions: false
+    supports_vision: true
+    cost_per_1k_prompt: 0.00025
+    cost_per_1k_completion: 0.00125
+    recommended_for: ["简单任务", "快速响应", "高并发场景"]
+
+# 模型选择策略
+selection_strategy:
+  # 任务类型映射
+  task_mapping:
+    "需求分析": ["gpt-4", "claude-3-opus"]
+    "创意设计": ["gpt-4", "claude-3-opus"]
+    "代码实现": ["gpt-4", "gpt-4-turbo"]
+    "代码审查": ["gpt-4", "claude-3-opus"]
+    "简单任务": ["gpt-3.5-turbo", "claude-3-haiku"]
+  
+  # 成本优化策略
+  cost_optimization:
+    enabled: true
+    max_cost_per_task: 1.0  # 美元
+    prefer_cheaper_models: true
+    fallback_to_cheaper: true
+  
+  # 性能优化策略
+  performance_optimization:
+    enabled: true
+    prefer_faster_models: true
+    max_latency: 30  # 秒
+    concurrent_requests: 5
+
+# 模型切换规则
+switching_rules:
+  # 自动切换条件
+  auto_switch:
+    enabled: true
+    conditions:
+      - type: "cost_threshold"
+        threshold: 0.5  # 美元
+        action: "switch_to_cheaper"
+      
+      - type: "latency_threshold"
+        threshold: 20  # 秒
+        action: "switch_to_faster"
+      
+      - type: "error_rate"
+        threshold: 0.1  # 10%
+        action: "switch_to_alternative"
+  
+  # 手动切换
+  manual_switch:
+    enabled: true
+    allow_user_override: true
+    require_confirmation: true
+
+# 模型监控
+monitoring:
+  enabled: true
+  track_usage: true
+  track_costs: true
+  track_latency: true
+  track_errors: true
+  
+  # 告警规则
+  alerts:
+    cost_threshold: 10.0  # 美元
+    error_rate_threshold: 0.05  # 5%
+    latency_threshold: 30  # 秒
+    
+    notification_channels:
+      - "log"
+      - "email"
+      - "webhook"

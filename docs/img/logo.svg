@@ -1,0 +1,148 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <!-- Background gradient -->
+    <radialGradient id="bgGrad" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#0f1720"/>
+      <stop offset="100%" stop-color="#05080a"/>
+    </radialGradient>
+
+    <!-- Soft glow for cyan lines -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="1.2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Soft glow for nodes -->
+    <filter id="nodeGlow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Very subtle text glow -->
+    <filter id="textGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="0.8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Dark background -->
+  <rect width="1200" height="630" fill="url(#bgGrad)"/>
+
+  <!-- Flowing architecture lines -->
+  <g fill="none" stroke="#00d4ff" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)">
+    <!-- Left branch flowing inward -->
+    <path d="M -20 200 Q 150 200 280 280 T 520 315" stroke-width="1" opacity="0.28"/>
+    <path d="M -20 260 Q 120 260 240 300 T 480 315" stroke-width="1.2" opacity="0.35"/>
+    <path d="M -20 380 Q 140 380 260 340 T 500 315" stroke-width="1" opacity="0.28"/>
+    <path d="M -20 440 Q 100 440 220 360 T 460 330" stroke-width="0.8" opacity="0.2"/>
+
+    <!-- Right branch flowing inward -->
+    <path d="M 1220 200 Q 1050 200 920 280 T 680 315" stroke-width="1" opacity="0.28"/>
+    <path d="M 1220 260 Q 1080 260 960 300 T 720 315" stroke-width="1.2" opacity="0.35"/>
+    <path d="M 1220 380 Q 1060 380 940 340 T 700 315" stroke-width="1" opacity="0.28"/>
+    <path d="M 1220 440 Q 1100 440 980 360 T 740 330" stroke-width="0.8" opacity="0.2"/>
+
+    <!-- Top branch flowing down -->
+    <path d="M 420 -20 Q 420 120 500 220 T 560 300" stroke-width="0.8" opacity="0.25"/>
+    <path d="M 600 -20 Q 600 100 580 220 T 580 300" stroke-width="1" opacity="0.32"/>
+    <path d="M 780 -20 Q 780 120 700 220 T 640 300" stroke-width="0.8" opacity="0.25"/>
+
+    <!-- Bottom branch flowing up -->
+    <path d="M 480 650 Q 480 520 540 420 T 580 340" stroke-width="0.8" opacity="0.25"/>
+    <path d="M 600 650 Q 600 530 600 420 T 600 340" stroke-width="1" opacity="0.32"/>
+    <path d="M 720 650 Q 720 520 660 420 T 620 340" stroke-width="0.8" opacity="0.25"/>
+
+    <!-- Cross connections forming architecture -->
+    <path d="M 280 280 Q 400 260 520 315" stroke-width="0.6" opacity="0.2"/>
+    <path d="M 920 280 Q 800 260 680 315" stroke-width="0.6" opacity="0.2"/>
+    <path d="M 500 220 Q 560 260 580 300" stroke-width="0.6" opacity="0.2"/>
+    <path d="M 700 220 Q 640 260 620 300" stroke-width="0.6" opacity="0.2"/>
+
+    <!-- Subtle grid structure lines -->
+    <path d="M 200 180 L 300 180 L 300 220 L 200 220 Z" stroke-width="0.5" opacity="0.12"/>
+    <path d="M 900 180 L 1000 180 L 1000 220 L 900 220 Z" stroke-width="0.5" opacity="0.12"/>
+    <path d="M 250 420 L 320 420 L 320 460 L 250 460 Z" stroke-width="0.5" opacity="0.12"/>
+    <path d="M 880 420 L 950 420 L 950 460 L 880 460 Z" stroke-width="0.5" opacity="0.12"/>
+  </g>
+
+  <!-- Connection lines between nodes -->
+  <g stroke="#00d4ff" stroke-width="0.6" opacity="0.3" filter="url(#glow)">
+    <line x1="280" y1="280" x2="340" y2="290"/>
+    <line x1="920" y1="280" x2="860" y2="290"/>
+    <line x1="240" y1="300" x2="300" y2="305"/>
+    <line x1="960" y1="300" x2="900" y2="305"/>
+    <line x1="260" y1="340" x2="320" y2="330"/>
+    <line x1="940" y1="340" x2="880" y2="330"/>
+    <line x1="500" y1="220" x2="520" y2="260"/>
+    <line x1="700" y1="220" x2="680" y2="260"/>
+    <line x1="540" y1="420" x2="560" y2="370"/>
+    <line x1="660" y1="420" x2="640" y2="370"/>
+  </g>
+
+  <!-- Glowing nodes -->
+  <g fill="#00d4ff" filter="url(#nodeGlow)">
+    <!-- Outer ring nodes -->
+    <circle cx="280" cy="280" r="3" opacity="0.45"/>
+    <circle cx="240" cy="300" r="2.4" opacity="0.4"/>
+    <circle cx="260" cy="340" r="2.6" opacity="0.4"/>
+    <circle cx="920" cy="280" r="3" opacity="0.45"/>
+    <circle cx="960" cy="300" r="2.4" opacity="0.4"/>
+    <circle cx="940" cy="340" r="2.6" opacity="0.4"/>
+    <circle cx="500" cy="220" r="2.6" opacity="0.4"/>
+    <circle cx="700" cy="220" r="2.6" opacity="0.4"/>
+    <circle cx="540" cy="420" r="2.6" opacity="0.4"/>
+    <circle cx="660" cy="420" r="2.6" opacity="0.4"/>
+
+    <!-- Mid ring nodes -->
+    <circle cx="340" cy="290" r="1.8" opacity="0.35"/>
+    <circle cx="300" cy="305" r="1.6" opacity="0.33"/>
+    <circle cx="320" cy="330" r="1.8" opacity="0.35"/>
+    <circle cx="860" cy="290" r="1.8" opacity="0.35"/>
+    <circle cx="900" cy="305" r="1.6" opacity="0.33"/>
+    <circle cx="880" cy="330" r="1.8" opacity="0.35"/>
+    <circle cx="520" cy="260" r="1.6" opacity="0.33"/>
+    <circle cx="680" cy="260" r="1.6" opacity="0.33"/>
+    <circle cx="560" cy="370" r="1.6" opacity="0.33"/>
+    <circle cx="640" cy="370" r="1.6" opacity="0.33"/>
+
+    <!-- Inner nodes near text -->
+    <circle cx="460" cy="300" r="1.6" opacity="0.3"/>
+    <circle cx="740" cy="300" r="1.6" opacity="0.3"/>
+    <circle cx="480" cy="330" r="1.4" opacity="0.28"/>
+    <circle cx="720" cy="330" r="1.4" opacity="0.28"/>
+    <circle cx="600" cy="260" r="2" opacity="0.32"/>
+    <circle cx="600" cy="370" r="2" opacity="0.32"/>
+
+    <!-- Edge micro nodes -->
+    <circle cx="150" cy="200" r="1.2" opacity="0.25"/>
+    <circle cx="180" cy="260" r="1.2" opacity="0.25"/>
+    <circle cx="160" cy="380" r="1.2" opacity="0.25"/>
+    <circle cx="1050" cy="200" r="1.2" opacity="0.25"/>
+    <circle cx="1020" cy="260" r="1.2" opacity="0.25"/>
+    <circle cx="1040" cy="380" r="1.2" opacity="0.25"/>
+    <circle cx="420" cy="120" r="1.2" opacity="0.25"/>
+    <circle cx="780" cy="120" r="1.2" opacity="0.25"/>
+    <circle cx="480" cy="520" r="1.2" opacity="0.25"/>
+    <circle cx="720" cy="520" r="1.2" opacity="0.25"/>
+  </g>
+
+  <!-- Center text -->
+  <text x="600" y="315" text-anchor="middle" dominant-baseline="middle"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+        font-size="64" font-weight="700" letter-spacing="2"
+        fill="#f0f4f8" filter="url(#textGlow)">
+    AI Flow Architect
+  </text>
+
+  <!-- Subtle tagline or accent line below text -->
+  <line x1="480" y1="355" x2="720" y2="355" stroke="#00d4ff" stroke-width="0.8" opacity="0.22" filter="url(#glow)"/>
+</svg>

@@ -1,0 +1,135 @@
+# AI Flow Architect 默认配置
+
+# 框架配置
+framework:
+  name: "AI Flow Architect"
+  version: "0.1.0"
+  debug: false
+  log_level: "INFO"
+
+# 缓存配置
+cache:
+  enabled: true
+  type: "memory"  # memory, redis, disk
+  max_size: 1000
+  ttl: 3600  # 默认过期时间（秒）
+  directory: ".cache"
+
+# 上下文管理配置
+context:
+  max_sessions: 100
+  session_timeout: 3600  # 会话超时（秒）
+  compress_history: true
+  max_history_tokens: 4000
+
+# 一号脑配置
+brain_one:
+  model: "gpt-4"
+  temperature: 0.7
+  max_tokens: 4000
+  max_questions: 5  # 最大提问数量
+  require_approval: true  # 是否需要用户审批
+
+# 二号脑配置
+brain_two:
+  model: "gpt-4"
+  temperature: 0.3
+  max_tokens: 4000
+  quality_threshold: 80  # 质量通过阈值
+  require_audit: true  # 是否需要质量审核
+
+# 专家配置
+experts:
+  creative:
+    model: "gpt-4"
+    temperature: 0.8
+    max_tokens: 4000
+    enabled: true
+  
+  evaluator:
+    model: "gpt-4"
+    temperature: 0.3
+    max_tokens: 4000
+    enabled: true
+  
+  programmer:
+    model: "gpt-4"
+    temperature: 0.4
+    max_tokens: 8000
+    enabled: true
+  
+  reviewer:
+    model: "gpt-4"
+    temperature: 0.2
+    max_tokens: 4000
+    enabled: true
+
+# 调度器配置
+scheduler:
+  max_parallel_tasks: 3
+  task_timeout: 300  # 任务超时（秒）
+  retry_count: 3
+  retry_delay: 5  # 重试延迟（秒）
+
+# Token节省配置
+token_saving:
+  enabled: true
+  cache_prompts: true
+  compress_context: true
+  smart_skip: true
+  local_rules_check: true
+
+# 模型配置
+models:
+  default: "gpt-4"
+  available:
+    - "gpt-4"
+    - "gpt-4-turbo"
+    - "gpt-3.5-turbo"
+    - "claude-3-opus"
+    - "claude-3-sonnet"
+  
+  pricing:
+    gpt-4:
+      prompt: 0.03
+      completion: 0.06
+    gpt-4-turbo:
+      prompt: 0.01
+      completion: 0.03
+    gpt-3.5-turbo:
+      prompt: 0.0015
+      completion: 0.002
+    claude-3-opus:
+      prompt: 0.015
+      completion: 0.075
+    claude-3-sonnet:
+      prompt: 0.003
+      completion: 0.015
+
+# 安全配置
+security:
+  input_validation: true
+  output_sanitization: true
+  max_input_length: 10000
+  allowed_file_types: [".txt", ".md", ".json", ".yaml", ".yml"]
+
+# 输出配置
+output:
+  format: "json"  # json, text, markdown
+  include_metadata: true
+  include_timestamp: true
+  pretty_print: true
+
+# 错误处理配置
+error_handling:
+  continue_on_error: false
+  max_retries: 3
+  log_errors: true
+  notify_user: true
+
+# 性能配置
+performance:
+  async_execution: true
+  connection_pooling: true
+  batch_processing: false
+  batch_size: 10
