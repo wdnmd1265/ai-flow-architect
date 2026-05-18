@@ -514,5 +514,11 @@ fallbacks:
     llama3: "qwen2.5-coder"
     qwen2.5-coder: "llama3"
 
+  # 自定义 OpenAI 兼容接口降级路径
+  # 当用户只配置 custom-model 作为 brain1 时，brain2 也使用 custom-model
+  # 用户可以自己配置多个自定义模型
+  custom:
+    custom-model: "custom-model"
+
   # 默认兜底（当模型不在上述任何映射中时使用）
   default_fallback: "gpt-4o-mini"
