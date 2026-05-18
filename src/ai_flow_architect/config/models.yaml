@@ -14,6 +14,42 @@ providers:
     timeout: 30
     max_retries: 3
   
+  # 通义千问（DashScope）
+  # 官网：https://dashscope.console.aliyun.com/
+  # 支持 OpenAI 兼容接口
+  dashscope:
+    api_key: "${DASHSCOPE_API_KEY}"
+    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    timeout: 30
+    max_retries: 3
+  
+  # 智谱 GLM
+  # 官网：https://open.bigmodel.cn/
+  # 支持 OpenAI 兼容接口
+  zhipu:
+    api_key: "${ZHIPU_API_KEY}"
+    base_url: "https://open.bigmodel.cn/api/paas/v4"
+    timeout: 30
+    max_retries: 3
+  
+  # 月之暗面 Kimi
+  # 官网：https://platform.moonshot.cn/
+  # 支持 OpenAI 兼容接口
+  moonshot:
+    api_key: "${MOONSHOT_API_KEY}"
+    base_url: "https://api.moonshot.cn/v1"
+    timeout: 30
+    max_retries: 3
+  
+  # DeepSeek
+  # 官网：https://platform.deepseek.com/
+  # 支持 OpenAI 兼容接口
+  deepseek:
+    api_key: "${DEEPSEEK_API_KEY}"
+    base_url: "https://api.deepseek.com/v1"
+    timeout: 30
+    max_retries: 3
+  
   local:
     enabled: true
     endpoint: "http://localhost:11434"
@@ -119,6 +155,150 @@ models:
     cost_per_1k_prompt: 0.0
     cost_per_1k_completion: 0.0
     recommended_for: ["代码任务", "专家节点", "本地开发"]
+
+  # ====================
+  # 通义千问（DashScope）模型
+  # ====================
+  qwen-max:
+    provider: "dashscope"
+    display_name: "通义千问 Max"
+    description: "阿里最强模型，适合复杂任务"
+    context_window: 32768
+    max_output_tokens: 8192
+    supports_functions: true
+    supports_vision: false
+    cost_per_1k_prompt: 0.02
+    cost_per_1k_completion: 0.06
+    recommended_for: ["复杂推理", "长文档处理", "创意写作"]
+
+  qwen-plus:
+    provider: "dashscope"
+    display_name: "通义千问 Plus"
+    description: "平衡性能和成本"
+    context_window: 131072
+    max_output_tokens: 8192
+    supports_functions: true
+    supports_vision: false
+    cost_per_1k_prompt: 0.004
+    cost_per_1k_completion: 0.012
+    recommended_for: ["日常任务", "代码辅助", "文档处理"]
+
+  qwen-turbo:
+    provider: "dashscope"
+    display_name: "通义千问 Turbo"
+    description: "快速且经济实惠"
+    context_window: 131072
+    max_output_tokens: 8192
+    supports_functions: true
+    supports_vision: false
+    cost_per_1k_prompt: 0.001
+    cost_per_1k_completion: 0.002
+    recommended_for: ["简单任务", "快速原型", "成本敏感场景"]
+
+  # ====================
+  # 智谱 GLM 模型
+  # ====================
+  glm-4:
+    provider: "zhipu"
+    display_name: "GLM-4"
+    description: "智谱最强模型，适合复杂任务"
+    context_window: 128000
+    max_output_tokens: 4096
+    supports_functions: true
+    supports_vision: false
+    cost_per_1k_prompt: 0.1
+    cost_per_1k_completion: 0.1
+    recommended_for: ["复杂推理", "代码生成", "创意写作"]
+
+  glm-4-flash:
+    provider: "zhipu"
+    display_name: "GLM-4 Flash"
+    description: "快速版本，性价比高"
+    context_window: 128000
+    max_output_tokens: 4096
+    supports_functions: true
+    supports_vision: false
+    cost_per_1k_prompt: 0.001
+    cost_per_1k_completion: 0.001
+    recommended_for: ["日常任务", "快速原型", "成本敏感场景"]
+
+  glm-3-turbo:
+    provider: "zhipu"
+    display_name: "GLM-3 Turbo"
+    description: "经济实惠的模型"
+    context_window: 128000
+    max_output_tokens: 4096
+    supports_functions: true
+    supports_vision: false
+    cost_per_1k_prompt: 0.001
+    cost_per_1k_completion: 0.001
+    recommended_for: ["简单任务", "快速原型", "成本敏感场景"]
+
+  # ====================
+  # 月之暗面 Kimi 模型
+  # ====================
+  moonshot-v1-8k:
+    provider: "moonshot"
+    display_name: "Moonshot V1 8K"
+    description: "月之暗面基础模型"
+    context_window: 8192
+    max_output_tokens: 4096
+    supports_functions: true
+    supports_vision: false
+    cost_per_1k_prompt: 0.012
+    cost_per_1k_completion: 0.012
+    recommended_for: ["日常任务", "代码辅助"]
+
+  moonshot-v1-32k:
+    provider: "moonshot"
+    display_name: "Moonshot V1 32K"
+    description: "长上下文版本"
+    context_window: 32768
+    max_output_tokens: 4096
+    supports_functions: true
+    supports_vision: false
+    cost_per_1k_prompt: 0.024
+    cost_per_1k_completion: 0.024
+    recommended_for: ["长文档处理", "复杂推理"]
+
+  moonshot-v1-128k:
+    provider: "moonshot"
+    display_name: "Moonshot V1 128K"
+    description: "超长上下文版本"
+    context_window: 131072
+    max_output_tokens: 4096
+    supports_functions: true
+    supports_vision: false
+    cost_per_1k_prompt: 0.06
+    cost_per_1k_completion: 0.06
+    recommended_for: ["超长文档处理", "复杂分析"]
+
+  # ====================
+  # DeepSeek 模型
+  # ====================
+  deepseek-chat:
+    provider: "deepseek"
+    display_name: "DeepSeek Chat"
+    description: "DeepSeek 通用对话模型"
+    context_window: 32768
+    max_output_tokens: 4096
+    supports_functions: true
+    supports_vision: false
+    cost_per_1k_prompt: 0.001
+    cost_per_1k_completion: 0.002
+    recommended_for: ["日常任务", "代码辅助", "文档处理"]
+
+  deepseek-coder:
+    provider: "deepseek"
+    display_name: "DeepSeek Coder"
+    description: "专业代码模型"
+    context_window: 32768
+    max_output_tokens: 4096
+    supports_functions: true
+    supports_vision: false
+    cost_per_1k_prompt: 0.001
+    cost_per_1k_completion: 0.002
+    recommended_for: ["代码生成", "代码审查", "技术文档"]
 
 # 模型选择策略
 selection_strategy:
