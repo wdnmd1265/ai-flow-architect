@@ -205,7 +205,8 @@ models:
     recommended_for: ["日常任务", "快速响应", "成本敏感场景"]
 
   # Ollama 本地模型（免费，详见 .env.example）
-  ollama-llama3:
+  # 注意：模型名和 Ollama 官方一致，不需要加 ollama- 前缀
+  llama3:
     provider: "local"
     display_name: "Llama 3 (Ollama)"
     description: "Meta 开源大模型，本地运行，零 API 成本"
@@ -217,7 +218,7 @@ models:
     cost_per_1k_completion: 0.0
     recommended_for: ["本地开发", "brain2 质检", "成本敏感场景"]
 
-  ollama-qwen2.5-coder:
+  qwen2.5-coder:
     provider: "local"
     display_name: "Qwen2.5-Coder (Ollama)"
     description: "阿里通义千问代码模型，本地运行"
@@ -485,8 +486,8 @@ fallbacks:
 
   # Ollama 本地模型降级路径
   local:
-    ollama-llama3: "ollama-qwen2.5-coder"
-    ollama-qwen2.5-coder: "ollama-llama3"
+    llama3: "qwen2.5-coder"
+    qwen2.5-coder: "llama3"
 
   # 默认兜底（当模型不在上述任何映射中时使用）
   default_fallback: "gpt-4o-mini"

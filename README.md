@@ -152,7 +152,8 @@ ANTHROPIC_API_KEY=sk-ant-your-key
 # Install: brew install ollama (macOS) or ollama.com
 # Start: ollama serve
 # Pull model: ollama pull llama3
-# Then in config: "brain2": "ollama/llama3"
+# Then in config: "brain2": "llama3" or "qwen2.5-coder"
+# Note: model name matches Ollama official, no ollama- prefix needed
 ```
 
 ### 3. Run
