@@ -50,18 +50,76 @@ class FlowArchitect:
         # 检查二号脑隔离配置
         brain1_model = self.config.get("brain1", "gpt-4o")
         brain2_model = self.config.get("brain2")
-        
+
+        # 单 key 自动降级：brain2 未指定时，从同提供商自动选择更便宜的模型
         if brain2_model is None:
-            raise ValueError("配置错误：必须配置 brain2 模型。二号脑必须使用与一号脑不同的模型实例。")
-        
+            brain2_model = self._resolve_brain2(brain1_model)
+
         if brain1_model == brain2_model:
-            logger.warning(f"警告：一号脑和二号脑使用相同模型 '{brain1_model}'，这会降低质检效果")
-        
+            logger.warning(
+                f"警告：一号脑和二号脑使用相同模型 '{brain1_model}'，"
+                f"质检效果将大幅下降。强烈建议使用不同模型。"
+            )
+
         self.brain_one = BrainOne(model=brain1_model)
         self.brain_two = BrainTwo(model=brain2_model)
         self.blueprint: Optional[Blueprint] = None
-        
+
         logger.info(f"AI Flow Architect 初始化完成 | 一号脑: {brain1_model} | 二号脑: {brain2_model}")
+
+    def _resolve_brain2(self, brain1_model: str) -> str:
+        """
+        单 key 自动降级：根据 brain1 的模型自动选择 brain2。
+
+        同提供商不同模型 = 独立实例 = 基本有效的质检。
+        跨提供商 = 最佳效果，但需要额外的 API key。
+        """
+        # OpenAI 模型降级路径
+        openai_fallbacks = {
+            "gpt-4o": "gpt-4o-mini",
+            "gpt-4o-mini": "gpt-3.5-turbo",
+            "gpt-4-turbo": "gpt-4o-mini",
+            "gpt-4": "gpt-3.5-turbo",
+            "gpt-3.5-turbo": "gpt-4o-mini",
+        }
+        # Anthropic 模型降级路径
+        anthropic_fallbacks = {
+            "claude-3-5-sonnet-20241022": "claude-3-5-haiku-20240620",
+            "claude-3-5-sonnet": "claude-3-5-haiku",
+            "claude-3-opus": "claude-3-haiku",
+            "claude-3-sonnet": "claude-3-haiku",
+            "claude-3-haiku": "claude-3-sonnet",
+        }
+
+        # 优先精确匹配
+        if brain1_model in openai_fallbacks:
+            fallback = openai_fallbacks[brain1_model]
+            logger.info(
+                f"检测到单 OpenAI key：brain2 自动降级为 '{fallback}'。"
+                f"如需最佳质检效果，请配置 ANTHROPIC_API_KEY 并设置 brain2 为 Claude 模型。"
+            )
+            return fallback
+        if brain1_model in anthropic_fallbacks:
+            fallback = anthropic_fallbacks[brain1_model]
+            logger.info(
+                f"检测到单 Anthropic key：brain2 自动降级为 '{fallback}'。"
+                f"如需最佳质检效果，请配置 OPENAI_API_KEY 并设置 brain2 为 GPT 模型。"
+            )
+            return fallback
+
+        # 前缀匹配兜底（处理 claude-3-5-sonnet-20241022 这类带日期后缀的）
+        for key, val in anthropic_fallbacks.items():
+            if brain1_model.startswith(key.rsplit("-", 1)[0]) and "haiku" not in brain1_model:
+                logger.info(f"检测到 Anthropic 模型：brain2 自动降级为 '{val}'")
+                return val
+
+        # 默认兜底
+        logger.warning(
+            f"无法为模型 '{brain1_model}' 自动选择 brain2，"
+            f"将使用 gpt-4o-mini（需 OPENAI_API_KEY）。"
+            f"建议手动配置 brain2 以确保正常工作。"
+        )
+        return "gpt-4o-mini"
     
     async def run(self, user_input: str) -> Dict[str, Any]:
         """

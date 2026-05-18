@@ -15,7 +15,7 @@ providers:
     max_retries: 3
   
   local:
-    enabled: false
+    enabled: true
     endpoint: "http://localhost:11434"
     timeout: 60
 
@@ -94,6 +94,31 @@ models:
     cost_per_1k_prompt: 0.00025
     cost_per_1k_completion: 0.00125
     recommended_for: ["简单任务", "快速响应", "高并发场景"]
+
+  # Ollama 本地模型（免费，详见 .env.example）
+  ollama-llama3:
+    provider: "local"
+    display_name: "Llama 3 (Ollama)"
+    description: "Meta 开源大模型，本地运行，零 API 成本"
+    context_window: 8192
+    max_output_tokens: 4096
+    supports_functions: false
+    supports_vision: false
+    cost_per_1k_prompt: 0.0
+    cost_per_1k_completion: 0.0
+    recommended_for: ["本地开发", "brain2 质检", "成本敏感场景"]
+
+  ollama-qwen2.5-coder:
+    provider: "local"
+    display_name: "Qwen2.5-Coder (Ollama)"
+    description: "阿里通义千问代码模型，本地运行"
+    context_window: 32768
+    max_output_tokens: 4096
+    supports_functions: false
+    supports_vision: false
+    cost_per_1k_prompt: 0.0
+    cost_per_1k_completion: 0.0
+    recommended_for: ["代码任务", "专家节点", "本地开发"]
 
 # 模型选择策略
 selection_strategy:

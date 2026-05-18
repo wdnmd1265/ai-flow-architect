@@ -65,7 +65,9 @@ AI Flow Architect enforces a **fixed three-phase workflow** with two independent
 ```
 
 **Key design choices:**
-- **Brain #2 MUST use a different model** — same-model self-review lets hallucinations through. This is enforced at init time.
+- **Single key works out of the box** — if you omit brain2, it auto-selects a cheaper model from the same provider. One OpenAI key is enough to start.
+- **Cross-provider is best** — OpenAI + Anthropic gives you the strongest quality arbitration. brain2 auto-resolves to a Claude model when both keys are present.
+- **Different models matter** — same-model self-review lets hallucinations through. brain2 auto-chooses a different model even with one key.
 - **Fixed workflow, not free orchestration** — you trade flexibility for predictability and quality control.
 - **Every expert is session-isolated** — they don't know about each other, data passes through structured fields only.
 
@@ -75,7 +77,8 @@ AI Flow Architect enforces a **fixed three-phase workflow** with two independent
 |---|---|---|---|
 | **What it is** | Opinionated workflow engine | Orchestration framework | Agent framework |
 | **Quality control** | Built-in (Brain #2 arbitration) | Manual / your responsibility | Optional |
-| **Model isolation** | Enforced (Brain #1 != Brain #2) | Not enforced | Not enforced |
+| **Single API key** | ✅ Works out of the box | ✅ Works | ✅ Works |
+| **Model isolation** | Auto-enforced (brain2 auto-resolves) | Not enforced | Not enforced |
 | **Token saving** | 4 mechanisms, zero-config | Manual optimization | Manual optimization |
 | **Flow control** | Fixed 3-phase pipeline | Free-form chains/agents | Configurable process |
 | **Best for** | Predictable, auditable multi-AI workflows | Flexible pipeline composition | Role-based agent teams |
@@ -109,14 +112,26 @@ pip install -e .
 cp .env.example .env
 ```
 
-Edit `.env` — you need API keys from **two different providers**:
+**Single key (works out of the box):**
+```bash
+OPENAI_API_KEY=sk-your-key
+# brain2 auto-selects gpt-4o-mini — one API key is enough to start
+```
 
+**Dual key (recommended for best quality):**
 ```bash
 OPENAI_API_KEY=sk-your-key
 ANTHROPIC_API_KEY=sk-ant-your-key
+# brain2 uses a Claude model → cross-provider arbitration is most effective
 ```
 
-Brain #2 is mandatory and must use a different model. Same-model self-review is the #1 cause of hallucination leakage in multi-AI systems.
+**Ollama (free, local):**
+```bash
+# Install: brew install ollama (macOS) or ollama.com
+# Start: ollama serve
+# Pull model: ollama pull llama3
+# Then in config: "brain2": "ollama/llama3"
+```
 
 ### 3. Run
 
@@ -125,9 +140,11 @@ import asyncio
 from ai_flow_architect import FlowArchitect
 
 async def main():
+    # Single key: brain2 auto-resolves to gpt-4o-mini
+    # Dual key: brain2 defaults to your Anthropic model
     architect = FlowArchitect(config={
-        "brain1": "gpt-4o",                    # Brain #1: planning
-        "brain2": "claude-3-5-sonnet-20241022", # Brain #2: quality arbitration
+        "brain1": "gpt-4o",   # Planning & coordination
+        # "brain2": optional — auto-selected if omitted
     })
 
     result = await architect.run("Design a user management system")

@@ -1,13 +1,60 @@
 """
-Basic usage example for AI Flow Architect
+Basic usage examples for AI Flow Architect
 
 Before running:
 1. Copy .env.example to .env and fill in your API keys
-2. brain1 and brain2 must use models from different providers
+2. Single key works out of the box (brain2 auto-resolves)
+3. Dual key recommended for best quality (cross-provider arbitration)
 """
 
 import asyncio
 from ai_flow_architect import FlowArchitect
+
+
+async def single_key_example():
+    """Single API key — brain2 auto-resolves to a cheaper model from the same provider."""
+    print("=== Single Key Example ===")
+    print("One OpenAI key is enough. brain2 auto-selects gpt-4o-mini.")
+
+    architect = FlowArchitect(config={
+        "brain1": "gpt-4o",
+        # "brain2" is optional — auto-resolved to gpt-4o-mini
+    })
+    print("Framework initialized")
+
+    user_input = "Design a user management system"
+    print(f"User input: {user_input}")
+
+    print("\nStarting workflow...")
+    result = await architect.run(user_input)
+
+    print("\n=== Result ===")
+    print(f"Status: {result['status']}")
+    if result['status'] == 'success':
+        print(f"Quality score: {result['audit_result'].get('score', 'N/A')}/100")
+
+
+async def dual_key_example():
+    """Dual API keys — brain2 uses a model from a different provider (recommended)."""
+    print("=== Dual Key Example ===")
+    print("OpenAI + Anthropic. Cross-provider arbitration = best quality.")
+
+    architect = FlowArchitect(config={
+        "brain1": "gpt-4o",
+        "brain2": "claude-3-5-sonnet-20241022",
+    })
+    print("Framework initialized")
+
+    user_input = "Design a user management system"
+    print(f"User input: {user_input}")
+
+    print("\nStarting workflow...")
+    result = await architect.run(user_input)
+
+    print("\n=== Result ===")
+    print(f"Status: {result['status']}")
+    if result['status'] == 'success':
+        print(f"Quality score: {result['audit_result'].get('score', 'N/A')}/100")
 
 
 async def basic_example():
