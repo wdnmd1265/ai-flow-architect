@@ -26,6 +26,25 @@ class BrainOne:
     负责需求分析和任务规划，输出完整的《任务执行蓝图》
     """
     
+    # 默认人格注入场景
+    DEFAULT_PERSONA = (
+        "你正在审查一份技术方案蓝图。这份蓝图会被拆解成多个独立步骤，"
+        "由不同的 AI 实例执行。每个执行实例只能看到自己的那一步，看不到全局。"
+        "这意味着：如果你漏掉了一个全局性的隐患，没有人会在后续步骤中发现它。"
+        "你的审查是唯一一次全局视角的质量检查。不要假设后面还有人会补。"
+        "你看到的问题，就是你唯一的机会。"
+    )
+    
+    # 深化提问问题库
+    CLARIFICATION_QUESTIONS = [
+        "你真正想解决的是什么问题？很多时候我们把手段当成了目的",
+        "这个系统是你自己用，还是其他人也用？",
+        "你现在是认真做，还是先跑个原型看看效果？",
+        "如果把这个系统比作一个你见过的现实中的东西，是什么？",
+        "你有多少时间？",
+        "你的预算是多少？",
+    ]
+    
     def __init__(self, model: str = "gpt-4"):
         """
         初始化一号脑
@@ -105,6 +124,184 @@ class BrainOne:
         logger.info("需求分析完成")
         return analysis_result
     
+    async def strip_requirements(self, user_input: str) -> Dict[str, Any]:
+        """
+        需求裸奔：剥离技术假设，回到需求本质
+        
+        Args:
+            user_input: 用户输入
+            
+        Returns:
+            需求裸奔结果
+        """
+        logger.info("开始需求裸奔...")
+        
+        system_prompt = """你是一名需求分析专家。
+你的任务是剥离所有技术假设，回到需求的本质。
+
+请按以下格式输出：
+1. 用户说的（原始需求的简化描述）
+2. 用户真正想要的（需求的本质，用最简单的语言描述）
+3. 如果有一支笔和一张纸，怎么解决（最原始的解决方案）
+4. 翻译成代码（把纸笔方案翻译成技术概念）
+
+请用 JSON 格式输出：
+{
+  "user_said": "用户说的",
+  "actually_wants": ["本质需求1", "本质需求2"],
+  "paper_solution": ["纸笔方案1", "纸笔方案2"],
+  "tech_translation": {"纸笔概念": "技术概念"}
+}"""
+        
+        response = await self.llm_client.analyze(
+            system_prompt=system_prompt,
+            user_input=user_input,
+            temperature=0.3,
+        )
+        
+        try:
+            import json
+            result = json.loads(response)
+            logger.info("需求裸奔完成")
+            return result
+        except Exception as e:
+            logger.warning(f"解析需求裸奔结果失败: {e}，使用默认结果")
+            return {
+                "user_said": user_input,
+                "actually_wants": ["解决一个具体问题"],
+                "paper_solution": ["手动记录", "人工检查"],
+                "tech_translation": {"记录": "数据库", "检查": "验证逻辑"},
+            }
+    
+    async def ask_clarification_question(self, question_index: int, user_input: str) -> str:
+        """
+        生成一个深化提问问题
+        
+        Args:
+            question_index: 问题索引
+            user_input: 用户原始输入
+            
+        Returns:
+            问题文本
+        """
+        if question_index < len(self.CLARIFICATION_QUESTIONS):
+            return self.CLARIFICATION_QUESTIONS[question_index]
+        
+        # 如果超出预设问题库，使用 LLM 生成
+        system_prompt = """你是一名需求分析师。
+根据用户的原始需求，生成一个深化提问的问题。
+问题应该帮助用户澄清需求、发现隐藏的假设、或理解真实的约束。
+
+直接输出问题，不要额外说明。"""
+        
+        response = await self.llm_client.analyze(
+            system_prompt=system_prompt,
+            user_input=f"用户需求：{user_input}\n已问过的问题索引：{question_index}",
+            temperature=0.7,
+        )
+        
+        return response.strip()
+    
+    async def generate_risks_and_alternatives(
+        self, 
+        analysis_result: AnalysisResult, 
+        steps: List[dict]
+    ) -> Dict[str, Any]:
+        """
+        生成风险标注和替代支线
+        
+        Args:
+            analysis_result: 分析结果
+            steps: 执行步骤
+            
+        Returns:
+            包含 risks 和 alternatives 的字典
+        """
+        logger.info("生成风险标注和替代支线...")
+        
+        system_prompt = """你是一名资深技术顾问。
+你的任务是为任务执行方案标注风险，并提供替代支线。
+
+请分析方案中的每个步骤，找出潜在风险，并提供替代方案。
+
+请用 JSON 格式输出：
+{
+  "risks": [
+    {
+      "step": "步骤名称",
+      "risk": "风险描述",
+      "impact": "影响程度（high/medium/low）",
+      "mitigation": "缓解建议"
+    }
+  ],
+  "alternatives": [
+    {
+      "name": "替代方案名称",
+      "description": "方案描述",
+      "pros": ["优点1", "优点2"],
+      "cons": ["缺点1", "缺点2"]
+    }
+  ]
+}"""
+        
+        # 构建用户输入
+        steps_desc = "\n".join([
+            f"步骤{i+1}: {s['name']} ({s['expert']}) - {s['task'][:50]}"
+            for i, s in enumerate(steps)
+        ])
+        
+        user_input = f"""需求：{analysis_result.original_input}
+
+执行步骤：
+{steps_desc}
+
+约束条件：{analysis_result.constraints}"""
+        
+        response = await self.llm_client.analyze(
+            system_prompt=system_prompt,
+            user_input=user_input,
+            temperature=0.5,
+        )
+        
+        try:
+            import json
+            result = json.loads(response)
+            logger.info(f"生成 {len(result.get('risks', []))} 个风险点，{len(result.get('alternatives', []))} 个替代方案")
+            return result
+        except Exception as e:
+            logger.warning(f"解析风险和替代方案失败: {e}，使用默认结果")
+            return {
+                "risks": [],
+                "alternatives": [],
+            }
+    
+    async def generate_extreme_scenario(self, direction: str, task_description: str) -> str:
+        """
+        生成极端场景
+        
+        Args:
+            direction: 场景方向（安全压力/竞争压力/成本压力/用户同理心）
+            task_description: 任务描述
+            
+        Returns:
+            场景文本
+        """
+        logger.info(f"生成极端场景: {direction}")
+        
+        system_prompt = f"""你是一个场景生成专家。
+基于当前任务，生成一个 {direction} 场景。
+要求：紧贴任务本身，给出可量化的失败后果。不要编无关的事。200字以内。
+
+直接输出场景文本，不要额外说明。"""
+        
+        response = await self.llm_client.analyze(
+            system_prompt=system_prompt,
+            user_input=f"任务描述：{task_description}",
+            temperature=0.7,
+        )
+        
+        return response.strip()
+    
     async def _ask_clarifying_questions(self, user_input: str) -> List[str]:
         """
         提出澄清问题
@@ -173,6 +370,9 @@ class BrainOne:
         # 使用 LLM 生成执行步骤
         steps = await self._generate_steps_with_llm(analysis_result, complexity)
 
+        # 生成风险标注和替代支线
+        risks_and_alternatives = await self.generate_risks_and_alternatives(analysis_result, steps)
+
         # 已使用的专家去重列表
         used_experts = list(dict.fromkeys(s["expert"] for s in steps))
         models = {e: self.model for e in used_experts}
@@ -188,6 +388,9 @@ class BrainOne:
             models=models,
             estimated_tokens=estimated_tokens,
             status="draft",
+            risks=risks_and_alternatives.get("risks", []),
+            alternatives=risks_and_alternatives.get("alternatives", []),
+            persona_scenario=self.DEFAULT_PERSONA,
         )
 
         logger.info(

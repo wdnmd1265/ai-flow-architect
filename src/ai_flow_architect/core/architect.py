@@ -23,6 +23,13 @@ class Blueprint(BaseModel):
     models: Dict[str, str] = Field(default_factory=dict, description="模型配置")
     estimated_tokens: int = Field(0, description="预估Token消耗")
     status: str = Field("draft", description="蓝图状态")
+    # V2 新增字段
+    risks: List[Dict[str, Any]] = Field(default_factory=list, description="风险标注")
+    alternatives: List[Dict[str, Any]] = Field(default_factory=list, description="替代支线")
+    opponent_critique: List[str] = Field(default_factory=list, description="反对者质疑")
+    clarification_history: List[Dict[str, Any]] = Field(default_factory=list, description="深化提问历史")
+    persona_scenario: str = Field("", description="人格注入场景")
+    requirement_stripping: Dict[str, Any] = Field(default_factory=dict, description="需求裸奔结果")
 
 
 class FlowArchitect:
@@ -142,7 +149,7 @@ class FlowArchitect:
     
     async def run(self, user_input: str) -> Dict[str, Any]:
         """
-        执行完整工作流
+        执行完整工作流（V2 版本）
         
         Args:
             user_input: 用户输入的模糊需求
@@ -153,13 +160,29 @@ class FlowArchitect:
         logger.info(f"开始处理用户需求: {user_input[:50]}...")
         
         try:
-            # 第一阶段：一号脑规划
-            logger.info("第一阶段：启动一号脑进行需求分析")
-            blueprint = await self._phase_one(user_input)
+            # V2 第一步：需求裸奔
+            logger.info("V2 第一步：需求裸奔")
+            stripping_result = await self.brain_one.strip_requirements(user_input)
+            
+            # V2 第二步：深化提问（一个问题一个审批，用户可跳过）
+            logger.info("V2 第二步：深化提问")
+            clarification_history = await self._deep_questioning(user_input)
+            
+            # V2 第三步：一号脑规划（含人格注入）
+            logger.info("V2 第三阶段：启动一号脑进行需求分析")
+            blueprint = await self._phase_one(user_input, clarification_history, stripping_result)
+            
+            # V2 第四步：反对者脑（条件触发）
+            logger.info("V2 第四步：反对者脑")
+            blueprint = await self._opponent_critique(blueprint)
             
             # 等待用户审批
             logger.info("蓝图生成完成，等待用户审批")
             approved_blueprint = await self._wait_for_approval(blueprint)
+            
+            # V2 第五步：决策记录
+            logger.info("V2 第五步：记录决策")
+            await self._record_decision(user_input, blueprint, approved_blueprint)
             
             # 第二阶段：执行任务
             logger.info("第二阶段：开始执行任务")
@@ -176,27 +199,186 @@ class FlowArchitect:
             logger.error(f"工作流执行失败: {e}")
             raise
     
-    async def _phase_one(self, user_input: str) -> Blueprint:
+    async def _deep_questioning(self, user_input: str) -> List[Dict[str, Any]]:
         """
-        第一阶段：一号脑规划
+        V2 深化提问：一个问题一个审批，用户可跳过
         
         Args:
             user_input: 用户输入
             
         Returns:
+            提问历史
+        """
+        clarification_history = []
+        max_questions = 3  # 最多问3个问题
+        
+        for i in range(max_questions):
+            # 生成问题
+            question = await self.brain_one.ask_clarification_question(i, user_input)
+            
+            # 展示问题给用户
+            print(f"\n{'='*60}")
+            print(f"深化提问 ({i+1}/{max_questions})")
+            print(f"{'='*60}")
+            print(f"\n{question}")
+            print(f"\n输入你的回答，或输入 '跳过' 直接生成方案")
+            print(f"{'='*60}")
+            
+            # 获取用户输入
+            user_answer = await asyncio.to_thread(input, "> ")
+            user_answer = user_answer.strip()
+            
+            if user_answer.lower() in ['跳过', 'skip', '']:
+                logger.info(f"用户跳过第 {i+1} 个问题")
+                clarification_history.append({
+                    "question": question,
+                    "answer": "跳过",
+                    "skipped": True,
+                })
+                break
+            
+            # 记录回答
+            clarification_history.append({
+                "question": question,
+                "answer": user_answer,
+                "skipped": False,
+            })
+            logger.info(f"用户回答第 {i+1} 个问题: {user_answer[:50]}...")
+        
+        return clarification_history
+    
+    async def _opponent_critique(self, blueprint: Blueprint) -> Blueprint:
+        """
+        V2 反对者脑：条件触发
+        
+        Args:
+            blueprint: 蓝图
+            
+        Returns:
+            添加了反对者质疑的蓝图
+        """
+        # 判断是否需要反对者脑
+        # 简单任务（1个步骤、不涉及架构决策）跳过
+        if len(blueprint.steps) <= 1:
+            logger.info("简单任务，跳过反对者脑")
+            return blueprint
+        
+        # 检查是否涉及架构决策
+        has_architecture = any(
+            step.get("expert") in ["evaluator", "creative"] 
+            for step in blueprint.steps
+        )
+        if not has_architecture:
+            logger.info("不涉及架构决策，跳过反对者脑")
+            return blueprint
+        
+        # 调用反对者脑
+        try:
+            from ..brains.brain_opponent import BrainOpponent
+            opponent = BrainOpponent(model=self.brain_one.model)
+            
+            # 随机选择风格
+            critique = await opponent.critique(blueprint)
+            blueprint.opponent_critique = critique
+            logger.info(f"反对者脑完成，提出 {len(critique)} 个质疑")
+        except Exception as e:
+            logger.warning(f"反对者脑执行失败: {e}，跳过")
+        
+        return blueprint
+    
+    async def _record_decision(
+        self, 
+        user_input: str, 
+        original_blueprint: Blueprint,
+        approved_blueprint: Blueprint
+    ):
+        """
+        V2 决策记录
+        
+        Args:
+            user_input: 用户输入
+            original_blueprint: 原始蓝图
+            approved_blueprint: 审批通过的蓝图
+        """
+        try:
+            from ..utils.decision_recorder import DecisionRecorder
+            recorder = DecisionRecorder()
+            
+            # 任务属性标签
+            task_profile = {
+                "domain": "backend",  # 简化处理，后续可由 LLM 判断
+                "complexity": "medium" if len(original_blueprint.steps) > 2 else "simple",
+                "involves_db": "database" in user_input.lower() or "数据库" in user_input,
+                "involves_auth": "auth" in user_input.lower() or "认证" in user_input or "登录" in user_input,
+                "involves_cache": "cache" in user_input.lower() or "缓存" in user_input,
+                "estimated_steps": len(original_blueprint.steps),
+            }
+            
+            # 记录决策
+            await recorder.record(
+                task_id=original_blueprint.task_id,
+                task_profile=task_profile,
+                user_input=user_input,
+                options=[{"name": "原始方案", "steps": len(original_blueprint.steps)}],
+                user_choice="批准",
+            )
+            logger.info("决策记录完成")
+        except Exception as e:
+            logger.warning(f"决策记录失败: {e}，跳过")
+    
+    async def _phase_one(
+        self, 
+        user_input: str, 
+        clarification_history: List[Dict[str, Any]] = None,
+        stripping_result: Dict[str, Any] = None
+    ) -> Blueprint:
+        """
+        第一阶段：一号脑规划
+        
+        Args:
+            user_input: 用户输入
+            clarification_history: 深化提问历史
+            stripping_result: 需求裸奔结果
+            
+        Returns:
             任务执行蓝图
         """
+        # 构建增强的分析输入
+        enhanced_input = user_input
+        
+        # 添加需求裸奔结果
+        if stripping_result:
+            enhanced_input += f"\n\n需求本质：{stripping_result.get('actually_wants', [])}"
+        
+        # 添加深化提问结果
+        if clarification_history:
+            qa_text = "\n".join([
+                f"问：{item['question']}\n答：{item['answer']}"
+                for item in clarification_history
+                if not item.get("skipped", False)
+            ])
+            if qa_text:
+                enhanced_input += f"\n\n用户澄清：\n{qa_text}"
+        
         # 启动一号脑进行需求分析
-        analysis_result = await self.brain_one.analyze(user_input)
+        analysis_result = await self.brain_one.analyze(enhanced_input)
         
         # 生成任务执行蓝图
         blueprint = await self.brain_one.generate_blueprint(analysis_result)
+        
+        # 保存需求裸奔结果
+        if stripping_result:
+            blueprint.requirement_stripping = stripping_result
+        
+        # 保存深化提问历史
+        if clarification_history:
+            blueprint.clarification_history = clarification_history
         
         return blueprint
     
     async def _wait_for_approval(self, blueprint: Blueprint) -> Blueprint:
         """
-        等待用户审批蓝图
+        等待用户审批蓝图（V2 版本）
         
         Args:
             blueprint: 待审批的蓝图
@@ -212,14 +394,48 @@ class FlowArchitect:
             print(f"任务ID: {blueprint.task_id}")
             print(f"任务描述: {blueprint.description}")
             print(f"预估Token消耗: {blueprint.estimated_tokens}")
-            print(f"\n执行步骤:")
+            
+            # 显示需求裸奔结果
+            if blueprint.requirement_stripping:
+                print(f"\n【需求本质】")
+                actually_wants = blueprint.requirement_stripping.get("actually_wants", [])
+                for item in actually_wants:
+                    print(f"  - {item}")
+            
+            # 显示执行步骤
+            print(f"\n【执行步骤】")
             for i, step in enumerate(blueprint.steps, 1):
                 print(f"  {i}. {step.get('name', '未命名')} [专家: {step.get('expert', '未知')}]")
                 print(f"     任务: {step.get('task', '无描述')[:80]}...")
+            
+            # 显示风险标注
+            if blueprint.risks:
+                print(f"\n【风险标注】")
+                for risk in blueprint.risks:
+                    print(f"  ⚠️ {risk.get('step', '')}: {risk.get('risk', '')}")
+            
+            # 显示替代支线
+            if blueprint.alternatives:
+                print(f"\n【替代支线】")
+                for alt in blueprint.alternatives:
+                    print(f"  - {alt.get('name', '')}: {alt.get('description', '')[:50]}...")
+            
+            # 显示反对者质疑
+            if blueprint.opponent_critique:
+                print(f"\n【反对者质疑】")
+                for critique in blueprint.opponent_critique:
+                    print(f"  💬 {critique}")
+            
             print("\n" + "="*60)
             
             # 获取用户输入
-            user_input = await asyncio.to_thread(input, "\n请输入选项 [A]批准 [R]拒绝+反馈 [C]取消: ")
+            print("\n选项：")
+            print("  [A] 批准")
+            print("  [R] 拒绝+反馈")
+            print("  [C] 取消")
+            print("  [P] 换个视角重新审视")
+            
+            user_input = await asyncio.to_thread(input, "\n请输入选项: ")
             user_input = user_input.strip().upper()
             
             if user_input == "A":
@@ -238,8 +454,100 @@ class FlowArchitect:
             elif user_input == "C":
                 logger.info("用户取消任务")
                 raise Exception("用户取消任务")
+            elif user_input == "P":
+                # V2 极端场景：换个视角重新审视
+                blueprint = await self._extreme_scenario_review(blueprint)
+                # 继续循环，展示新结果
             else:
-                print("无效输入，请输入 A、R 或 C")
+                print("无效输入，请输入 A、R、C 或 P")
+    
+    async def _extreme_scenario_review(self, blueprint: Blueprint) -> Blueprint:
+        """
+        V2 极端场景审查
+        
+        Args:
+            blueprint: 蓝图
+            
+        Returns:
+            添加了极端场景审查结果的蓝图
+        """
+        print("\n" + "="*60)
+        print("选择视角方向：")
+        print("="*60)
+        print("  [1] 安全压力 — 数据泄露、合规风险、法律后果")
+        print("  [2] 竞争压力 — 同行对比、被替代风险、行业标准")
+        print("  [3] 成本压力 — 时间预算、维护代价、资源上限")
+        print("  [4] 用户同理心 — 初学者/非技术用户/弱势群体视角")
+        print("  [5] 自定义 — 输入一句话描述你想要的视角")
+        print("  [0] 返回")
+        print("="*60)
+        
+        choice = await asyncio.to_thread(input, "\n请选择: ")
+        choice = choice.strip()
+        
+        if choice == "0":
+            return blueprint
+        
+        direction_map = {
+            "1": "安全压力",
+            "2": "竞争压力",
+            "3": "成本压力",
+            "4": "用户同理心",
+        }
+        
+        if choice in direction_map:
+            direction = direction_map[choice]
+        elif choice == "5":
+            direction = await asyncio.to_thread(input, "请输入你想要的视角描述: ")
+            direction = direction.strip()
+        else:
+            print("无效选择")
+            return blueprint
+        
+        # 生成极端场景
+        scenario = await self.brain_one.generate_extreme_scenario(
+            direction, 
+            blueprint.description
+        )
+        
+        print(f"\n【{direction}审查】")
+        print(f"\n{scenario}")
+        print("\n" + "="*60)
+        
+        # 询问用户是否确认
+        confirm = await asyncio.to_thread(input, "\n是否用此视角重新审视方案？[Y/N]: ")
+        confirm = confirm.strip().upper()
+        
+        if confirm == "Y":
+            # 用新视角重新生成蓝图
+            logger.info(f"用户确认使用 {direction} 视角重新审视")
+            
+            # 构建增强的输入
+            enhanced_input = f"""原始需求：{blueprint.description}
+
+请用以下视角重新审视这个方案：
+{scenario}
+
+原方案步骤：
+"""
+            for i, step in enumerate(blueprint.steps, 1):
+                enhanced_input += f"{i}. {step.get('name', '')}: {step.get('task', '')[:50]}\n"
+            
+            # 重新分析并生成蓝图
+            analysis_result = await self.brain_one.analyze(enhanced_input)
+            new_blueprint = await self.brain_one.generate_blueprint(analysis_result)
+            
+            # 保留原蓝图的信息
+            new_blueprint.task_id = blueprint.task_id
+            new_blueprint.requirement_stripping = blueprint.requirement_stripping
+            new_blueprint.clarification_history = blueprint.clarification_history
+            
+            # 添加审查标记
+            new_blueprint.persona_scenario = f"【{direction}审查】\n{scenario}"
+            
+            return new_blueprint
+        
+        return blueprint
     
     async def _phase_two(self, blueprint: Blueprint) -> Dict[str, Any]:
         """
