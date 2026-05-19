@@ -390,7 +390,7 @@ class BrainOne:
             status="draft",
             risks=risks_and_alternatives.get("risks", []),
             alternatives=risks_and_alternatives.get("alternatives", []),
-            persona_scenario=self.DEFAULT_PERSONA,
+            scenario_label=self.DEFAULT_PERSONA,
         )
 
         logger.info(

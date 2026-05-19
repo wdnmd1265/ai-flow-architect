@@ -28,7 +28,7 @@ class Blueprint(BaseModel):
     alternatives: List[Dict[str, Any]] = Field(default_factory=list, description="替代支线")
     opponent_critique: List[str] = Field(default_factory=list, description="反对者质疑")
     clarification_history: List[Dict[str, Any]] = Field(default_factory=list, description="深化提问历史")
-    persona_scenario: str = Field("", description="人格注入场景")
+    scenario_label: Optional[str] = Field(None, description="场景标签（如：安全压力审查）")
     requirement_stripping: Dict[str, Any] = Field(default_factory=dict, description="需求裸奔结果")
 
 
@@ -497,9 +497,11 @@ class FlowArchitect:
         
         if choice in direction_map:
             direction = direction_map[choice]
+            is_preset = True
         elif choice == "5":
             direction = await asyncio.to_thread(input, "请输入你想要的视角描述: ")
             direction = direction.strip()
+            is_preset = False
         else:
             print("无效选择")
             return blueprint
@@ -514,38 +516,41 @@ class FlowArchitect:
         print(f"\n{scenario}")
         print("\n" + "="*60)
         
-        # 询问用户是否确认
-        confirm = await asyncio.to_thread(input, "\n是否用此视角重新审视方案？[Y/N]: ")
-        confirm = confirm.strip().upper()
+        # 预设方向直接执行，自定义需要确认
+        if not is_preset:
+            # 自定义方向：询问用户是否确认
+            confirm = await asyncio.to_thread(input, "\n是否用此视角重新审视方案？[Y/N]: ")
+            confirm = confirm.strip().upper()
+            if confirm != "Y":
+                return blueprint
         
-        if confirm == "Y":
-            # 用新视角重新生成蓝图
-            logger.info(f"用户确认使用 {direction} 视角重新审视")
-            
-            # 构建增强的输入
-            enhanced_input = f"""原始需求：{blueprint.description}
+        # 用新视角重新生成蓝图
+        logger.info(f"使用 {direction} 视角重新审视")
+        
+        # 构建增强的输入
+        enhanced_input = f"""原始需求：{blueprint.description}
 
 请用以下视角重新审视这个方案：
 {scenario}
 
 原方案步骤：
 """
-            for i, step in enumerate(blueprint.steps, 1):
-                enhanced_input += f"{i}. {step.get('name', '')}: {step.get('task', '')[:50]}\n"
-            
-            # 重新分析并生成蓝图
-            analysis_result = await self.brain_one.analyze(enhanced_input)
-            new_blueprint = await self.brain_one.generate_blueprint(analysis_result)
-            
-            # 保留原蓝图的信息
-            new_blueprint.task_id = blueprint.task_id
-            new_blueprint.requirement_stripping = blueprint.requirement_stripping
-            new_blueprint.clarification_history = blueprint.clarification_history
-            
-            # 添加审查标记
-            new_blueprint.persona_scenario = f"【{direction}审查】\n{scenario}"
-            
-            return new_blueprint
+        for i, step in enumerate(blueprint.steps, 1):
+            enhanced_input += f"{i}. {step.get('name', '')}: {step.get('task', '')[:50]}\n"
+        
+        # 重新分析并生成蓝图
+        analysis_result = await self.brain_one.analyze(enhanced_input)
+        new_blueprint = await self.brain_one.generate_blueprint(analysis_result)
+        
+        # 保留原蓝图的信息
+        new_blueprint.task_id = blueprint.task_id
+        new_blueprint.requirement_stripping = blueprint.requirement_stripping
+        new_blueprint.clarification_history = blueprint.clarification_history
+        
+        # 添加审查标记
+        new_blueprint.scenario_label = f"【{direction}审查】"
+        
+        return new_blueprint
         
         return blueprint
     
