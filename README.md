@@ -3,7 +3,12 @@
 </p>
 
 <p align="center">
-  <strong>API-neutral, token-efficient multi-model workflow engine</strong>
+  <h1>AI proposes. You decide.</h1>
+</p>
+
+<p align="center">
+  <strong>Two AI brains debate your task. One proposes, the other challenges.
+  You make the final call. Built-in quality arbitration — not an afterthought.</strong>
 </p>
 
 <p align="center">
@@ -14,97 +19,125 @@
 </p>
 
 <p align="center">
-  <a href="#quick-start">Quick Start</a> · <a href="#how-it-works">How It Works</a> · <a href="#comparison">Comparison</a> · <a href="#roadmap">Roadmap</a> · <a href="#contributing">Contributing</a>
+  <a href="#the-problem">The Problem</a> &middot;
+  <a href="#how-it-works">How It Works</a> &middot;
+  <a href="#comparison">Comparison</a> &middot;
+  <a href="#quick-start">Quick Start</a> &middot;
+  <a href="#roadmap">Roadmap</a>
+</p>
+
+---
+
+<!-- Architecture diagram -->
+<p align="center">
+  <img src="docs/img/architecture.png" alt="AI Flow Architect — Dual-Brain Workflow" width="800" />
 </p>
 
 ---
 
 ## The Problem
 
-When you need **multiple AI roles to collaborate on a complex task**, calling a single GPT API doesn't cut it:
+You ask GPT-4 to design a user authentication system. It returns code that looks clean. You scan through it — APIs, database schema, middleware. Looks fine. You ship it.
 
-| Problem | What happens |
-|---------|-------------|
-| **Role bleeding** | Stuff all instructions into one context, AI confuses role boundaries, quality drops |
-| **Quality black box** | No independent review — hallucinations and omissions go straight to delivery |
-| **Token waste** | Redundant calls, bloated context, no skipping of unnecessary steps |
+**What you didn't notice**: the password hashing uses MD5 and there is no rate limiting on login endpoints.
 
-## The Fix
+You trusted a single AI and it hallucinated security. This happens constantly — not because AI is malicious, but because **a single model has no mechanism to catch its own blind spots**.
 
-AI Flow Architect enforces a **fixed three-phase workflow** with two independently-moded "brains":
+| Existing approach | The flaw |
+|---|---|
+| Single-model prompting | Same model reviews its own output. Blind spots persist. |
+| LangChain / CrewAI | Flexible orchestration, but quality control is your responsibility. |
+| "Trust me bro" | Hoping the model gets it right this time. |
+
+## How It Works
+
+AI Flow Architect runs your task through **two independent AI brains** and makes their disagreement visible to you.
 
 ```
-  User Input
-     |
-     v
-+------------------------+
-|  Brain #1 (Architect)  |  Clarify requirements -> Generate Blueprint -> User approves
-|  Independent instance  |
-+-----------+------------+
-            | Approved Blueprint
-            v
-+------------------------+
-|  Scheduler             |  Serial execution with 4 token-saving mechanisms
-+-----------+------------+
-            |
-   +--------+--------+
-   |        |        |       Each expert is an isolated session —
-   v        v        v       no cross-contamination, formatted handoffs only
- Creative  Evaluator  Programmer  Reviewer
-   |        |        |        |
-   +--------+--------+--------+
-            |
-            v
-+------------------------+
-|  Brain #2 (Arbiter)   |  Compare blueprint vs deliverables item-by-item
-|  DIFFERENT model      |  -> Pass: deliver | Fail: return for revision
-+-----------+------------+
-            |
-            v
-        Final Delivery
+  You: "Design a user management system"
+         |
+         v
++--------------------+
+| Brain #1 (Planner) |  Analyzes requirements, generates a step-by-step blueprint
+| Model: GPT-4o      |  with risk annotations and alternative approaches
++--------+-----------+
+         |
+         v
++--------------------+
+| Opponent Brain     |  Challenges the blueprint from adversarial perspectives:
+| (5 review styles)  |  Security audit, cost analysis, user empathy, data rigor, minimalism
++--------+-----------+
+         |
+    [You review and approve the blueprint]
+         |
+         v
++--------------------+
+| Expert Team        |  Each expert runs in an isolated session.
+| Creative           |  No cross-contamination. Structured handoffs only.
+| Evaluator          |
+| Programmer         |
+| Reviewer           |
++--------+-----------+
+         |
+         v
++--------------------+
+| Brain #2 (Arbiter) |  Compares the blueprint against deliverables item-by-item.
+| Model: Claude      |  Cross-model review. Different model = different blind spots.
++--------+-----------+
+         |
+         v
+     You get: a quality report, not a gamble.
 ```
 
-**Key design choices:**
-- **Single key works out of the box** — if you omit brain2, it auto-selects a cheaper model from the same provider. One OpenAI key is enough to start.
-- **Cross-provider is best** — OpenAI + Anthropic gives you the strongest quality arbitration. brain2 auto-resolves to a Claude model when both keys are present.
-- **Different models matter** — same-model self-review lets hallucinations through. brain2 auto-chooses a different model even with one key.
-- **Fixed workflow, not free orchestration** — you trade flexibility for predictability and quality control.
-- **Every expert is session-isolated** — they don't know about each other, data passes through structured fields only.
+**Key design decisions:**
+
+- **Single key works out of the box.** Omit brain2 and it auto-selects a cheaper model from the same provider. One OpenAI key is enough to start.
+- **Cross-provider is best.** OpenAI + Anthropic gives the strongest arbitration — different training data, different failure modes.
+- **Different models matter.** Same-model self-review lets hallucinations through. The framework enforces model diversity for Brain #2.
+- **Fixed workflow, not free orchestration.** You trade flexibility for predictability. Every task follows the same quality-controlled pipeline.
+- **Every expert is session-isolated.** They don't know about each other. Data passes through structured fields only.
+- **Opponent Brain before execution.** Five adversarial perspectives challenge the plan before a single API call is wasted.
 
 ## Comparison
 
 | | AI Flow Architect | LangChain | CrewAI |
 |---|---|---|---|
-| **What it is** | Opinionated workflow engine | Orchestration framework | Agent framework |
-| **Quality control** | Built-in (Brain #2 arbitration) | Manual / your responsibility | Optional |
-| **Single API key** | ✅ Works out of the box | ✅ Works | ✅ Works |
-| **Model isolation** | Auto-enforced (brain2 auto-resolves) | Not enforced | Not enforced |
+| **Philosophy** | Adversarial quality control | Flexible pipeline composition | Role-based agent teams |
+| **Quality control** | Built-in (dual-brain arbitration + opponent review) | Manual — your responsibility | Optional |
+| **Single API key** | Works out of the box | Works | Works |
+| **Model isolation** | Auto-enforced (brain2 auto-resolves to different model) | Not enforced | Not enforced |
 | **Token saving** | 4 mechanisms, zero-config | Manual optimization | Manual optimization |
-| **Flow control** | Fixed 3-phase pipeline | Free-form chains/agents | Configurable process |
-| **Best for** | Predictable, auditable multi-AI workflows | Flexible pipeline composition | Role-based agent teams |
+| **Flow control** | Fixed 3-phase pipeline with user approval gate | Free-form chains/agents | Configurable process |
+| **Best for** | Auditable quality. You need to trust the output. | Maximum flexibility. You own the pipeline. | Multi-agent simulations. |
 
-If you need maximum flexibility, use LangChain or CrewAI. If you need **auditable quality with minimal configuration**, this is it.
+If you need maximum flexibility, use LangChain or CrewAI. If you need **auditable quality where AI hallucinations have consequences** — this is it.
 
-## Supported Providers
+## Model Support
 
-AI Flow Architect supports multiple API providers. Add new providers by updating `models.yaml` — no Python code changes needed.
+### Production-tested
 
-| Provider | Models | API Key | Auto-fallback |
-|----------|--------|---------|---------------|
-| **OpenAI** | gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-3.5-turbo | `OPENAI_API_KEY` | ✅ |
-| **Anthropic** | claude-3-5-sonnet-20241022, claude-3-5-haiku-20240620, claude-3-opus | `ANTHROPIC_API_KEY` | ✅ |
-| **通义千问** | qwen-max, qwen-plus, qwen-turbo | `DASHSCOPE_API_KEY` | ✅ |
-| **智谱 GLM** | glm-4, glm-4-flash, glm-3-turbo | `ZHIPU_API_KEY` | ✅ |
-| **月之暗面** | moonshot-v1-8k, moonshot-v1-32k, moonshot-v1-128k | `MOONSHOT_API_KEY` | ✅ |
-| **DeepSeek** | deepseek-chat, deepseek-coder | `DEEPSEEK_API_KEY` | ✅ |
-| **Ollama (本地)** | llama3, qwen2.5-coder, ... | 无需 API key | ✅ |
-| **自定义 API** | custom-model | `CUSTOM_API_KEY` + `CUSTOM_BASE_URL` | ✅ |
+| Provider | Models | API Key |
+|----------|--------|---------|
+| **OpenAI** | gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-3.5-turbo | `OPENAI_API_KEY` |
+| **Anthropic** | claude-3-5-sonnet-20241022, claude-3-5-haiku-20240620, claude-3-opus | `ANTHROPIC_API_KEY` |
 
-**Adding a new provider:**
-1. Add provider config to `models.yaml` → `providers` section
-2. Add model entries to `models.yaml` → `models` section
-3. Add fallback paths to `models.yaml` → `fallbacks` section
-4. Add API key to `.env.example`
+### Community-ready (OpenAI-compatible protocol — needs your verification)
+
+These providers expose OpenAI-compatible APIs. The framework already supports them through `models.yaml` configuration. If you test one and it works, a PR moving it to "Production-tested" is more than welcome.
+
+| Provider | Models | API Key | Status |
+|----------|--------|---------|--------|
+| **DashScope (Alibaba)** | qwen-max, qwen-plus, qwen-turbo | `DASHSCOPE_API_KEY` | Needs verification |
+| **Zhipu GLM** | glm-4, glm-4-flash, glm-3-turbo | `ZHIPU_API_KEY` | Needs verification |
+| **Moonshot** | moonshot-v1-8k, moonshot-v1-32k, moonshot-v1-128k | `MOONSHOT_API_KEY` | Needs verification |
+| **DeepSeek** | deepseek-chat, deepseek-coder | `DEEPSEEK_API_KEY` | Needs verification |
+| **Ollama (local)** | llama3, qwen2.5-coder, ... | None required | Needs verification |
+| **Custom API** | custom-model | `CUSTOM_API_KEY` + `CUSTOM_BASE_URL` | Needs verification |
+
+**Adding a new provider takes 3 steps in `models.yaml`** — no Python code changes needed:
+1. Add provider config (base_url, api_key_env)
+2. Add model entries (name, context_window, pricing)
+3. Add fallback paths
 
 See `models.yaml` for the full configuration structure.
 
@@ -116,7 +149,7 @@ All four work out of the box, zero configuration:
 |-----------|-----|------|
 | **Semantic cache** | Same expert+task combo hits cache, skips API call | 0 API calls |
 | **Context compression** | History exceeds threshold -> auto-compress | ~60% fewer input tokens |
-| **Local rule precheck** | Hardcoded rules (empty task / unknown expert / invalid complexity) reject before any API call | 0 cost |
+| **Local rule precheck** | Empty task / unknown expert / invalid complexity — rejected before any API call | 0 cost |
 | **Smart skip** | Current step fails -> skip remaining; all remaining are `low` complexity -> skip; explicit `skip_next` flag | 0 API calls |
 
 ## Quick Start
@@ -145,25 +178,7 @@ OPENAI_API_KEY=sk-your-key
 ```bash
 OPENAI_API_KEY=sk-your-key
 ANTHROPIC_API_KEY=sk-ant-your-key
-# brain2 uses a Claude model → cross-provider arbitration is most effective
-```
-
-**Ollama (free, local):**
-```bash
-# Install: brew install ollama (macOS) or ollama.com
-# Start: ollama serve
-# Pull model: ollama pull llama3
-# Then in config: "brain2": "llama3" or "qwen2.5-coder"
-# Note: model name matches Ollama official, no ollama- prefix needed
-```
-
-**Custom OpenAI-compatible API:**
-```bash
-# If you have other OpenAI-compatible APIs (vLLM, LocalAI, proxy services, etc.)
-# Set these environment variables:
-CUSTOM_API_KEY=sk-your-custom-api-key
-CUSTOM_BASE_URL=https://your-custom-api.com/v1
-# Then in config: "brain1": "custom-model" or "brain2": "custom-model"
+# brain2 uses a Claude model — cross-provider arbitration is most effective
 ```
 
 ### 3. Run
@@ -176,7 +191,7 @@ async def main():
     # Single key: brain2 auto-resolves to gpt-4o-mini
     # Dual key: brain2 defaults to your Anthropic model
     architect = FlowArchitect(config={
-        "brain1": "gpt-4o",   # Planning & coordination
+        "brain1": "gpt-4o",
         # "brain2": optional — auto-selected if omitted
     })
 
@@ -208,6 +223,10 @@ Steps:
      Task: Design system architecture and technical approach...
   3. Implementation [expert: programmer]
      Task: Implement core user management features...
+
+Opponent Brain Review (Security perspective):
+  - WARNING: Authentication flow lacks rate limiting
+  - WARNING: Password hashing algorithm not specified — verify bcrypt/argon2
 
 ============================================================
 
@@ -275,7 +294,8 @@ ai-flow-architect/
 │   │   └── cache.py             # CRUD + TTL + hit stats
 │   ├── brains/
 │   │   ├── brain_one.py         # Brain #1: requirement analysis + blueprint generation
-│   │   └── brain_two.py         # Brain #2: quality arbitration
+│   │   ├── brain_two.py         # Brain #2: quality arbitration (cross-model)
+│   │   └── brain_opponent.py    # Opponent Brain: 5 adversarial review styles
 │   ├── experts/
 │   │   ├── base.py              # BaseExpert + ExpertConfig + three-layer prompts
 │   │   ├── creative.py          # CreativeExpert
@@ -283,37 +303,35 @@ ai-flow-architect/
 │   │   ├── programmer.py        # ProgrammerExpert
 │   │   └── reviewer.py          # ReviewerExpert
 │   └── utils/
+│       ├── llm_client.py        # Unified LLM client (8 providers)
 │       ├── token_counter.py     # Token counting + cost estimation
-│       ├── compressor.py        # Context compression
+│       ├── compressor.py        # Context compression (4 strategies)
 │       └── validator.py         # Input validation
 ├── tests/unit/                  # 114 unit tests
-│   ├── test_scheduler.py        # 57 tests
-│   ├── test_cache.py            # 22 tests
-│   ├── test_context.py          # 18 tests
-│   └── test_architect.py        # 10 tests
 ├── examples/
 │   └── basic_usage.py
 ├── docs/
 │   └── getting_started.md
 ├── .env.example
-├── requirements.txt
-├── setup.py
-└── pyproject.toml
+├── pyproject.toml
+└── models.yaml                  # Provider + model configuration
 ```
 
 ## Roadmap
 
 - [ ] **PyPI package** — `pip install ai-flow-architect`
 - [ ] **CLI interface** — `ai-flow run "design a system"`
+- [ ] **Expert execution layer** — Real LLM calls in expert `execute()` (currently mock data)
 - [ ] **Expert team templates** — Pre-configured teams for web dev, data analysis, content creation
 - [ ] **Web UI** — Visual blueprint editor and execution monitor
-- [x] **More model providers** — OpenAI, Anthropic, 通义千问, 智谱, 月之暗面, DeepSeek, Ollama, 自定义 API
+- [ ] **DeepSeek verification** — Most cost-effective provider, high priority for community validation
+- [x] **Model providers** — OpenAI + Anthropic production-tested, 5 more via OpenAI-compatible protocol
 - [ ] **Parallel execution** — Independent steps run concurrently
 - [ ] **Streaming output** — Real-time expert output streaming
 
 ## Contributing
 
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+Contributions are welcome — especially provider verification PRs. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ```bash
 git clone https://github.com/wdnmd1265/ai-flow-architect.git
@@ -324,10 +342,10 @@ pytest tests/unit/ -v
 
 ## License
 
-[Apache License 2.0](LICENSE)
+[Apache License 2.0](LICENSE) — Copyright 2026 盛鑫
 
 ---
 
 <p align="center">
-  <em>Predictable AI collaboration. Quality control baked into the architecture.</em>
+  <em>AI generates. AI challenges. You decide. This is how we solve hallucination.</em>
 </p>

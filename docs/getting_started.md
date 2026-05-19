@@ -3,7 +3,9 @@
 ## Prerequisites
 
 - Python 3.9+
-- API keys from **two different AI providers** (e.g. OpenAI + Anthropic)
+- At least one API key from a supported provider (OpenAI or Anthropic recommended)
+
+**Single key works.** If you only have an OpenAI key, Brain #2 auto-selects a cheaper model from the same provider (e.g. gpt-4o-mini). Cross-provider (OpenAI + Anthropic) gives the strongest quality arbitration, but is not required.
 
 ## Installation
 
@@ -23,18 +25,29 @@ cp .env.example .env
 
 Edit `.env`:
 
+**Single key (works out of the box):**
 ```bash
-# Required — you need keys from two different providers
+OPENAI_API_KEY=sk-your-openai-api-key
+# Brain #2 auto-resolves to a cheaper model from the same provider
+```
+
+**Dual key (recommended for best quality):**
+```bash
 OPENAI_API_KEY=sk-your-openai-api-key
 ANTHROPIC_API_KEY=sk-ant-your-anthropic-api-key
+# Cross-provider arbitration is most effective against hallucinations
+```
 
-# Optional — Redis for persistent cache (default: in-memory)
+**Optional — Redis for persistent cache (default: in-memory)**
+```bash
 # REDIS_URL=redis://localhost:6379/0
 ```
 
-### Why Two Providers?
+### Why Cross-Provider Matters
 
-Brain #2 (quality arbiter) MUST use a different model from Brain #1. Same-model self-review is the primary cause of hallucination leakage in multi-AI systems. The framework enforces this at initialization — `FlowArchitect()` without a `brain2` config will raise `ValueError`.
+Brain #2 (quality arbiter) should ideally use a different model from Brain #1. Same-model self-review is the primary cause of hallucination leakage in multi-AI systems — a model cannot reliably catch its own blind spots. Different models have different failure modes, creating genuine adversarial quality control.
+
+**If you only have one key, don't worry** — the framework auto-selects a different model tier from the same provider (e.g. gpt-4o for Brain #1, gpt-4o-mini for Brain #2).
 
 ## Basic Usage
 
@@ -43,13 +56,18 @@ import asyncio
 from ai_flow_architect import FlowArchitect
 
 async def main():
-    # Brain #2 is mandatory and must use a different model
+    # Single key: brain2 auto-resolves
     architect = FlowArchitect(config={
         "brain1": "gpt-4o",
-        "brain2": "claude-3-5-sonnet-20241022",
+        # "brain2" is optional — auto-selected if omitted
     })
 
-    # Enter a vague requirement — the framework handles the rest
+    # Dual key: explicit brain2 for cross-provider arbitration
+    # architect = FlowArchitect(config={
+    #     "brain1": "gpt-4o",
+    #     "brain2": "claude-3-5-sonnet-20241022",
+    # })
+
     result = await architect.run("Design a user management system")
 
     if result["status"] == "success":
@@ -191,17 +209,17 @@ pytest tests/unit/ --cov=ai_flow_architect --cov-report=term-missing
 
 ## FAQ
 
-### Q: Why must Brain #2 use a different model?
+### Q: Do I need two different API providers?
 
-If both brains use the same model, it's effectively "self-review" — the same model that generated the output is judging it. Hallucinations and omissions that the model is prone to won't be caught by itself. Forcing a different model creates genuine adversarial quality control.
+No. A single API key (e.g. OpenAI) works. The framework auto-selects a different model tier for Brain #2. Cross-provider (OpenAI + Anthropic) is recommended for the strongest quality control, but is not required.
 
-### Q: What happens if I don't pass a config?
+### Q: Why use a different model for Brain #2?
 
-`FlowArchitect()` without config will raise `ValueError: 配置错误：必须配置 brain2 模型`. Brain #2 is not optional.
+If both brains use the same model, it's effectively "self-review" — the same model that generated the output is judging it. Hallucinations and omissions that the model is prone to won't be caught by itself. A different model (even a cheaper one from the same provider) creates genuine adversarial quality control.
 
 ### Q: Which AI models are supported?
 
-Any model accessible via the OpenAI or Anthropic SDKs. Brain #1 and Brain #2 just need to be from different model families — e.g. GPT-4o + Claude 3.5 Sonnet, or GPT-4 + GPT-3.5 (different capability tiers).
+OpenAI (GPT-4o / GPT-4o-mini / GPT-4-turbo / GPT-3.5-turbo) and Anthropic (Claude 3.5 Sonnet / Haiku / Opus) are fully tested. Five additional providers (DashScope, Zhipu, Moonshot, DeepSeek, Ollama) are supported through OpenAI-compatible protocol and await community verification. See models.yaml for the full configuration.
 
 ### Q: Can I add custom expert roles?
 
