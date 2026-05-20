@@ -7,8 +7,12 @@
 </p>
 
 <p align="center">
-  <strong>Two AI brains debate your task. One proposes, the other challenges.
-  You make the final call. Built-in quality arbitration — not an afterthought.</strong>
+  <strong>I don't trust AI.<br>
+  One model saying something is right — that's not proof. Two isolated brains,
+  running on different models, debating each other. A third brain arbitrating.
+  <em>That</em> barely qualifies.<br><br>
+  Every framework out there helps you run more AI.<br>
+  This one helps you trust it less.</strong>
 </p>
 
 <p align="center">

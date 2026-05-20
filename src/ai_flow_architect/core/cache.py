@@ -2,9 +2,10 @@
 缓存管理器 - 实现Token节省
 """
 
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, Optional, Union, List
 import hashlib
 import json
+import re
 import time
 from loguru import logger
 
@@ -54,6 +55,77 @@ class CacheManager:
         
         # 生成MD5哈希
         return hashlib.md5(sorted_data.encode()).hexdigest()
+
+    @staticmethod
+    def _extract_domain_entities(text: str) -> List[str]:
+        """
+        场景感知：从 prompt 中提取核心领域实体词。
+
+        用于防止相似但不同领域的内容被错误复用。
+        例如 "电商用户模块" 和 "社交用户模块" 语义向量相近但领域不同。
+
+        规则（零 LLM 成本）：
+        - 中文复合词（含系统/模块/平台/电商/社交/支付/订单/认证等关键后缀）
+        - 英文术语（camelCase、snake_case、点分隔的技术栈）
+        """
+        entities = set()
+
+        # 中文领域词模式：匹配包含关键后缀的 2-6 字词组
+        cn_domain_suffixes = (
+            '系统模块平台服务引擎接口网关中间件框架应用'
+            '工具平台电商社交支付订单用户认证权限日志缓存'
+            '消息队列搜索推荐数据仓库管道代理负载均衡配置'
+            '注册登录授权审核审批通知推送统计监控分析报告'
+        )
+        cn_pattern = re.compile(
+            r'[\u4e00-\u9fff]{2,6}(?:' +
+            '|'.join(re.escape(c) for c in cn_domain_suffixes) +
+            r')'
+        )
+        for match in cn_pattern.finditer(text):
+            term = match.group(0).strip()
+            if len(term) >= 2:
+                entities.add(term)
+
+        # 英文术语模式
+        en_pattern = re.compile(
+            r'\b[a-zA-Z][a-zA-Z0-9_]*(?:[._-][a-zA-Z][a-zA-Z0-9_]*)+'
+            r'|\b[a-z]+(?:[A-Z][a-z]+){1,}\b'
+        )
+        for match in en_pattern.finditer(text):
+            term = match.group(0).strip()
+            if len(term) >= 3:
+                entities.add(term.lower())
+
+        # 排序保证确定性
+        return sorted(entities)[:20]  # 最多20个，避免 blow up cache key
+
+    def _generate_domain_key(self, data: Any) -> str:
+        """
+        场景感知缓存键：在语义指纹基础上拼接领域实体。
+
+        与 _generate_key 不同，此法能区分领域不同但结构相同的 prompt。
+        """
+        base_key = self._generate_key(data)
+
+        # 从原始数据中提取文本
+        text = ""
+        if isinstance(data, dict):
+            text = json.dumps(data, ensure_ascii=False)
+        else:
+            text = str(data)
+
+        # 提取领域实体
+        entities = self._extract_domain_entities(text)
+
+        if entities:
+            domain_suffix = "::" + "::".join(entities)
+            base_key = hashlib.md5(
+                (base_key + domain_suffix).encode()
+            ).hexdigest()
+            logger.debug(f"场景感知缓存键，领域实体: {entities[:5]}...")
+
+        return base_key
     
     def get(self, key: str) -> Optional[Any]:
         """
@@ -185,12 +257,12 @@ class CacheManager:
             result: 调用结果
             ttl: 过期时间（秒）
         """
-        # 生成缓存键
+        # 场景感知缓存键
         cache_key_data = {
             "function": func_name,
             "params": params,
         }
-        cache_key = self._generate_key(cache_key_data)
+        cache_key = self._generate_domain_key(cache_key_data)
         
         # 缓存结果
         self.set(cache_key, result, ttl)
@@ -215,7 +287,7 @@ class CacheManager:
             "function": func_name,
             "params": params,
         }
-        cache_key = self._generate_key(cache_key_data)
+        cache_key = self._generate_domain_key(cache_key_data)
         
         return self.get(cache_key)
     
@@ -240,7 +312,7 @@ class CacheManager:
             "prompt": prompt,
             "model": model,
         }
-        cache_key = self._generate_key(cache_key_data)
+        cache_key = self._generate_domain_key(cache_key_data)
         
         cache_value = {
             "prompt": prompt,
@@ -272,7 +344,7 @@ class CacheManager:
             "prompt": prompt,
             "model": model,
         }
-        cache_key = self._generate_key(cache_key_data)
+        cache_key = self._generate_domain_key(cache_key_data)
         
         cached = self.get(cache_key)
         if cached:

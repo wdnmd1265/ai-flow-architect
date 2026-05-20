@@ -1,0 +1,10 @@
+include README.md
+include LICENSE
+include CHANGELOG.md
+include CONTRIBUTING.md
+include requirements.txt
+recursive-include src/ai_flow_architect/config *.yaml
+recursive-include docs *
+prune tests
+prune .git
+prune .github

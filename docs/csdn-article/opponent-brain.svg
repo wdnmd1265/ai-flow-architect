@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 360" width="100%">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; }
+    .title { font-size: 14px; font-weight: 500; fill: #2C2C2A; }
+    .sub { font-size: 12px; font-weight: 400; fill: #5F5E5A; }
+    .badge { font-size: 10px; font-weight: 500; fill: white; }
+    .label { font-size: 11px; font-weight: 400; fill: #888780; }
+  </style>
+
+  <!-- Opponent Brain central node -->
+  <rect x="240" y="20" width="200" height="56" rx="12" fill="#FAEEDA" stroke="#BA7517" stroke-width="0.5"/>
+  <text class="title" x="340" y="40" text-anchor="middle" dominant-baseline="central">对手脑 Opponent Brain</text>
+  <text class="sub" x="340" y="60" text-anchor="middle" dominant-baseline="central">5 个对抗视角挑刺</text>
+
+  <!-- Connecting lines from center to 5 nodes -->
+  <line x1="290" y1="76" x2="130" y2="130" stroke="#888780" stroke-width="1"/>
+  <line x1="310" y1="76" x2="260" y2="130" stroke="#888780" stroke-width="1"/>
+  <line x1="340" y1="76" x2="340" y2="130" stroke="#888780" stroke-width="1"/>
+  <line x1="370" y1="76" x2="420" y2="130" stroke="#888780" stroke-width="1"/>
+  <line x1="390" y1="76" x2="550" y2="130" stroke="#888780" stroke-width="1"/>
+
+  <!-- 1. Security -->
+  <rect x="60" y="130" width="140" height="56" rx="12" fill="#FCEBEB" stroke="#E24B4A" stroke-width="0.5"/>
+  <circle cx="90" cy="158" r="14" fill="#E24B4A"/>
+  <text class="badge" x="90" y="158" text-anchor="middle" dominant-baseline="central">S</text>
+  <text class="title" x="150" y="148" text-anchor="middle" dominant-baseline="central" fill="#A32D2D">安全审计</text>
+  <text class="sub" x="150" y="168" text-anchor="middle" dominant-baseline="central">漏洞 / 权限 / 注入</text>
+
+  <!-- 2. Cost -->
+  <rect x="220" y="130" width="140" height="56" rx="12" fill="#FAEEDA" stroke="#BA7517" stroke-width="0.5"/>
+  <circle cx="250" cy="158" r="14" fill="#BA7517"/>
+  <text class="badge" x="250" y="158" text-anchor="middle" dominant-baseline="central">$</text>
+  <text class="title" x="310" y="148" text-anchor="middle" dominant-baseline="central" fill="#854F0B">成本分析</text>
+  <text class="sub" x="310" y="168" text-anchor="middle" dominant-baseline="central">资源浪费 / 过度工程</text>
+
+  <!-- 3. UX -->
+  <rect x="380" y="130" width="140" height="56" rx="12" fill="#FBEAF0" stroke="#D4537E" stroke-width="0.5"/>
+  <circle cx="410" cy="158" r="14" fill="#D4537E"/>
+  <text class="badge" x="410" y="158" text-anchor="middle" dominant-baseline="central">U</text>
+  <text class="title" x="470" y="148" text-anchor="middle" dominant-baseline="central" fill="#993556">用户体验</text>
+  <text class="sub" x="470" y="168" text-anchor="middle" dominant-baseline="central">可用性 / 学习成本</text>
+
+  <!-- 4. Data -->
+  <rect x="100" y="220" width="140" height="56" rx="12" fill="#E6F1FB" stroke="#378ADD" stroke-width="0.5"/>
+  <circle cx="130" cy="248" r="14" fill="#378ADD"/>
+  <text class="badge" x="130" y="248" text-anchor="middle" dominant-baseline="central">D</text>
+  <text class="title" x="190" y="238" text-anchor="middle" dominant-baseline="central" fill="#0C447C">数据严谨</text>
+  <text class="sub" x="190" y="258" text-anchor="middle" dominant-baseline="central">完整性 / 一致性</text>
+
+  <!-- 5. Minimalism -->
+  <rect x="340" y="220" width="140" height="56" rx="12" fill="#E1F5EE" stroke="#1D9E75" stroke-width="0.5"/>
+  <circle cx="370" cy="248" r="14" fill="#1D9E75"/>
+  <text class="badge" x="370" y="248" text-anchor="middle" dominant-baseline="central">M</text>
+  <text class="title" x="430" y="238" text-anchor="middle" dominant-baseline="central" fill="#085041">极简主义</text>
+  <text class="sub" x="430" y="258" text-anchor="middle" dominant-baseline="central">不必要的复杂度</text>
+
+  <!-- Connecting lines from row 1 to row 2 -->
+  <line x1="130" y1="186" x2="170" y2="220" stroke="#888780" stroke-width="1"/>
+  <line x1="450" y1="186" x2="410" y2="220" stroke="#888780" stroke-width="1"/>
+
+  <!-- Example output box -->
+  <rect x="140" y="300" width="400" height="44" rx="8" fill="#F1EFE8" stroke="#B4B2A9" stroke-width="0.5"/>
+  <text class="sub" x="340" y="316" text-anchor="middle" dominant-baseline="central">示例输出：</text>
+  <text class="sub" x="340" y="334" text-anchor="middle" dominant-baseline="central" fill="#993C1D">WARNING: 密码哈希算法未指定 —— 请确认 bcrypt/argon2</text>
+
+  <!-- Arrow from nodes to example -->
+  <line x1="170" y1="276" x2="220" y2="300" stroke="#888780" stroke-width="0.5" stroke-dasharray="3,3"/>
+  <line x1="410" y1="276" x2="460" y2="300" stroke="#888780" stroke-width="0.5" stroke-dasharray="3,3"/>
+</svg>

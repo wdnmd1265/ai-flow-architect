@@ -3,6 +3,7 @@
 """
 
 from typing import Dict, Any, List
+import json
 from .base import BaseExpert, ExpertConfig
 from loguru import logger
 
@@ -10,7 +11,7 @@ from loguru import logger
 class ProgrammerExpert(BaseExpert):
     """
     程序员专家
-    
+
     负责代码实现、技术方案设计、代码优化
     """
 
@@ -20,8 +21,42 @@ class ProgrammerExpert(BaseExpert):
 
     # 声明输出格式
     output_format: str = "code"
-    
-    def __init__(self, config: ExpertConfig = None, system_prompt: str = None):
+
+    # 真实 LLM 调用的 prompt 模板
+    LLM_PROGRAMMER_PROMPT = """基于以下任务描述和上游分析结果，编写完整的代码实现。
+
+任务描述：
+{task}
+
+上游评估与设计方案：
+{context}
+
+请严格按照以下 JSON 格式返回（不要包含 markdown 代码块标记，代码放在字符串字段中）：
+{{
+  "technical_analysis": {{
+    "architecture_pattern": "...",
+    "design_patterns": ["..."],
+    "technology_stack": {{"backend": "...", "database": "...", "cache": "...", "queue": "..."}},
+    "api_design": {{"rest_endpoints": ["..."], "authentication": "..."}},
+    "data_model": {{"entities": ["..."], "relationships": ["..."]}}
+  }},
+  "implementation": {{
+    "main_module": "完整的代码实现放在这里",
+    "supporting_modules": ["..."],
+    "dependencies": ["..."],
+    "entry_point": "..."
+  }},
+  "tests": ["..."],
+  "code_quality_metrics": {{
+    "complexity_score": 0.0,
+    "maintainability_score": 0.0,
+    "test_coverage": 0.0,
+    "documentation_coverage": 0.0
+  }},
+  "notes": "架构决策说明和注意事项"
+}}"""
+
+    def __init__(self, config: ExpertConfig = None, system_prompt: str = None, llm_client=None):
         """
         初始化程序员
 
@@ -43,7 +78,7 @@ class ProgrammerExpert(BaseExpert):
 请遵循最佳实践，编写清晰、高效的代码。""",
         )
         
-        super().__init__(config or default_config, system_prompt=system_prompt)
+        super().__init__(config or default_config, system_prompt=system_prompt, llm_client=llm_client)
         self.code_snippets = []
         self.technical_decisions = []
         
@@ -52,28 +87,56 @@ class ProgrammerExpert(BaseExpert):
     async def execute(self, task: str, context: Dict[str, Any]) -> Dict[str, Any]:
         """
         执行编程任务
-        
-        Args:
-            task: 任务描述
-            context: 上下文信息
-            
-        Returns:
-            编程结果
+
+        有 llm_client 时调用真实 LLM，无则回退到 mock 数据。
         """
         logger.info(f"程序员开始执行任务: {task[:50]}...")
-        
-        # 分析技术需求
+
+        if self.llm_client is not None:
+            return await self._execute_with_llm(task, context)
+        else:
+            return await self._execute_mock(task, context)
+
+    async def _execute_with_llm(self, task: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        """使用真实 LLM 生成代码"""
+        prompt = self.LLM_PROGRAMMER_PROMPT.format(
+            task=task,
+            context=json.dumps(context.get("filtered_input", {}), ensure_ascii=False, indent=2)
+        )
+        logger.info(f"程序员调用 LLM，prompt 长度: {len(prompt)} 字符")
+
+        try:
+            response = await self.llm_client.chat(
+                messages=[
+                    {"role": "system", "content": self.config.system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=self.config.temperature,
+                max_tokens=self.config.max_tokens,
+            )
+            parsed = self._parse_json_response(response)
+            logger.info("程序员 LLM 调用完成")
+        except Exception as e:
+            logger.error(f"程序员 LLM 调用失败: {e}，回退到 mock 数据")
+            return await self._execute_mock(task, context)
+
+        result = await self.format_output({
+            "task": task,
+            "technical_analysis": parsed.get("technical_analysis", {}),
+            "technical_design": parsed.get("technical_analysis", {}),
+            "implementation": parsed.get("implementation", {}),
+            "code_quality_metrics": parsed.get("code_quality_metrics", {}),
+            "notes": parsed.get("notes", ""),
+        })
+        self.code_snippets.append(result)
+        return result
+
+    async def _execute_mock(self, task: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        """回退：使用硬编码 mock 数据"""
         technical_analysis = await self._analyze_technical_requirements(task, context)
-        
-        # 设计技术方案
         technical_design = await self._design_technical_solution(technical_analysis)
-        
-        # 实现代码
         implementation = await self._implement_code(technical_design, context)
-        
-        # 代码优化
         optimized_code = await self._optimize_code(implementation)
-        
         result = await self.format_output({
             "task": task,
             "technical_analysis": technical_analysis,
@@ -81,9 +144,30 @@ class ProgrammerExpert(BaseExpert):
             "implementation": optimized_code,
             "code_quality_metrics": self._calculate_code_quality(optimized_code),
         })
-        
-        logger.info("程序员任务执行完成")
+        self.code_snippets.append(result)
         return result
+
+    def _parse_json_response(self, response: str) -> Dict[str, Any]:
+        """解析 LLM 返回的 JSON，带容错"""
+        text = response.strip()
+        if text.startswith("```"):
+            lines = text.split("\n")
+            text = "\n".join(lines[1:]) if lines[0].startswith("```") else text
+            if text.endswith("```"):
+                text = text[:-3]
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            logger.warning("程序员 JSON 解析失败，尝试提取 JSON 块")
+            import re
+            match = re.search(r'\{[\s\S]*\}', text)
+            if match:
+                try:
+                    return json.loads(match.group(0))
+                except json.JSONDecodeError:
+                    pass
+            logger.error("程序员 JSON 完全解析失败，返回空结构")
+            return {}
     
     async def analyze(self, input_data: Any) -> Dict[str, Any]:
         """

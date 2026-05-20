@@ -30,6 +30,7 @@ class Blueprint(BaseModel):
     clarification_history: List[Dict[str, Any]] = Field(default_factory=list, description="深化提问历史")
     scenario_label: Optional[str] = Field(None, description="场景标签（如：安全压力审查）")
     requirement_stripping: Dict[str, Any] = Field(default_factory=dict, description="需求裸奔结果")
+    adversarial_record: List[Dict[str, Any]] = Field(default_factory=list, description="反例攻防记录")
 
 
 class FlowArchitect:
@@ -67,12 +68,56 @@ class FlowArchitect:
                 f"警告：一号脑和二号脑使用相同模型 '{brain1_model}'，"
                 f"质检效果将大幅下降。强烈建议使用不同模型。"
             )
+            print(f"\n{'='*60}")
+            print(f"⚠️  完整性警告：双脑隔离不足")
+            print(f"{'='*60}")
+            print(f"  一号脑模型：{brain1_model}")
+            print(f"  二号脑模型：{brain2_model}（同上，同模型降级模式）")
+            print(f"\n  原因：只检测到一个 API 提供商。")
+            print(f"  完整隔离需要至少两个不同提供商的 API key。")
+            print(f"\n  如何添加第二个提供商：")
+            print(f"  1. 注册另一个提供商的 API key（如 Anthropic、通义千问、DeepSeek）")
+            print(f"  2. 设置对应的环境变量（如 ANTHROPIC_API_KEY、DASHSCOPE_API_KEY）")
+            print(f"  3. 重启程序，系统将自动启用跨模型交叉审查")
+            print(f"\n  降级模式说明：")
+            print(f"  - 双脑仍会运行，但使用同一模型的不同温度/角色")
+            print(f"  - 质量检查不会移除，但交叉审查效果打折扣")
+            print(f"  - 隔离级别将标记为 'degraded'（可在报告末尾查看）")
+            print(f"{'='*60}\n")
 
         self.brain_one = BrainOne(model=brain1_model)
         self.brain_two = BrainTwo(model=brain2_model)
         self.blueprint: Optional[Blueprint] = None
 
-        logger.info(f"AI Flow Architect 初始化完成 | 一号脑: {brain1_model} | 二号脑: {brain2_model}")
+        # 启动时扫描可用提供商
+        provider_count = self._scan_available_providers()
+        logger.info(f"AI Flow Architect 初始化完成 | 一号脑: {brain1_model} | 二号脑: {brain2_model} | 可用提供商: {provider_count}")
+
+    def _scan_available_providers(self) -> int:
+        """
+        启动时扫描可用 API 提供商数量。
+        ≥2 = 完整模式，仅1 = 降级模式。
+        """
+        import os
+        env_keys = {
+            "OpenAI": "OPENAI_API_KEY",
+            "Anthropic": "ANTHROPIC_API_KEY",
+            "DashScope": "DASHSCOPE_API_KEY",
+            "Zhipu": "ZHIPU_API_KEY",
+            "Moonshot": "MOONSHOT_API_KEY",
+            "DeepSeek": "DEEPSEEK_API_KEY",
+            "Ollama": "OLLAMA_HOST",
+        }
+        available = [name for name, env in env_keys.items() if os.getenv(env)]
+        
+        if len(available) >= 2:
+            logger.info(f"✓ 完整模式：检测到 {len(available)} 个可用提供商 ({', '.join(available)})")
+        elif len(available) == 1:
+            logger.info(f"⚠ 降级模式：仅检测到 {available[0]}，建议添加更多提供商以获得完整隔离")
+        else:
+            logger.warning("未检测到任何 API key，请设置环境变量")
+        
+        return len(available)
 
     def _load_models_config(self) -> Dict[str, Any]:
         """
@@ -183,6 +228,14 @@ class FlowArchitect:
             # V2 第五步：决策记录
             logger.info("V2 第五步：记录决策")
             await self._record_decision(user_input, blueprint, approved_blueprint)
+
+            # 质量信用点：预算预估
+            quality_budget = self._estimate_quality_budget(approved_blueprint)
+            if not self._check_budget_cap(quality_budget):
+                logger.warning("超过信用上限，任务中断")
+                return {"status": "budget_exceeded", "budget": quality_budget}
+            
+            logger.info(f"质量预算预估: {quality_budget['summary']}")
             
             # 第二阶段：执行任务
             logger.info("第二阶段：开始执行任务")
@@ -249,16 +302,15 @@ class FlowArchitect:
     
     async def _opponent_critique(self, blueprint: Blueprint) -> Blueprint:
         """
-        V2 反对者脑：条件触发
+        V2 反对者脑：条件触发 — 质疑 + 反例攻防
         
         Args:
             blueprint: 蓝图
             
         Returns:
-            添加了反对者质疑的蓝图
+            添加了反对者质疑和攻防记录的蓝图
         """
         # 判断是否需要反对者脑
-        # 简单任务（1个步骤、不涉及架构决策）跳过
         if len(blueprint.steps) <= 1:
             logger.info("简单任务，跳过反对者脑")
             return blueprint
@@ -281,6 +333,42 @@ class FlowArchitect:
             critique = await opponent.critique(blueprint)
             blueprint.opponent_critique = critique
             logger.info(f"反对者脑完成，提出 {len(critique)} 个质疑")
+            
+            # 反例攻防：生成反例 + 一号脑生成防御方案
+            adversarial = await opponent.generate_adversarial_examples(blueprint)
+            adversarial_examples = adversarial.get("adversarial_examples", [])
+            
+            if adversarial_examples:
+                logger.info(f"反对者脑生成 {len(adversarial_examples)} 个反例，开始攻防模拟")
+                defense_record = []
+                
+                for i, example in enumerate(adversarial_examples[:adversarial.get("max_rounds", 3)]):
+                    scenario = example.get("scenario", "")
+                    logger.info(f"攻防第 {i+1} 轮: {scenario[:60]}...")
+                    
+                    try:
+                        defense = await self.brain_one.simulate_defense(
+                            blueprint=blueprint,
+                            adversarial_scenario=example,
+                        )
+                        defense_record.append({
+                            "round": i + 1,
+                            "adversarial": example,
+                            "defense": defense,
+                        })
+                    except Exception as e:
+                        logger.warning(f"攻防第 {i+1} 轮失败: {e}")
+                        defense_record.append({
+                            "round": i + 1,
+                            "adversarial": example,
+                            "defense": {"status": "simulation_failed", "error": str(e)},
+                        })
+                
+                # 将攻防记录附加到蓝图
+                if defense_record:
+                    blueprint.adversarial_record = defense_record
+                    passed = sum(1 for r in defense_record if r.get("defense", {}).get("status") == "defended")
+                    logger.info(f"攻防模拟完成: {passed}/{len(defense_record)} 反例被成功防御")
         except Exception as e:
             logger.warning(f"反对者脑执行失败: {e}，跳过")
         
@@ -426,6 +514,24 @@ class FlowArchitect:
                 for critique in blueprint.opponent_critique:
                     print(f"  💬 {critique}")
             
+            # 显示反例攻防记录
+            if blueprint.adversarial_record:
+                print(f"\n【反例攻防记录】")
+                for record in blueprint.adversarial_record:
+                    adv = record.get("adversarial", {})
+                    defense = record.get("defense", {})
+                    status = defense.get("status", "unknown")
+                    status_icon = "✅" if status == "defended" else "⚠️" if status == "partial" else "❌"
+                    print(f"  第{record.get('round', '?')}轮 {status_icon} {adv.get('scenario', '')[:60]}...")
+                    if defense.get("defense_measures"):
+                        for measure in defense["defense_measures"][:2]:
+                            print(f"      → {measure}")
+                    if defense.get("requires_blueprint_change"):
+                        print(f"      ⚠️ 需要修改蓝图: {defense.get('suggested_step_changes', '')[:80]}")
+            
+            # ---- V2 影子建议 ----
+            await self._show_shadow_suggestion(blueprint)
+            
             print("\n" + "="*60)
             
             # 获取用户输入
@@ -434,6 +540,7 @@ class FlowArchitect:
             print("  [R] 拒绝+反馈")
             print("  [C] 取消")
             print("  [P] 换个视角重新审视")
+            print("  [X] 标记上次决策为后悔")
             
             user_input = await asyncio.to_thread(input, "\n请输入选项: ")
             user_input = user_input.strip().upper()
@@ -443,23 +550,94 @@ class FlowArchitect:
                 blueprint.status = "approved"
                 return blueprint
             elif user_input == "R":
-                # 获取用户反馈
                 feedback = await asyncio.to_thread(input, "请输入拒绝原因或修改建议: ")
                 logger.info(f"用户拒绝蓝图，反馈: {feedback}")
-                
-                # 一号脑根据反馈重新生成蓝图（不清除已有分析结果）
-                logger.info("一号脑根据反馈重新生成蓝图...")
                 blueprint = await self.brain_one.revise_blueprint(blueprint, {"feedback": feedback})
-                # 继续循环，再次展示新蓝图
             elif user_input == "C":
                 logger.info("用户取消任务")
                 raise Exception("用户取消任务")
             elif user_input == "P":
-                # V2 极端场景：换个视角重新审视
                 blueprint = await self._extreme_scenario_review(blueprint)
-                # 继续循环，展示新结果
+            elif user_input == "X":
+                await self._mark_regret()
             else:
-                print("无效输入，请输入 A、R、C 或 P")
+                print("无效输入，请输入 A、R、C、P 或 X")
+
+    async def _show_shadow_suggestion(self, blueprint: Blueprint):
+        """V2 影子建议：在审批时展示历史决策模式"""
+        try:
+            from ..utils.decision_recorder import DecisionRecorder
+            recorder = DecisionRecorder()
+            
+            task_profile = self._build_task_profile(blueprint)
+            shadow = await recorder.get_shadow_suggestion(task_profile)
+            
+            print(f"\n{'─'*50}")
+            print("【影子你】")
+            
+            status = shadow.get("status", "")
+            
+            if status == "cold_start":
+                print(f"  {shadow.get('suggestion')}")
+                print(f"  {shadow.get('progress')}")
+            elif status == "accumulating":
+                print(f"  {shadow.get('suggestion')}")
+                print(f"  {shadow.get('progress')}")
+            elif status == "no_match":
+                print(f"  {shadow.get('suggestion')}")
+                print(f"  (已积累 {shadow.get('total_decisions')} 条决策记录，但未匹配到类似场景)")
+            elif status == "ok":
+                print(f"  {shadow.get('suggestion')}")
+                
+                regrets = shadow.get("recent_regrets", [])
+                if regrets:
+                    print(f"\n  ⚠️ 你曾有 {shadow.get('regret_count')} 次后悔记录：")
+                    for r in regrets:
+                        print(f"     - ({r.get('domain','')}) {r.get('choice','')}: {r.get('reason','')[:60]}")
+                
+                print(f"\n  匹配来源: {shadow.get('source')}")
+                print(f"  精确匹配: {shadow.get('exact_matches')} 条 | 宽松匹配: {shadow.get('loose_matches')} 条")
+            
+            print(f"{'─'*50}")
+        except Exception as e:
+            logger.warning(f"影子建议查询失败: {e}，跳过")
+
+    async def _mark_regret(self):
+        """V2 后悔标记：标记上一次决策为后悔"""
+        try:
+            from ..utils.decision_recorder import DecisionRecorder
+            recorder = DecisionRecorder()
+            
+            reason = await asyncio.to_thread(input, "请输入后悔原因: ")
+            reason = reason.strip()
+            if not reason:
+                print("后悔原因不能为空，已取消。")
+                return
+            
+            decisions = await recorder.get_decisions(limit=1)
+            if not decisions:
+                print("没有可标记的决策记录。")
+                return
+            
+            last = decisions[-1]
+            task_id = last.get("task_id", "")
+            await recorder.mark_regret(task_id, reason)
+            print(f"✓ 已标记决策 {task_id} 为后悔。")
+            print(f"  原因: {reason}")
+        except Exception as e:
+            logger.warning(f"后悔标记失败: {e}")
+
+    def _build_task_profile(self, blueprint: Blueprint) -> Dict[str, Any]:
+        """从蓝图构建任务属性标签"""
+        user_input = blueprint.description.lower() if blueprint.description else ""
+        return {
+            "domain": "backend",
+            "complexity": "medium" if len(blueprint.steps) > 2 else "simple",
+            "involves_db": "database" in user_input or "数据库" in user_input,
+            "involves_auth": "auth" in user_input or "认证" in user_input or "登录" in user_input,
+            "involves_cache": "cache" in user_input or "缓存" in user_input,
+            "estimated_steps": len(blueprint.steps),
+        }
     
     async def _extreme_scenario_review(self, blueprint: Blueprint) -> Blueprint:
         """
@@ -585,8 +763,15 @@ class FlowArchitect:
         Returns:
             最终结果
         """
-        # 启动二号脑进行质量审核
-        audit_result = await self.brain_two.audit(blueprint, execution_result)
+        # 判断复杂度：复杂任务用多元仲裁
+        if len(blueprint.steps) >= 4:
+            logger.info(f"复杂任务（{len(blueprint.steps)}步），启用多元仲裁委员会")
+            audit_result = await self.brain_two.multi_audit(blueprint, execution_result)
+        else:
+            audit_result = await self.brain_two.audit(blueprint, execution_result)
+        
+        # 构建证据链
+        evidence = self._build_evidence_chain(blueprint, execution_result, audit_result)
         
         if audit_result["passed"]:
             logger.info("质量审核通过，交付最终结果")
@@ -595,6 +780,7 @@ class FlowArchitect:
                 "blueprint": blueprint.model_dump(),
                 "execution_result": execution_result,
                 "audit_result": audit_result,
+                "evidence_chain": evidence,
             }
         else:
             logger.warning("质量审核未通过，需要修改")
@@ -604,7 +790,125 @@ class FlowArchitect:
                 "execution_result": execution_result,
                 "audit_result": audit_result,
                 "revision_suggestions": audit_result.get("suggestions", []),
+                "evidence_chain": evidence,
             }
+
+    def _build_evidence_chain(
+        self,
+        blueprint: Blueprint,
+        execution_result: Dict[str, Any],
+        audit_result: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        构建不可篡改的证据链（轻量版：SHA256哈希 + 时间戳）
+
+        将完整流程数据打包为结构化文档，生成哈希值。
+        最终交付物 = 代码 + 完整体检报告。
+        """
+        import hashlib
+        import json
+        from datetime import datetime, timezone
+
+        # 打包完整流程数据
+        chain_data = {
+            "task_id": blueprint.task_id,
+            "description": blueprint.description,
+            "blueprint_steps": blueprint.steps,
+            "opponent_critique": blueprint.opponent_critique,
+            "adversarial_record": getattr(blueprint, "adversarial_record", []),
+            "execution_summary": {
+                k: {"status": v.get("status"), "expert": v.get("expert")}
+                for k, v in execution_result.items()
+                if isinstance(v, dict)
+            },
+            "audit_score": audit_result.get("score"),
+            "audit_verdict": audit_result.get("passed"),
+            "isolation_level": "full" if self.brain_one.model != self.brain_two.model else "degraded",
+        }
+
+        # 序列化并哈希
+        data_json = json.dumps(chain_data, sort_keys=True, ensure_ascii=False, default=str)
+        chain_hash = hashlib.sha256(data_json.encode()).hexdigest()
+
+        evidence = {
+            "hash": chain_hash,
+            "algorithm": "SHA-256",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "task_id": blueprint.task_id,
+            "data_snapshot": data_json[:2000],  # 前2000字符摘要
+            "data_length": len(data_json),
+        }
+
+        logger.info(f"证据链构建完成 | 哈希: {chain_hash[:16]}... | 数据长度: {len(data_json)} 字符")
+        return evidence
+
+    def _estimate_quality_budget(self, blueprint: Blueprint) -> Dict[str, Any]:
+        """
+        质量信用点预估：任务启动前预估调用次数和深度。
+
+        返回预算摘要，让用户感知"质量投入"而非"隐藏成本"。
+        """
+        steps = len(blueprint.steps)
+        has_adversarial = bool(getattr(blueprint, "adversarial_record", []))
+        
+        # 预估调用次数
+        estimates = {
+            "brain1_calls": 2,  # 分析 + 生成蓝图（至少）
+            "brain2_calls": 1,  # 质量审核
+            "expert_calls": steps,  # 每步一个专家
+            "cache_potential_savings": steps * 0.3,  # 缓存命中率预估
+        }
+        
+        if has_adversarial:
+            estimates["adversarial_calls"] = len(blueprint.adversarial_record) * 2  # 每轮反例+防御
+            estimates["brain1_calls"] += len(blueprint.adversarial_record)  # 防御模拟
+        
+        total_calls = sum(v for k, v in estimates.items() if k != "cache_potential_savings")
+        estimated_savings = estimates["cache_potential_savings"]
+        net_calls = total_calls - estimated_savings
+        
+        # 深度评估
+        if steps <= 2:
+            depth = "浅层（基础检查）"
+            depth_cost = "低"
+        elif steps <= 4:
+            depth = "中层（标准检查）"
+            depth_cost = "中"
+        else:
+            depth = "深层（全面检查）"
+            depth_cost = "高"
+        
+        summary = (
+            f"预估 {net_calls:.0f} 次API调用，深度: {depth}（{depth_cost}成本）。"
+            f"缓存预计节省 {estimated_savings:.0f} 次调用。"
+        )
+        
+        return {
+            "total_estimated_calls": total_calls,
+            "net_estimated_calls": round(net_calls),
+            "depth": depth,
+            "depth_cost": depth_cost,
+            "summary": summary,
+            "breakdown": estimates,
+        }
+
+    def _check_budget_cap(self, budget: Dict[str, Any]) -> bool:
+        """
+        检查是否超过信用上限。超过时警告用户并返回 False。
+        """
+        cap = self.config.get("max_token_budget")
+        if cap is None:
+            return True  # 无上限
+        
+        net_calls = budget.get("net_estimated_calls", 0)
+        est_tokens = net_calls * 2000  # 粗略预估每次2K tokens
+        
+        if est_tokens > cap:
+            print(f"\n⚠️  预估消耗 {est_tokens} tokens，超过上限 {cap} tokens。")
+            print("任务已中断。请调整上限或简化任务。")
+            return False
+        
+        return True
     
     async def run_with_team(
         self, 

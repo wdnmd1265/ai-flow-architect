@@ -41,11 +41,38 @@ class BrainOpponent:
             "prompt": "你的用户真的在乎这个功能吗？还是你自己在乎？你有没有问过他们？"
         },
         {
-            "id": "cost_analyst",
+            "id":         "cost_analyst",
             "name": "成本派",
             "prompt": "这个方案的成本是多少？你有没有考虑过维护成本、学习成本、迁移成本？"
         },
     ]
+
+    # 反例攻防 prompt 模板
+    ADVERSARIAL_PROMPT = """基于以下任务方案，生成 2-3 个具体的反例场景用于压力测试。
+
+需求：{description}
+
+执行步骤：
+{steps}
+
+请严格按照以下 JSON 格式返回（不要包含 markdown 代码块标记）：
+{{
+  "adversarial_examples": [
+    {{
+      "type": "adversarial_input/exception_flow/edge_condition",
+      "scenario": "具体的反例场景描述",
+      "expected_break": "该反例预期会暴露方案的什么漏洞",
+      "severity": "critical/high/medium"
+    }}
+  ],
+  "max_rounds": 3
+}}
+
+要求：
+- 反例要具体、可执行，不是抽象概念
+- 每个反例都要明确指出预期暴露的漏洞类型
+- 优先攻击安全边界、异常流程、并发场景
+- 最多生成 3 个反例"""
     
     def __init__(self, model: str = "gpt-4"):
         """
@@ -101,20 +128,19 @@ class BrainOpponent:
 请从 {style['name']} 的角度提出质疑。"""
         
         # 调用 LLM
-        response = await self.llm_client.analyze(
-            system_prompt=system_prompt,
-            user_input=user_input,
-            temperature=0.7,
-        )
-        
-        # 解析响应
         try:
-            # 按行分割，过滤空行
+            response = await self.llm_client.analyze(
+                system_prompt=system_prompt,
+                user_input=user_input,
+                temperature=0.7,
+            )
+            
+            # 解析响应
             critiques = [line.strip() for line in response.split("\n") if line.strip()]
             logger.info(f"反对者脑提出 {len(critiques)} 个质疑")
             return critiques
         except Exception as e:
-            logger.warning(f"解析反对者脑响应失败: {e}，使用默认质疑")
+            logger.warning(f"反对者脑 LLM 调用失败: {e}，使用默认质疑")
             return [
                 "这个方案是否过度设计了？",
                 "有没有更简单的实现方式？",
@@ -129,3 +155,64 @@ class BrainOpponent:
             风格列表
         """
         return self.STYLES.copy()
+
+    async def generate_adversarial_examples(self, blueprint: Any) -> Dict[str, Any]:
+        """
+        反例攻防：生成 1-3 个具体反例场景用于压力测试。
+        
+        Args:
+            blueprint: 任务蓝图
+            
+        Returns:
+            反例场景字典，含 adversarial_examples 列表
+        """
+        import json
+        
+        steps_desc = "\n".join([
+            f"步骤{i+1}: {s.get('name', '')} ({s.get('expert', '')}) - {s.get('task', '')[:80]}"
+            for i, s in enumerate(blueprint.steps)
+        ])
+
+        prompt = self.ADVERSARIAL_PROMPT.format(
+            description=blueprint.description,
+            steps=steps_desc[:3000]
+        )
+        
+        logger.info(f"反对者脑开始生成反例场景，方案步骤数: {len(blueprint.steps)}")
+        
+        try:
+            response = await self.llm_client.analyze(
+                system_prompt="你是一名安全审计专家，你的任务是生成具体的攻击场景来测试方案的鲁棒性。",
+                user_input=prompt,
+                temperature=0.5,
+            )
+            # 解析 JSON
+            text = response.strip()
+            if text.startswith("```"):
+                lines = text.split("\n")
+                text = "\n".join(lines[1:]) if lines[0].startswith("```") else text
+                if text.endswith("```"):
+                    text = text[:-3]
+            result = json.loads(text)
+            examples = result.get("adversarial_examples", [])
+            logger.info(f"反对者脑生成 {len(examples)} 个反例场景")
+            return result
+        except Exception as e:
+            logger.warning(f"反例生成失败: {e}，使用默认反例")
+            return {
+                "adversarial_examples": [
+                    {
+                        "type": "adversarial_input",
+                        "scenario": "用户输入SQL注入payload到登录表单",
+                        "expected_break": "未做输入过滤导致数据库被脱库",
+                        "severity": "critical"
+                    },
+                    {
+                        "type": "edge_condition",
+                        "scenario": "并发1000个请求同时创建同名用户",
+                        "expected_break": "竞态条件导致数据库唯一约束失效",
+                        "severity": "high"
+                    },
+                ],
+                "max_rounds": 3,
+            }

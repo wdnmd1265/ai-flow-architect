@@ -64,6 +64,14 @@ class ContextCompressor:
         
         savings = ((original_tokens - compressed_tokens) / original_tokens) * 100
         logger.info(f"压缩完成，节省 {savings:.1f}% Token")
+
+        # 追加透明标记：告知下游（仲裁者、用户）此内容已经过有损压缩
+        compression_notice = (
+            f"\n\n[系统提示：以上历史对话经过有损压缩。"
+            f"原始 {original_tokens} tokens → 压缩后 {compressed_tokens} tokens，"
+            f"节省 {savings:.1f}%。精确细节可能已遗失，关键信息已尽力保留。]"
+        )
+        compressed_context = compressed_context + compression_notice
         
         return compressed_context
     

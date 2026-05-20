@@ -3,6 +3,7 @@
 """
 
 from typing import Dict, Any, List
+import json
 from .base import BaseExpert, ExpertConfig
 from loguru import logger
 
@@ -10,7 +11,7 @@ from loguru import logger
 class CreativeExpert(BaseExpert):
     """
     创意师专家
-    
+
     负责创新设计、解决方案构思、创意生成
     """
 
@@ -20,8 +21,44 @@ class CreativeExpert(BaseExpert):
 
     # 声明输出格式
     output_format: str = "json"
-    
-    def __init__(self, config: ExpertConfig = None, system_prompt: str = None):
+
+    # 真实 LLM 调用的 prompt 模板
+    LLM_CREATIVE_PROMPT = """基于以下任务描述，生成创意方案。
+
+任务描述：
+{task}
+
+上下文：
+{context}
+
+请严格按照以下 JSON 格式返回（不要包含 markdown 代码块标记）：
+{{
+  "ideas": [
+    {{
+      "title": "方案名称",
+      "description": "方案描述",
+      "creativity_score": 0.0,
+      "feasibility_score": 0.0,
+      "innovation_level": "low/medium/high/very_high",
+      "key_advantage": "核心优势"
+    }}
+  ],
+  "best_idea_index": 0,
+  "analysis": {{
+    "task_type": "...",
+    "complexity": "low/medium/high",
+    "creativity_requirements": ["..."],
+    "constraints": ["..."]
+  }},
+  "design_brief": "一句话设计简报"
+}}
+
+要求：
+- 生成 3 个不同的创意方案
+- 创意方案应覆盖不同方向（激进/保守/创新）
+- 每个方案都要有明确的优劣分析"""
+
+    def __init__(self, config: ExpertConfig = None, system_prompt: str = None, llm_client=None):
         """
         初始化创意师
 
@@ -43,7 +80,7 @@ class CreativeExpert(BaseExpert):
 请以开放、创新的思维方式思考问题。""",
         )
 
-        super().__init__(config or default_config, system_prompt=system_prompt)
+        super().__init__(config or default_config, system_prompt=system_prompt, llm_client=llm_client)
         self.ideas = []
         self.inspirations = []
         
@@ -52,29 +89,61 @@ class CreativeExpert(BaseExpert):
     async def execute(self, task: str, context: Dict[str, Any]) -> Dict[str, Any]:
         """
         执行创意设计任务
-        
-        Args:
-            task: 任务描述
-            context: 上下文信息
-            
-        Returns:
-            创意设计结果
+
+        有 llm_client 时调用真实 LLM，无则回退到 mock 数据。
         """
         logger.info(f"创意师开始执行任务: {task[:50]}...")
-        
-        # 分析任务需求
+
+        if self.llm_client is not None:
+            return await self._execute_with_llm(task, context)
+        else:
+            return await self._execute_mock(task, context)
+
+    async def _execute_with_llm(self, task: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        """使用真实 LLM 生成创意方案"""
+        prompt = self.LLM_CREATIVE_PROMPT.format(
+            task=task,
+            context=json.dumps(context.get("filtered_input", {}), ensure_ascii=False, indent=2)
+        )
+        logger.info(f"创意师调用 LLM，prompt 长度: {len(prompt)} 字符")
+
+        try:
+            response = await self.llm_client.chat(
+                messages=[
+                    {"role": "system", "content": self.config.system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=self.config.temperature,
+                max_tokens=self.config.max_tokens,
+            )
+            parsed = self._parse_json_response(response)
+            ideas_count = len(parsed.get("ideas", []))
+            logger.info(f"创意师 LLM 调用完成，生成 {ideas_count} 个方案")
+        except Exception as e:
+            logger.error(f"创意师 LLM 调用失败: {e}，回退到 mock 数据")
+            return await self._execute_mock(task, context)
+
+        all_ideas = parsed.get("ideas", [])
+        best_idx = parsed.get("best_idea_index", 0)
+        best_idea = all_ideas[best_idx] if 0 <= best_idx < len(all_ideas) else {}
+
+        result = await self.format_output({
+            "task": task,
+            "analysis": parsed.get("analysis", {}),
+            "ideas_generated": len(all_ideas),
+            "best_idea": best_idea,
+            "all_ideas": all_ideas,
+            "design_brief": parsed.get("design_brief", ""),
+        })
+        self.ideas.extend(all_ideas)
+        return result
+
+    async def _execute_mock(self, task: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        """回退：使用硬编码 mock 数据"""
         analysis = await self.analyze({"task": task, "context": context})
-        
-        # 生成创意方案
         ideas = await self._generate_ideas(task, analysis)
-        
-        # 评估创意可行性
         evaluated_ideas = await self._evaluate_ideas(ideas)
-        
-        # 选择最佳方案
         best_idea = await self._select_best_idea(evaluated_ideas)
-        
-        # 格式化输出
         result = await self.format_output({
             "task": task,
             "analysis": analysis,
@@ -82,9 +151,30 @@ class CreativeExpert(BaseExpert):
             "best_idea": best_idea,
             "all_ideas": ideas,
         })
-        
-        logger.info("创意师任务执行完成")
+        self.ideas.extend(ideas)
         return result
+
+    def _parse_json_response(self, response: str) -> Dict[str, Any]:
+        """解析 LLM 返回的 JSON，带容错"""
+        text = response.strip()
+        if text.startswith("```"):
+            lines = text.split("\n")
+            text = "\n".join(lines[1:]) if lines[0].startswith("```") else text
+            if text.endswith("```"):
+                text = text[:-3]
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            logger.warning("创意师 JSON 解析失败，尝试提取 JSON 块")
+            import re
+            match = re.search(r'\{[\s\S]*\}', text)
+            if match:
+                try:
+                    return json.loads(match.group(0))
+                except json.JSONDecodeError:
+                    pass
+            logger.error("创意师 JSON 完全解析失败，返回空结构")
+            return {}
     
     async def analyze(self, input_data: Any) -> Dict[str, Any]:
         """

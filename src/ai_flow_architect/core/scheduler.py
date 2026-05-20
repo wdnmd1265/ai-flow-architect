@@ -28,6 +28,7 @@ class TaskScheduler:
         self.results = {}
         self.cache = None
         self.context = None
+        self.blueprint_models = {}  # 从 blueprint.models 传入，用于专家 LLM 调用
         logger.info("任务调度器初始化完成")
 
     async def execute(
@@ -46,6 +47,7 @@ class TaskScheduler:
         """
         self.cache = cache
         self.context = context
+        self.blueprint_models = getattr(blueprint, 'models', {})
         logger.info(f"开始执行任务调度，共 {len(blueprint.steps)} 个步骤")
 
         results = {}
@@ -246,8 +248,12 @@ class TaskScheduler:
     def _create_expert(self, expert_type: str, prompt: str) -> Optional[Any]:
         """
         根据 expert_type 实例化对应的专家类，传入一号脑写的提示词。
+
+        如果配置了模型，自动创建 LLMClient 并传给专家，
+        使专家能发起真实 LLM 调用。不传则回退到 mock 数据。
         """
         from ..experts import CreativeExpert, EvaluatorExpert, ProgrammerExpert, ReviewerExpert
+        from ..utils.llm_client import LLMClient
 
         registry = {
             "creative": CreativeExpert,
@@ -261,8 +267,18 @@ class TaskScheduler:
             logger.error(f"未知专家类型: {expert_type}")
             return None
 
+        # 查找该专家的模型配置
+        model_name = self.blueprint_models.get(expert_type)
+        llm = None
+        if model_name:
+            try:
+                llm = LLMClient(model=model_name)
+                logger.info(f"为专家 {expert_type} 创建 LLMClient，模型: {model_name}")
+            except Exception as e:
+                logger.warning(f"无法为专家 {expert_type} 创建 LLMClient ({e})，将使用 mock 数据")
+
         # 实例化，传入一号脑的提示词覆盖默认 system_prompt
-        return cls(system_prompt=prompt)
+        return cls(system_prompt=prompt, llm_client=llm)
 
     def _filter_input_for_expert(self, expert: Any, all_results: Dict[str, Any]) -> Dict[str, Any]:
         """

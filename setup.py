@@ -11,7 +11,7 @@ setup(
     version="0.1.0",
     author="盛鑫",
     author_email="2709786902@qq.com",
-    description="一个开源、API中立、极致省Token的多模型协作工作流引擎",
+    description="AI proposes. You decide. — Adversarial AI workflow engine with built-in quality arbitration",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/wdnmd1265/ai-flow-architect",

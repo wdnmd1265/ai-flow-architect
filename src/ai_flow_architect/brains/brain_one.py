@@ -672,7 +672,71 @@ class BrainOne:
 """
 
         return explanation
-    
+
+    async def simulate_defense(
+        self, 
+        blueprint: Any, 
+        adversarial_scenario: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        反例攻防：针对反对者脑生成的反例场景，模拟推演并给出防御方案。
+
+        Args:
+            blueprint: 当前蓝图
+            adversarial_scenario: 反例场景，含 scenario / expected_break / severity
+
+        Returns:
+            防御方案，含 status / defense_measures / assessment
+        """
+        import json
+        
+        scenario = adversarial_scenario.get("scenario", "")
+        expected_break = adversarial_scenario.get("expected_break", "")
+        severity = adversarial_scenario.get("severity", "medium")
+
+        logger.info(f"BrainOne 开始防御模拟: {scenario[:60]}... (威胁等级: {severity})")
+
+        prompt = f"""你的方案面临以下攻击场景的压力测试。请进行即时推演并给出防御方案。
+
+攻击场景: {scenario}
+预期漏洞: {expected_break}
+威胁等级: {severity}
+
+请严格按照以下 JSON 格式返回（不要包含 markdown 代码块标记）：
+{{
+  "status": "defended/partial/failed",
+  "vulnerability_confirmed": true/false,
+  "defense_measures": ["具体防御措施1", "具体防御措施2"],
+  "assessment": "对该攻击场景的评估说明",
+  "requires_blueprint_change": true/false,
+  "suggested_step_changes": "如果需要修改蓝图，描述修改方案"
+}}"""
+
+        try:
+            response = await self.llm_client.analyze(
+                system_prompt="你是一名安全防御专家。请针对攻击场景分析漏洞并提出具体防御措施。",
+                user_input=prompt,
+                temperature=0.3,
+            )
+            text = response.strip()
+            if text.startswith("```"):
+                lines = text.split("\n")
+                text = "\n".join(lines[1:]) if lines[0].startswith("```") else text
+                if text.endswith("```"):
+                    text = text[:-3]
+            result = json.loads(text)
+            logger.info(f"防御模拟完成: {result.get('status')}")
+            return result
+        except Exception as e:
+            logger.warning(f"防御模拟失败: {e}，返回默认防御")
+            return {
+                "status": "partial",
+                "vulnerability_confirmed": True,
+                "defense_measures": ["需要人工审查此攻击场景"],
+                "assessment": f"自动防御模拟失败: {e}",
+                "requires_blueprint_change": False,
+            }
+
     def get_conversation_history(self) -> list:
         """
         获取对话历史

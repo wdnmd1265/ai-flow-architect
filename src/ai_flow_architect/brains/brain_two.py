@@ -517,3 +517,126 @@ class BrainTwo:
             )
         
         return comparison
+
+    async def multi_audit(
+        self,
+        blueprint: Any,
+        execution_result: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """多元仲裁委员会：3个模型并排仲裁，高亮一致缺陷。"""
+        import asyncio
+
+        arbiters = self._configure_arbiters()
+        logger.info(f"多元仲裁启动：{len(arbiters)} 个仲裁者")
+
+        tasks = [
+            self._single_arbiter_audit(arb, blueprint, execution_result)
+            for arb in arbiters
+        ]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        valid_results = []
+        for i, r in enumerate(results):
+            if isinstance(r, Exception):
+                logger.warning(f"仲裁者 {i+1} 失败: {r}")
+            else:
+                valid_results.append(r)
+
+        if not valid_results:
+            logger.error("所有仲裁者均失败，回退到单模型")
+            return await self.audit(blueprint, execution_result)
+
+        combined = self._build_multi_audit_report(valid_results, arbiters)
+        self.audit_history.append({
+            "task_id": blueprint.task_id,
+            "result": combined,
+            "timestamp": __import__('time').time(),
+            "type": "multi_audit",
+        })
+        logger.info(f"多元仲裁完成 | 平均分: {combined.get('avg_score', 0):.1f}")
+        return combined
+
+    def _configure_arbiters(self) -> List[Dict[str, Any]]:
+        """配置3个仲裁者。多API→不同模型；单API→同模型不同温度+角色。"""
+        import os
+        available = [n for n, e in {
+            "OpenAI": "OPENAI_API_KEY",
+            "Anthropic": "ANTHROPIC_API_KEY",
+            "DashScope": "DASHSCOPE_API_KEY",
+            "DeepSeek": "DEEPSEEK_API_KEY",
+        }.items() if os.getenv(e)]
+
+        if len(available) >= 3:
+            return [
+                {"model": "gpt-4o", "temperature": 0.2, "role": "严格审查员"},
+                {"model": "claude-3-5-sonnet-20241022", "temperature": 0.3, "role": "架构师审查"},
+                {"model": "deepseek-chat", "temperature": 0.3, "role": "代码审查员"},
+            ]
+        else:
+            return [
+                {"model": self.model, "temperature": 0.2, "role": "严格审查员"},
+                {"model": self.model, "temperature": 0.4, "role": "架构师视角审查"},
+                {"model": self.model, "temperature": 0.6, "role": "用户体验审查"},
+            ]
+
+    async def _single_arbiter_audit(
+        self, arbiter: Dict[str, Any], blueprint: Any, execution_result: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """单个仲裁者独立审计"""
+        temp_model = arbiter.get("model", self.model)
+        temp_temp = arbiter.get("temperature", 0.3)
+        temp_role = arbiter.get("role", "审核员")
+
+        client = LLMClient(model=temp_model) if temp_model != self.model else self.llm_client
+
+        system_prompt = f"""你是一名{temp_role}，评估任务蓝图和执行结果的质量。输出JSON:
+{{"passed": true/false, "score": 85.0, "issues": [{{"type": "...", "step_name": "...", "severity": "high/medium/low", "description": "..."}}], "suggestions": ["..."]}}"""
+
+        audit_input = f"蓝图：{blueprint.description}\n步骤：{blueprint.steps}\n执行结果：{execution_result}"
+
+        try:
+            response = await client.audit(
+                system_prompt=system_prompt, audit_input=audit_input, temperature=temp_temp
+            )
+            import json
+            result = json.loads(response)
+            return {
+                "arbiter": temp_role, "model": temp_model, "temperature": temp_temp,
+                "passed": result.get("passed", False), "score": result.get("score", 0),
+                "issues": result.get("issues", []), "suggestions": result.get("suggestions", []),
+            }
+        except Exception as e:
+            logger.warning(f"仲裁者 {temp_role} 失败: {e}")
+            raise
+
+    def _build_multi_audit_report(
+        self, results: List[Dict[str, Any]], arbiters: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """构建并排报告，找出所有仲裁者一致指出的缺陷"""
+        scores = [r.get("score", 0) for r in results]
+        avg_score = sum(scores) / len(scores) if scores else 0
+        all_issues = []
+        all_suggestions = []
+
+        for r in results:
+            all_suggestions.extend(r.get("suggestions", []))
+            for issue in r.get("issues", []):
+                all_issues.append({"arbiter": r.get("arbiter", "?"), **issue})
+
+        from collections import Counter
+        desc_counts = Counter(i.get("description", "") for i in all_issues)
+        consensus_issues = [
+            {"description": d, "count": c, "severity": "high"}
+            for d, c in desc_counts.items() if c >= 2
+        ]
+
+        return {
+            "passed": sum(1 for r in results if r.get("passed")) >= len(results) * 0.5,
+            "score": round(avg_score, 1),
+            "avg_score": round(avg_score, 1),
+            "arbiter_results": results,
+            "consensus_issues": consensus_issues,
+            "suggestions": list(dict.fromkeys(all_suggestions)),
+            "summary": f"{sum(1 for r in results if r.get('passed'))}/{len(results)} 通过 | 一致缺陷: {len(consensus_issues)} | 均分: {avg_score:.1f}",
+            "isolation_level": "full" if len(set(r.get("model", "") for r in results)) >= 2 else "degraded",
+        }

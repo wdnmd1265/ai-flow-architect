@@ -3,6 +3,7 @@
 """
 
 from typing import Dict, Any, List
+import json
 from .base import BaseExpert, ExpertConfig
 from loguru import logger
 
@@ -20,8 +21,49 @@ class ReviewerExpert(BaseExpert):
 
     # 声明输出格式
     output_format: str = "json"
-    
-    def __init__(self, config: ExpertConfig = None, system_prompt: str = None):
+
+    # 真实 LLM 调用的 prompt 模板
+    LLM_REVIEW_PROMPT = """基于以下代码实现和技术上下文，生成一份完整的代码审查报告。
+
+任务描述：
+{task}
+
+上游输入：
+{context}
+
+请严格按照以下 JSON 格式返回（不要包含 markdown 代码块标记）：
+{{
+  "code_quality": {{
+    "score": 85,
+    "issues": ["..."],
+    "suggestions": ["..."],
+    "compliance": {{"coding_standards": true, "documentation_standards": false, "testing_standards": true}}
+  }},
+  "security": {{
+    "score": 90,
+    "vulnerabilities": ["..."],
+    "issues": ["..."],
+    "recommendations": ["..."]
+  }},
+  "performance": {{
+    "score": 80,
+    "bottlenecks": ["..."],
+    "optimization_opportunities": ["..."],
+    "suggestions": ["..."]
+  }},
+  "maintainability": {{
+    "score": 75,
+    "code_complexity": {{"level": "low/medium/high", "cyclomatic_complexity": 0, "suggestion": "..."}},
+    "documentation_quality": {{"level": "low/medium/high", "coverage": 0.0, "suggestion": "..."}},
+    "test_coverage": {{"level": "low/medium/high", "percentage": 0.0, "suggestion": "..."}},
+    "suggestions": ["..."]
+  }},
+  "overall_score": 0.0,
+  "verdict": "pass/revise/reject",
+  "summary": "一句话总结审查结论"
+}}"""
+
+    def __init__(self, config: ExpertConfig = None, system_prompt: str = None, llm_client=None):
         """
         初始化审核员
 
@@ -43,7 +85,7 @@ class ReviewerExpert(BaseExpert):
 请以严谨、细致的态度进行审核，不放过任何细节。""",
         )
         
-        super().__init__(config or default_config, system_prompt=system_prompt)
+        super().__init__(config or default_config, system_prompt=system_prompt, llm_client=llm_client)
         self.review_reports = []
         self.issues_found = []
         
@@ -52,33 +94,63 @@ class ReviewerExpert(BaseExpert):
     async def execute(self, task: str, context: Dict[str, Any]) -> Dict[str, Any]:
         """
         执行审核任务
-        
-        Args:
-            task: 任务描述
-            context: 上下文信息
-            
-        Returns:
-            审核结果
+
+        有 llm_client 时调用真实 LLM，无则回退到 mock 数据。
         """
         logger.info(f"审核员开始执行任务: {task[:50]}...")
-        
-        # 代码质量审查
+
+        if self.llm_client is not None:
+            return await self._execute_with_llm(task, context)
+        else:
+            return await self._execute_mock(task, context)
+
+    async def _execute_with_llm(self, task: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        """使用真实 LLM 执行代码审查"""
+        prompt = self.LLM_REVIEW_PROMPT.format(
+            task=task,
+            context=json.dumps(context.get("filtered_input", {}), ensure_ascii=False, indent=2)
+        )
+        logger.info(f"审核员调用 LLM，prompt 长度: {len(prompt)} 字符")
+
+        try:
+            response = await self.llm_client.chat(
+                messages=[
+                    {"role": "system", "content": self.config.system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=self.config.temperature,
+                max_tokens=self.config.max_tokens,
+            )
+            parsed = self._parse_json_response(response)
+            overall = parsed.get("overall_score", 0)
+            verdict = parsed.get("verdict", "unknown")
+            logger.info(f"审核员 LLM 调用完成，总分: {overall}, 裁决: {verdict}")
+        except Exception as e:
+            logger.error(f"审核员 LLM 调用失败: {e}，回退到 mock 数据")
+            return await self._execute_mock(task, context)
+
+        result = await self.format_output({
+            "task": task,
+            "code_quality_review": parsed.get("code_quality", {}),
+            "security_review": parsed.get("security", {}),
+            "performance_review": parsed.get("performance", {}),
+            "maintainability_review": parsed.get("maintainability", {}),
+            "overall_score": overall,
+            "verdict": verdict,
+            "summary": parsed.get("summary", ""),
+        })
+        self.review_reports.append(result)
+        return result
+
+    async def _execute_mock(self, task: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        """回退：使用硬编码 mock 数据"""
         code_quality_review = await self._review_code_quality(task, context)
-        
-        # 安全审查
         security_review = await self._review_security(task, context)
-        
-        # 性能审查
         performance_review = await self._review_performance(task, context)
-        
-        # 可维护性审查
         maintainability_review = await self._review_maintainability(task, context)
-        
-        # 生成审核报告
         review_report = await self._generate_review_report(
             code_quality_review, security_review, performance_review, maintainability_review
         )
-        
         result = await self.format_output({
             "task": task,
             "code_quality_review": code_quality_review,
@@ -90,9 +162,30 @@ class ReviewerExpert(BaseExpert):
                 code_quality_review, security_review, performance_review, maintainability_review
             ),
         })
-        
-        logger.info("审核员任务执行完成")
+        self.review_reports.append(result)
         return result
+
+    def _parse_json_response(self, response: str) -> Dict[str, Any]:
+        """解析 LLM 返回的 JSON，带容错"""
+        text = response.strip()
+        if text.startswith("```"):
+            lines = text.split("\n")
+            text = "\n".join(lines[1:]) if lines[0].startswith("```") else text
+            if text.endswith("```"):
+                text = text[:-3]
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            logger.warning("审核员 JSON 解析失败，尝试提取 JSON 块")
+            import re
+            match = re.search(r'\{[\s\S]*\}', text)
+            if match:
+                try:
+                    return json.loads(match.group(0))
+                except json.JSONDecodeError:
+                    pass
+            logger.error("审核员 JSON 完全解析失败，返回空结构")
+            return {}
     
     async def analyze(self, input_data: Any) -> Dict[str, Any]:
         """

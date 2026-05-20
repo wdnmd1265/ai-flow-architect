@@ -3,6 +3,7 @@
 """
 
 from typing import Dict, Any, List
+import json
 from .base import BaseExpert, ExpertConfig
 from loguru import logger
 
@@ -21,13 +22,51 @@ class EvaluatorExpert(BaseExpert):
     # 声明输出格式
     output_format: str = "json"
 
-    def __init__(self, config: ExpertConfig = None, system_prompt: str = None):
+    # 真实 LLM 调用的 prompt 模板
+    LLM_EVALUATE_PROMPT = """基于以下任务描述和执行上下文，生成一份完整的评估报告。
+
+任务描述：
+{task}
+
+上下文：
+{context}
+
+请严格按照以下 JSON 格式返回（不要包含 markdown 代码块标记）：
+{{
+  "requirement_analysis": {{
+    "functional_requirements": ["..."],
+    "non_functional_requirements": ["..."],
+    "constraints": ["..."],
+    "assumptions": ["..."],
+    "dependencies": ["..."],
+    "clarity_score": 0.0
+  }},
+  "feasibility_assessment": {{
+    "technical_score": 0.0,
+    "economic_score": 0.0,
+    "schedule_score": 0.0,
+    "overall_score": 0.0,
+    "technical_challenges": ["..."]
+  }},
+  "risk_assessment": {{
+    "risks": [
+      {{"type": "technical/resource/schedule", "description": "...", "level": "low/medium/high", "probability": 0.0, "impact": "low/medium/high"}}
+    ],
+    "overall_risk": "low/medium/high",
+    "mitigation_strategies": ["..."]
+  }},
+  "summary": "一句话总结评估结论",
+  "recommendation": "建议：go/review/reject"
+}}"""
+
+    def __init__(self, config: ExpertConfig = None, system_prompt: str = None, llm_client=None):
         """
         初始化评估师
 
         Args:
             config: 专家配置
             system_prompt: 由一号脑提供的覆盖提示词
+            llm_client: LLM 客户端实例（可选）
         """
         default_config = ExpertConfig(
             name="评估师",
@@ -43,7 +82,7 @@ class EvaluatorExpert(BaseExpert):
 请以客观、严谨的态度进行评估。""",
         )
         
-        super().__init__(config or default_config, system_prompt=system_prompt)
+        super().__init__(config or default_config, system_prompt=system_prompt, llm_client=llm_client)
         self.evaluations = []
         
         logger.info("评估师专家初始化完成")
@@ -51,30 +90,58 @@ class EvaluatorExpert(BaseExpert):
     async def execute(self, task: str, context: Dict[str, Any]) -> Dict[str, Any]:
         """
         执行评估任务
-        
-        Args:
-            task: 任务描述
-            context: 上下文信息
-            
-        Returns:
-            评估结果
+
+        有 llm_client 时调用真实 LLM，无则回退到 mock 数据。
         """
         logger.info(f"评估师开始执行任务: {task[:50]}...")
-        
-        # 需求分析
+
+        if self.llm_client is not None:
+            return await self._execute_with_llm(task, context)
+        else:
+            return await self._execute_mock(task, context)
+
+    async def _execute_with_llm(self, task: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        """使用真实 LLM 执行评估"""
+        prompt = self.LLM_EVALUATE_PROMPT.format(
+            task=task,
+            context=json.dumps(context.get("filtered_input", {}), ensure_ascii=False, indent=2)
+        )
+        logger.info(f"评估师调用 LLM，prompt 长度: {len(prompt)} 字符")
+
+        try:
+            response = await self.llm_client.chat(
+                messages=[
+                    {"role": "system", "content": self.config.system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=self.config.temperature,
+                max_tokens=self.config.max_tokens,
+            )
+            parsed = self._parse_json_response(response)
+            logger.info(f"评估师 LLM 调用完成，整体风险: {parsed.get('risk_assessment', {}).get('overall_risk', 'unknown')}")
+        except Exception as e:
+            logger.error(f"评估师 LLM 调用失败: {e}，回退到 mock 数据")
+            return await self._execute_mock(task, context)
+
+        result = await self.format_output({
+            "task": task,
+            "requirement_analysis": parsed.get("requirement_analysis", {}),
+            "feasibility_assessment": parsed.get("feasibility_assessment", {}),
+            "risk_assessment": parsed.get("risk_assessment", {}),
+            "summary": parsed.get("summary", ""),
+            "recommendation": parsed.get("recommendation", ""),
+        })
+        self.evaluations.append(result)
+        return result
+
+    async def _execute_mock(self, task: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        """回退：使用硬编码 mock 数据"""
         requirement_analysis = await self._analyze_requirements(task, context)
-        
-        # 可行性评估
         feasibility_assessment = await self._assess_feasibility(task, context)
-        
-        # 风险评估
         risk_assessment = await self._assess_risks(task, context)
-        
-        # 生成评估报告
         evaluation_report = await self._generate_report(
             requirement_analysis, feasibility_assessment, risk_assessment
         )
-        
         result = await self.format_output({
             "task": task,
             "requirement_analysis": requirement_analysis,
@@ -82,9 +149,30 @@ class EvaluatorExpert(BaseExpert):
             "risk_assessment": risk_assessment,
             "evaluation_report": evaluation_report,
         })
-        
-        logger.info("评估师任务执行完成")
+        self.evaluations.append(result)
         return result
+
+    def _parse_json_response(self, response: str) -> Dict[str, Any]:
+        """解析 LLM 返回的 JSON，带容错"""
+        text = response.strip()
+        if text.startswith("```"):
+            lines = text.split("\n")
+            text = "\n".join(lines[1:]) if lines[0].startswith("```") else text
+            if text.endswith("```"):
+                text = text[:-3]
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            logger.warning("评估师 JSON 解析失败，尝试提取 JSON 块")
+            import re
+            match = re.search(r'\{[\s\S]*\}', text)
+            if match:
+                try:
+                    return json.loads(match.group(0))
+                except json.JSONDecodeError:
+                    pass
+            logger.error("评估师 JSON 完全解析失败，返回空结构")
+            return {}
     
     async def analyze(self, input_data: Any) -> Dict[str, Any]:
         """

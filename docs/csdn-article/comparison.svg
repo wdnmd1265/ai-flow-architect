@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 380" width="100%">
+  <style>
+    text { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; }
+    .title { font-size: 14px; font-weight: 500; fill: #2C2C2A; }
+    .sub { font-size: 12px; font-weight: 400; fill: #5F5E5A; }
+    .badge { font-size: 10px; font-weight: 500; fill: white; }
+    .label { font-size: 11px; font-weight: 400; fill: #888780; }
+    .header { font-size: 13px; font-weight: 500; }
+    .cell { font-size: 11px; font-weight: 400; fill: #444441; }
+  </style>
+
+  <!-- Column headers -->
+  <rect x="40" y="20" width="180" height="40" rx="8" fill="#CECBF6" stroke="none"/>
+  <text class="header" x="130" y="44" text-anchor="middle" dominant-baseline="central" fill="#3C3489">ai-flow-architect</text>
+
+  <rect x="250" y="20" width="180" height="40" rx="8" fill="#B5D4F4" stroke="none"/>
+  <text class="header" x="340" y="44" text-anchor="middle" dominant-baseline="central" fill="#0C447C">LangChain</text>
+
+  <rect x="460" y="20" width="180" height="40" rx="8" fill="#9FE1CB" stroke="none"/>
+  <text class="header" x="550" y="44" text-anchor="middle" dominant-baseline="central" fill="#085041">CrewAI</text>
+
+  <!-- Row: Philosophy -->
+  <rect x="40" y="76" width="600" height="44" rx="0" fill="#F1EFE8" stroke="#D3D1C7" stroke-width="0.5"/>
+  <text class="label" x="56" y="84" fill="#5F5E5A">设计哲学</text>
+  <text class="cell" x="130" y="102" text-anchor="middle" dominant-baseline="central">对抗式质量控制</text>
+  <text class="cell" x="340" y="102" text-anchor="middle" dominant-baseline="central">灵活管道编排</text>
+  <text class="cell" x="550" y="102" text-anchor="middle" dominant-baseline="central">角色驱动多智能体</text>
+
+  <!-- Row: Quality control -->
+  <rect x="40" y="120" width="600" height="44" rx="0" fill="white" stroke="#D3D1C7" stroke-width="0.5"/>
+  <text class="label" x="56" y="128" fill="#5F5E5A">质量把控</text>
+
+  <!-- ai-flow: built-in (green) -->
+  <rect x="90" y="136" width="80" height="20" rx="4" fill="#97C459"/>
+  <text class="badge" x="130" y="148" text-anchor="middle" dominant-baseline="central">内置</text>
+
+  <!-- LangChain: manual (amber) -->
+  <rect x="300" y="136" width="80" height="20" rx="4" fill="#EF9F27"/>
+  <text class="badge" x="340" y="148" text-anchor="middle" dominant-baseline="central">你的事</text>
+
+  <!-- CrewAI: optional (gray) -->
+  <rect x="510" y="136" width="80" height="20" rx="4" fill="#888780"/>
+  <text class="badge" x="550" y="148" text-anchor="middle" dominant-baseline="central">可选</text>
+
+  <!-- Row: Model isolation -->
+  <rect x="40" y="164" width="600" height="44" rx="0" fill="#F1EFE8" stroke="#D3D1C7" stroke-width="0.5"/>
+  <text class="label" x="56" y="172" fill="#5F5E5A">模型隔离</text>
+
+  <rect x="90" y="180" width="80" height="20" rx="4" fill="#97C459"/>
+  <text class="badge" x="130" y="192" text-anchor="middle" dominant-baseline="central">强制</text>
+
+  <rect x="300" y="180" width="80" height="20" rx="4" fill="#EF9F27"/>
+  <text class="badge" x="340" y="192" text-anchor="middle" dominant-baseline="central">不强制</text>
+
+  <rect x="510" y="180" width="80" height="20" rx="4" fill="#EF9F27"/>
+  <text class="badge" x="550" y="192" text-anchor="middle" dominant-baseline="central">不强制</text>
+
+  <!-- Row: Token saving -->
+  <rect x="40" y="208" width="600" height="44" rx="0" fill="white" stroke="#D3D1C7" stroke-width="0.5"/>
+  <text class="label" x="56" y="216" fill="#5F5E5A">Token 节省</text>
+
+  <rect x="90" y="224" width="80" height="20" rx="4" fill="#97C459"/>
+  <text class="badge" x="130" y="236" text-anchor="middle" dominant-baseline="central">4机制</text>
+
+  <rect x="300" y="224" width="80" height="20" rx="4" fill="#888780"/>
+  <text class="badge" x="340" y="236" text-anchor="middle" dominant-baseline="central">手动</text>
+
+  <rect x="510" y="224" width="80" height="20" rx="4" fill="#888780"/>
+  <text class="badge" x="550" y="236" text-anchor="middle" dominant-baseline="central">手动</text>
+
+  <!-- Row: Best for -->
+  <rect x="40" y="252" width="600" height="44" rx="0" fill="#F1EFE8" stroke="#D3D1C7" stroke-width="0.5"/>
+  <text class="label" x="56" y="260" fill="#5F5E5A">最佳场景</text>
+  <text class="cell" x="130" y="278" text-anchor="middle" dominant-baseline="central">需要可信输出</text>
+  <text class="cell" x="340" y="278" text-anchor="middle" dominant-baseline="central">需要最大灵活</text>
+  <text class="cell" x="550" y="278" text-anchor="middle" dominant-baseline="central">多智能体模拟</text>
+
+  <!-- Bottom takeaway -->
+  <rect x="120" y="320" width="440" height="40" rx="12" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+  <text class="title" x="340" y="344" text-anchor="middle" dominant-baseline="central" fill="#3C3489">需要可审计的质量保证？→ ai-flow-architect</text>
+</svg>

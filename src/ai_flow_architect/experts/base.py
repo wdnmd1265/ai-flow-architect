@@ -31,15 +31,18 @@ class BaseExpert(ABC):
     # 角色预置提示词的最大长度（字符数）
     MAX_ROLE_PROMPT_LENGTH = 2000
 
-    def __init__(self, config: Optional[ExpertConfig] = None, system_prompt: Optional[str] = None):
+    def __init__(self, config: Optional[ExpertConfig] = None, system_prompt: Optional[str] = None, llm_client=None):
         """
         初始化专家
 
         Args:
             config: 专家配置
             system_prompt: 由一号脑提供的任务指示，追加在角色预置提示词后面
+            llm_client: LLM客户端实例（可选）。传入后专家将使用真实LLM调用；
+                        不传则回退到mock数据（向后兼容，不影响现有测试）。
         """
         self.config = config or ExpertConfig(name=self.__class__.__name__)
+        self.llm_client = llm_client
 
         # 三层提示词叠加
         role_prompt = self.config.system_prompt  # 角色预置提示词
