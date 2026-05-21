@@ -29,7 +29,18 @@ class TaskScheduler:
         self.cache = None
         self.context = None
         self.blueprint_models = {}  # 从 blueprint.models 传入，用于专家 LLM 调用
+        self._tools_registry = {}  # 工具注册表
         logger.info("任务调度器初始化完成")
+    
+    def register_tools(self, tools: Dict[str, Any]):
+        """
+        注册工具到调度器
+        
+        Args:
+            tools: 工具名称 -> 工具实例的字典
+        """
+        self._tools_registry = tools
+        logger.info(f"调度器注册 {len(tools)} 个工具: {list(tools.keys())}")
 
     async def execute(
         self,
@@ -191,7 +202,11 @@ class TaskScheduler:
         for attempt in range(max_retries + 1):  # +1 for initial attempt
             start = time.time()
             try:
-                result = await expert.execute(task_description, {"step": step, "filtered_input": filtered_input})
+                # 如果专家有工具，使用带工具的执行循环
+                if expert._tools:
+                    result = await expert.execute_with_tools(task_description, {"step": step, "filtered_input": filtered_input})
+                else:
+                    result = await expert.execute(task_description, {"step": step, "filtered_input": filtered_input})
                 elapsed = time.time() - start
                 logger.info(f"专家 {expert_type} 执行完成，耗时 {elapsed:.2f}s")
 
@@ -200,7 +215,7 @@ class TaskScheduler:
                     "task": task_description,
                     "prompt_used": expert_prompt,
                     "status": "completed",
-                    "output": result.get("output", ""),
+                    "output": result.get("output", result.get("content", "")),
                     "details": result,
                     "elapsed_seconds": round(elapsed, 2),
                 }
@@ -278,7 +293,25 @@ class TaskScheduler:
                 logger.warning(f"无法为专家 {expert_type} 创建 LLMClient ({e})，将使用 mock 数据")
 
         # 实例化，传入一号脑的提示词覆盖默认 system_prompt
-        return cls(system_prompt=prompt, llm_client=llm)
+        expert = cls(system_prompt=prompt, llm_client=llm)
+        
+        # 注入该专家需要的工具
+        required_tools = getattr(expert, 'required_tools', set())
+        if required_tools and self._tools_registry:
+            expert_tools = {
+                name: tool
+                for name, tool in self._tools_registry.items()
+                if name in required_tools
+            }
+            if expert_tools:
+                expert.inject_tools(expert_tools)
+                logger.info(f"为专家 {expert_type} 注入工具: {list(expert_tools.keys())}")
+            else:
+                missing = required_tools - set(self._tools_registry.keys())
+                if missing:
+                    logger.warning(f"专家 {expert_type} 需要的工具未注册: {missing}")
+        
+        return expert
 
     def _filter_input_for_expert(self, expert: Any, all_results: Dict[str, Any]) -> Dict[str, Any]:
         """

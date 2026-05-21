@@ -18,6 +18,9 @@ class ProgrammerExpert(BaseExpert):
     # 声明需要的输入字段（从上游步骤的结果中提取）
     # 程序员需要评估师的可行性评估和技术方案
     required_input_fields: set = {"feasibility_assessment", "evaluation_report"}
+    
+    # 声明需要的工具
+    required_tools: set = {"read_file", "write_file", "search_files"}
 
     # 声明输出格式
     output_format: str = "code"

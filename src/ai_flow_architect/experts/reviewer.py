@@ -18,6 +18,9 @@ class ReviewerExpert(BaseExpert):
     # 声明需要的输入字段（从上游步骤的结果中提取）
     # 审核员需要程序员的实现代码和技术设计
     required_input_fields: set = {"implementation", "technical_design"}
+    
+    # 声明需要的工具
+    required_tools: set = {"read_file", "search_files", "list_files"}
 
     # 声明输出格式
     output_format: str = "json"

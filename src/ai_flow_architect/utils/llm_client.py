@@ -5,6 +5,7 @@
 从 models.yaml 读取 provider 配置，自动处理 API 调用、重试、错误。
 """
 
+import json
 import os
 from typing import Dict, Any, List, Optional
 from pathlib import Path
@@ -144,8 +145,10 @@ class LLMClient:
         messages: List[Dict[str, str]],
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        tool_choice: str = "auto",
         **kwargs
-    ) -> str:
+    ) -> Dict[str, Any]:
         """
         发送聊天请求
         
@@ -153,24 +156,29 @@ class LLMClient:
             messages: 消息列表，格式为 [{"role": "user", "content": "..."}]
             temperature: 温度参数，控制随机性
             max_tokens: 最大生成 token 数
+            tools: 工具 schema 列表（可选）
+            tool_choice: 工具选择策略 "auto" / "none" / "required"
             **kwargs: 其他参数
             
         Returns:
-            模型生成的文本
+            响应字典:
+            - content: 文本内容（可能为空）
+            - tool_calls: 工具调用列表（可能为空）
+            - finish_reason: 结束原因
         """
         try:
-            logger.info(f"发送聊天请求 | 模型: {self.model} | 消息数: {len(messages)}")
+            logger.info(f"发送聊天请求 | 模型: {self.model} | 消息数: {len(messages)} | 工具数: {len(tools) if tools else 0}")
             
             provider_name = self.provider_config.get("name", "openai")
             
             if provider_name == "anthropic":
                 # Anthropic API 调用
-                result = await self._chat_anthropic(messages, temperature, max_tokens)
+                result = await self._chat_anthropic(messages, temperature, max_tokens, tools, tool_choice)
             else:
                 # OpenAI 兼容 API 调用
-                result = await self._chat_openai(messages, temperature, max_tokens, **kwargs)
+                result = await self._chat_openai(messages, temperature, max_tokens, tools, tool_choice, **kwargs)
             
-            logger.info(f"聊天请求完成 | 模型: {self.model} | 响应长度: {len(result)}")
+            logger.info(f"聊天请求完成 | 模型: {self.model} | 内容长度: {len(result.get('content', ''))} | 工具调用数: {len(result.get('tool_calls', []))}")
             return result
             
         except Exception as e:
@@ -182,8 +190,10 @@ class LLMClient:
         messages: List[Dict[str, str]],
         temperature: float,
         max_tokens: Optional[int],
+        tools: Optional[List[Dict[str, Any]]] = None,
+        tool_choice: str = "auto",
         **kwargs
-    ) -> str:
+    ) -> Dict[str, Any]:
         """
         OpenAI 兼容 API 调用
         """
@@ -198,21 +208,45 @@ class LLMClient:
         if max_tokens is not None:
             params["max_tokens"] = max_tokens
         
+        # 添加工具参数
+        if tools:
+            params["tools"] = tools
+            params["tool_choice"] = tool_choice
+        
         # 添加其他参数
         params.update(kwargs)
         
         # 发送请求
         response = await self.client.chat.completions.create(**params)
         
-        # 提取响应文本
-        return response.choices[0].message.content
+        # 提取响应
+        message = response.choices[0].message
+        
+        result = {
+            "content": message.content or "",
+            "tool_calls": [],
+            "finish_reason": response.choices[0].finish_reason,
+        }
+        
+        # 处理工具调用
+        if message.tool_calls:
+            for tc in message.tool_calls:
+                result["tool_calls"].append({
+                    "id": tc.id,
+                    "name": tc.function.name,
+                    "arguments": tc.function.arguments,
+                })
+        
+        return result
 
     async def _chat_anthropic(
         self,
         messages: List[Dict[str, str]],
         temperature: float,
         max_tokens: Optional[int],
-    ) -> str:
+        tools: Optional[List[Dict[str, Any]]] = None,
+        tool_choice: str = "auto",
+    ) -> Dict[str, Any]:
         """
         Anthropic API 调用
         """
@@ -238,11 +272,43 @@ class LLMClient:
         if system_message:
             params["system"] = system_message
         
+        # 添加工具参数
+        if tools:
+            # 转换为 Anthropic 格式
+            anthropic_tools = []
+            for tool in tools:
+                if tool.get("type") == "function":
+                    func = tool["function"]
+                    anthropic_tools.append({
+                        "name": func["name"],
+                        "description": func["description"],
+                        "input_schema": func["parameters"],
+                    })
+            if anthropic_tools:
+                params["tools"] = anthropic_tools
+        
         # 发送请求
         response = await self.client.messages.create(**params)
         
-        # 提取响应文本
-        return response.content[0].text
+        # 提取响应
+        result = {
+            "content": "",
+            "tool_calls": [],
+            "finish_reason": response.stop_reason,
+        }
+        
+        # 处理响应内容
+        for block in response.content:
+            if block.type == "text":
+                result["content"] += block.text
+            elif block.type == "tool_use":
+                result["tool_calls"].append({
+                    "id": block.id,
+                    "name": block.name,
+                    "arguments": json.dumps(block.input),
+                })
+        
+        return result
     
     async def analyze(
         self,
@@ -250,7 +316,8 @@ class LLMClient:
         user_input: str,
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
-    ) -> str:
+        tools: Optional[List[Dict[str, Any]]] = None,
+    ) -> Dict[str, Any]:
         """
         分析任务（一号脑使用）
         
@@ -259,9 +326,10 @@ class LLMClient:
             user_input: 用户输入
             temperature: 温度参数
             max_tokens: 最大生成 token 数
+            tools: 工具 schema 列表（可选）
             
         Returns:
-            分析结果文本
+            响应字典
         """
         messages = [
             {"role": "system", "content": system_prompt},
@@ -272,6 +340,7 @@ class LLMClient:
             messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
+            tools=tools,
         )
     
     async def audit(
@@ -280,7 +349,8 @@ class LLMClient:
         audit_input: str,
         temperature: float = 0.3,
         max_tokens: Optional[int] = None,
-    ) -> str:
+        tools: Optional[List[Dict[str, Any]]] = None,
+    ) -> Dict[str, Any]:
         """
         审核任务（二号脑使用）
         
@@ -289,9 +359,10 @@ class LLMClient:
             audit_input: 审核输入
             temperature: 温度参数（审核任务通常用较低温度）
             max_tokens: 最大生成 token 数
+            tools: 工具 schema 列表（可选）
             
         Returns:
-            审核结果文本
+            响应字典
         """
         messages = [
             {"role": "system", "content": system_prompt},
@@ -302,6 +373,7 @@ class LLMClient:
             messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
+            tools=tools,
         )
     
     async def generate(
@@ -309,7 +381,8 @@ class LLMClient:
         prompt: str,
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
-    ) -> str:
+        tools: Optional[List[Dict[str, Any]]] = None,
+    ) -> Dict[str, Any]:
         """
         生成任务（专家节点使用）
         
@@ -317,9 +390,10 @@ class LLMClient:
             prompt: 提示词
             temperature: 温度参数
             max_tokens: 最大生成 token 数
+            tools: 工具 schema 列表（可选）
             
         Returns:
-            生成结果文本
+            响应字典
         """
         messages = [
             {"role": "user", "content": prompt},
@@ -329,6 +403,7 @@ class LLMClient:
             messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
+            tools=tools,
         )
     
     def get_model_info(self) -> Dict[str, Any]:

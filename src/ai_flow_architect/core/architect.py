@@ -12,6 +12,7 @@ from .context import ContextManager
 from .cache import CacheManager
 from ..brains.brain_one import BrainOne
 from ..brains.brain_two import BrainTwo
+from ..tools import ReadFileTool, WriteFileTool, SearchFilesTool, ListFilesTool, GetFileInfoTool
 
 
 class Blueprint(BaseModel):
@@ -91,6 +92,10 @@ class FlowArchitect:
 
         # 启动时扫描可用提供商
         provider_count = self._scan_available_providers()
+        
+        # 注册工具系统
+        self._register_tools()
+        
         logger.info(f"AI Flow Architect 初始化完成 | 一号脑: {brain1_model} | 二号脑: {brain2_model} | 可用提供商: {provider_count}")
 
     def _scan_available_providers(self) -> int:
@@ -118,6 +123,31 @@ class FlowArchitect:
             logger.warning("未检测到任何 API key，请设置环境变量")
         
         return len(available)
+    
+    def _register_tools(self):
+        """
+        注册工具系统到调度器。
+        
+        创建所有内置工具实例并注册到调度器，
+        调度器会根据专家的 required_tools 自动注入。
+        """
+        from pathlib import Path
+        
+        # 确定项目根目录（当前工作目录）
+        project_dir = Path.cwd()
+        
+        # 创建工具实例
+        tools = {
+            "read_file": ReadFileTool(),
+            "write_file": WriteFileTool(project_dir=str(project_dir)),
+            "search_files": SearchFilesTool(project_dir=str(project_dir)),
+            "list_files": ListFilesTool(project_dir=str(project_dir)),
+            "get_file_info": GetFileInfoTool(project_dir=str(project_dir)),
+        }
+        
+        # 注册到调度器
+        self.scheduler.register_tools(tools)
+        logger.info(f"工具系统注册完成 | 项目目录: {project_dir} | 工具: {list(tools.keys())}")
 
     def _load_models_config(self) -> Dict[str, Any]:
         """

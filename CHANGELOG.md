@@ -9,6 +9,29 @@
 
 ### 新增
 
+**工具系统（Tool System）**
+- 新增 `tools/` 模块，支持文件系统交互
+- Tool ABC + ToolResult 标准接口，支持 OpenAI/Anthropic Function Calling 格式
+- 5个内置工具：read_file、write_file、search_files、list_files、get_file_info
+- 结果截断：4000 字符上限，截断时明确告知 LLM
+- 错误反馈：error_type + message + suggestion，引导 LLM 下一步
+- 工具执行循环：BaseExpert.execute_with_tools()，最多 8 轮，防无限循环
+- 权限控制：专家自声明 required_tools，调度器按需注入
+- 路径安全：WriteFileTool 限制在 project_dir 内
+- 工具系统接入主流程：FlowArchitect.__init__() 自动创建并注册工具
+- 改动文件：`tools/__init__.py`, `tools/base.py`, `tools/file_tools.py`, `experts/base.py`, `experts/programmer.py`, `experts/reviewer.py`, `core/scheduler.py`, `core/architect.py`
+
+### 已知局限
+
+**Anthropic 多轮工具对话**
+- 工具结果回传时使用 OpenAI 格式，Anthropic 原生 API 不识别
+- 不影响 OpenAI 兼容 API（DashScope/DeepSeek/Zhipu/Moonshot）
+- 计划后续版本补充 Anthropic 消息格式转换
+
+**write_file 审批流程**
+- 当前 write_file 工具会直接执行，无用户审批拦截
+- 计划后续版本实现累积审批机制
+
 **V2 架构 — 6大方案全部实现**
 
 **方案1：人格注入**

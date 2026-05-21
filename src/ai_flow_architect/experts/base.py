@@ -31,6 +31,10 @@ class BaseExpert(ABC):
     # 角色预置提示词的最大长度（字符数）
     MAX_ROLE_PROMPT_LENGTH = 2000
 
+    # 工具配置（子类可覆盖）
+    required_tools: set = set()  # 该专家需要的工具名称
+    max_tool_iterations: int = 8  # 最大工具调用轮次（防无限循环）
+
     def __init__(self, config: Optional[ExpertConfig] = None, system_prompt: Optional[str] = None, llm_client=None):
         """
         初始化专家
@@ -64,8 +68,160 @@ class BaseExpert(ABC):
 
         self.conversation_history = []
         self.context = {}
-
+        self._tools = {}  # 注入的工具实例
+        self._tool_schemas = []  # 工具 schema 列表
+        
         logger.info(f"专家 '{self.config.name}' 初始化完成")
+    
+    def inject_tools(self, tools: Dict[str, Any]):
+        """
+        注入工具实例
+        
+        Args:
+            tools: 工具名称 -> 工具实例的字典
+        """
+        self._tools = tools
+        self._tool_schemas = [tool.to_schema() for tool in tools.values()]
+        logger.info(f"专家 '{self.config.name}' 注入 {len(tools)} 个工具: {list(tools.keys())}")
+    
+    def get_tool_schemas(self) -> list:
+        """获取工具 schema 列表"""
+        return self._tool_schemas
+    
+    async def execute_tool(self, tool_name: str, arguments: Dict[str, Any]) -> str:
+        """
+        执行工具
+        
+        Args:
+            tool_name: 工具名称
+            arguments: 工具参数
+            
+        Returns:
+            工具执行结果的 LLM 可读消息
+        """
+        tool = self._tools.get(tool_name)
+        if not tool:
+            return f"[错误] 未知工具: {tool_name}"
+        
+        try:
+            result = await tool.execute(**arguments)
+            return result.to_llm_message()
+        except Exception as e:
+            logger.error(f"工具执行失败: {tool_name} | 错误: {e}")
+            return f"[错误] 工具执行异常: {str(e)}"
+    
+    async def execute_with_tools(self, task: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        带工具调用的执行循环
+        
+        Args:
+            task: 任务描述
+            context: 上下文信息
+            
+        Returns:
+            执行结果（与 execute() 格式一致）
+        """
+        if not self._tools:
+            # 没有工具，直接调用普通 execute
+            return await self.execute(task, context)
+        
+        # llm_client 为空时回退到 mock
+        if not self.llm_client:
+            logger.warning(f"专家 '{self.config.name}' llm_client 为空，工具调用不可用，回退到 execute()")
+            return await self.execute(task, context)
+        
+        # 构建初始消息
+        messages = [
+            {"role": "system", "content": self.config.system_prompt},
+            {"role": "user", "content": f"任务：{task}\n\n上下文：{context}"},
+        ]
+        
+        tool_logs = []  # 工具调用日志
+        
+        for iteration in range(self.max_tool_iterations):
+            # 调用 LLM
+            response = await self.llm_client.chat(
+                messages=messages,
+                temperature=self.config.temperature,
+                max_tokens=self.config.max_tokens,
+                tools=self._tool_schemas if self._tool_schemas else None,
+            )
+            
+            content = response.get("content", "")
+            tool_calls = response.get("tool_calls", [])
+            
+            if not tool_calls:
+                # 没有工具调用，LLM 返回最终结果
+                logger.info(f"专家 '{self.config.name}' 工具循环结束 | 迭代次数: {iteration + 1}")
+                # 统一返回格式，与 execute() 一致
+                return {
+                    "expert": self.config.name,
+                    "task": task,
+                    "output": content,
+                    "tool_logs": tool_logs,
+                    "iterations": iteration + 1,
+                    "metadata": {
+                        "model": self.config.model,
+                        "temperature": self.config.temperature,
+                        "tools_used": [log["tool"] for log in tool_logs],
+                    },
+                }
+            
+            # 有工具调用，执行工具
+            # 先把 LLM 的响应（包含 tool_calls）加入消息
+            assistant_message = {"role": "assistant", "content": content}
+            if tool_calls:
+                assistant_message["tool_calls"] = [
+                    {"id": tc["id"], "type": "function", "function": {"name": tc["name"], "arguments": tc["arguments"]}}
+                    for tc in tool_calls
+                ]
+            messages.append(assistant_message)
+            
+            # 执行每个工具调用
+            for tc in tool_calls:
+                import json
+                tool_name = tc["name"]
+                tool_id = tc["id"]
+                
+                try:
+                    arguments = json.loads(tc["arguments"])
+                except json.JSONDecodeError:
+                    arguments = {}
+                
+                logger.info(f"专家 '{self.config.name}' 调用工具: {tool_name}({arguments})")
+                
+                result_text = await self.execute_tool(tool_name, arguments)
+                
+                # 记录工具日志
+                tool_logs.append({
+                    "tool": tool_name,
+                    "arguments": arguments,
+                    "result_preview": result_text[:200],
+                    "iteration": iteration + 1,
+                })
+                
+                # 把工具结果加入消息
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_id,
+                    "content": result_text,
+                })
+        
+        # 达到最大迭代次数
+        logger.warning(f"专家 '{self.config.name}' 达到最大工具迭代次数: {self.max_tool_iterations}")
+        return {
+            "expert": self.config.name,
+            "task": task,
+            "output": content if content else "达到最大工具调用次数，未能完成任务。",
+            "tool_logs": tool_logs,
+            "iterations": self.max_tool_iterations,
+            "warning": "达到最大工具调用次数",
+            "metadata": {
+                "model": self.config.model,
+                "temperature": self.config.temperature,
+                "tools_used": [log["tool"] for log in tool_logs],
+            },
+        }
     
     @abstractmethod
     async def execute(self, task: str, context: Dict[str, Any]) -> Dict[str, Any]:
