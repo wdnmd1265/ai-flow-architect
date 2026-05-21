@@ -19,7 +19,7 @@
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.9%2B-3776AB.svg" alt="Python 3.9+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-4CAF50.svg" alt="License"></a>
   <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/status-alpha-FF9800.svg" alt="Alpha"></a>
-  <a href="https://github.com/wdnmd1265/ai-flow-architect/actions"><img src="https://img.shields.io/badge/tests-114%20passing-4CAF50.svg" alt="Tests"></a>
+  <a href="https://github.com/wdnmd1265/ai-flow-architect/actions"><img src="https://img.shields.io/badge/tests-177%20passing-4CAF50.svg" alt="Tests"></a>
 </p>
 
 <p align="center">
@@ -32,10 +32,12 @@
 
 ---
 
-<!-- Architecture diagram -->
+<!-- Ecosystem Architecture -->
 <p align="center">
-  <img src="docs/img/architecture.png" alt="AI Flow Architect — Dual-Brain Workflow" width="800" />
+  <img src="docs/img/ecosystem.png" alt="AI Flow Architect — Three-Tier Ecosystem" width="800" />
 </p>
+
+<p align="center"><em>TrustEngine (core) → Packaging Layer (integration) → FlowArchitect (full framework)</em></p>
 
 ---
 
@@ -55,7 +57,9 @@ You trusted a single AI and it hallucinated security. This happens constantly �
 
 ## How It Works
 
-AI Flow Architect runs your task through **two independent AI brains** and makes their disagreement visible to you.
+### Full Framework: FlowArchitect
+
+Run your task through **two independent AI brains** with built-in adversarial review:
 
 ```
   You: "Design a user management system"
@@ -93,6 +97,42 @@ AI Flow Architect runs your task through **two independent AI brains** and makes
      You get: a quality report, not a gamble.
 ```
 
+### Standalone: TrustEngine
+
+Don't need the full framework? Use **TrustEngine** directly — a pure audit layer with zero state, zero interaction:
+
+```python
+from ai_flow_architect import TrustEngine, AuditContext
+
+engine = TrustEngine(brain2="claude-3-5-sonnet")
+report = engine.audit(
+    requirement="Implement password reset with rate limiting",
+    ai_output=generated_code,
+    context=AuditContext(
+        project_path="./src",
+        language="python",
+        description="User authentication module"
+    )
+)
+
+print(report.verdict)      # "pass" | "review" | "reject"
+print(report.confidence)   # 0-100
+print(report.uncertainty)  # What the engine admits it doesn't know
+```
+
+**What you get:**
+
+<p align="center">
+  <img src="docs/img/trustreport-example.png" alt="TrustReport Terminal Output" width="750" />
+</p>
+
+- **Verdict** with confidence score
+- **Findings** — specific issues with severity
+- **Risk Points** — security/logic/performance risks
+- **Uncertainty** — the engine's honest admission of its own limits
+- **Multi-arbiter votes** — cross-model consensus (or divergence)
+- **Evidence chain** — SHA-256 hashed, timestamped, auditable
+
 **Key design decisions:**
 
 - **Single key works out of the box.** Omit brain2 and it auto-selects a cheaper model from the same provider. One OpenAI key is enough to start.
@@ -101,6 +141,7 @@ AI Flow Architect runs your task through **two independent AI brains** and makes
 - **Fixed workflow, not free orchestration.** You trade flexibility for predictability. Every task follows the same quality-controlled pipeline.
 - **Every expert is session-isolated.** They don't know about each other. Data passes through structured fields only.
 - **Opponent Brain before execution.** Five adversarial perspectives challenge the plan before a single API call is wasted.
+- **TrustEngine: audit anything, anywhere.** Drop the `engine.audit()` call into your existing pipeline — no framework lock-in.
 
 ## Comparison
 
@@ -113,8 +154,9 @@ AI Flow Architect runs your task through **two independent AI brains** and makes
 | **Token saving** | 4 mechanisms, zero-config | Manual optimization | Manual optimization |
 | **Flow control** | Fixed 3-phase pipeline with user approval gate | Free-form chains/agents | Configurable process |
 | **Best for** | Auditable quality. You need to trust the output. | Maximum flexibility. You own the pipeline. | Multi-agent simulations. |
+| **Integration** | Three tiers: Skill → API → Full framework | Framework-first | Framework-first |
 
-If you need maximum flexibility, use LangChain or CrewAI. If you need **auditable quality where AI hallucinations have consequences** — this is it.
+If you need maximum flexibility, use LangChain or CrewAI. If you need **auditable quality where AI hallucinations have consequences** — or just want to drop a `trust_engine.audit()` call into your existing code — this is it.
 
 ## Model Support
 
@@ -241,7 +283,7 @@ Opponent Brain Review (Security perspective):
 
 ```bash
 pip install pytest pytest-asyncio
-pytest tests/unit/ -v    # 114 tests
+pytest tests/unit/ -v    # 177 tests
 ```
 
 ## Architecture Deep Dive
@@ -290,7 +332,7 @@ Create custom experts by subclassing `BaseExpert` and declaring `required_input_
 ```
 ai-flow-architect/
 ├── src/ai_flow_architect/
-│   ├── __init__.py              # Exports FlowArchitect
+│   ├── __init__.py              # Exports FlowArchitect, TrustEngine, TrustReport
 │   ├── core/
 │   │   ├── architect.py         # Three-phase orchestration + user approval loop
 │   │   ├── scheduler.py         # Serial execution + 4 token-saving mechanisms
@@ -306,12 +348,16 @@ ai-flow-architect/
 │   │   ├── evaluator.py         # EvaluatorExpert
 │   │   ├── programmer.py        # ProgrammerExpert
 │   │   └── reviewer.py          # ReviewerExpert
+│   ├── engine/                  # TrustEngine — standalone audit layer
+│   │   ├── trust_engine.py      # Core audit interface
+│   │   ├── trust_report.py      # TrustReport schema + serialization
+│   │   └── audit_context.py     # AuditContext for project metadata
 │   └── utils/
 │       ├── llm_client.py        # Unified LLM client (8 providers)
 │       ├── token_counter.py     # Token counting + cost estimation
 │       ├── compressor.py        # Context compression (4 strategies)
 │       └── validator.py         # Input validation
-├── tests/unit/                  # 114 unit tests
+├── tests/unit/                  # 177 unit tests
 ├── examples/
 │   └── basic_usage.py
 ├── docs/
@@ -325,7 +371,8 @@ ai-flow-architect/
 
 - [ ] **PyPI package** — `pip install ai-flow-architect`
 - [ ] **CLI interface** — `ai-flow run "design a system"`
-- [ ] **Expert execution layer** — Real LLM calls in expert `execute()` (currently mock data)
+- [x] **Expert execution layer** — Real LLM calls with tool support (mock fallback available)
+- [x] **TrustEngine** — Standalone audit layer with multi-arbiter + adversarial + evidence chain
 - [ ] **Expert team templates** — Pre-configured teams for web dev, data analysis, content creation
 - [ ] **Web UI** — Visual blueprint editor and execution monitor
 - [ ] **DeepSeek verification** — Most cost-effective provider, high priority for community validation
@@ -341,7 +388,7 @@ Contributions are welcome — especially provider verification PRs. See [CONTRIB
 git clone https://github.com/wdnmd1265/ai-flow-architect.git
 cd ai-flow-architect
 pip install -e .
-pytest tests/unit/ -v
+pytest tests/unit/ -v    # 177 tests
 ```
 
 ## License

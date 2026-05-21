@@ -1,0 +1,133 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://github.com/wdnmd1265/ai-flow-architect/schemas/trust-report-v1.schema.json",
+    "title": "TrustReport",
+    "description": "AI Trust Engine 输出的信任报告",
+    "type": "object",
+    "required": ["version", "timestamp", "verdict", "confidence", "findings", "risks", "arbiters", "uncertainty", "evidence", "audit_log"],
+    "properties": {
+        "version": {
+            "type": "string",
+            "const": "1.0",
+            "description": "报告版本"
+        },
+        "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "审查时间 ISO 8601"
+        },
+        "verdict": {
+            "type": "string",
+            "enum": ["pass", "review", "reject"],
+            "description": "结论：通过 / 需要审查 / 拒绝"
+        },
+        "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "置信度 0-100"
+        },
+        "findings": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/Finding" },
+            "description": "发现的问题"
+        },
+        "risks": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/Risk" },
+            "description": "风险点"
+        },
+        "arbiters": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/ArbiterVote" },
+            "description": "审查员投票记录"
+        },
+        "uncertainty": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/Uncertainty" },
+            "description": "不确定性"
+        },
+        "evidence": { "$ref": "#/definitions/EvidenceChain" },
+        "audit_log": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "审查日志"
+        }
+    },
+    "definitions": {
+        "Finding": {
+            "type": "object",
+            "required": ["area", "severity", "description", "source"],
+            "properties": {
+                "area": { "type": "string", "description": "问题所在区域" },
+                "severity": {
+                    "type": "string",
+                    "enum": ["low", "medium", "high", "critical"],
+                    "description": "严重程度"
+                },
+                "description": { "type": "string", "description": "问题描述" },
+                "source": { "type": "string", "description": "来源标识" },
+                "evidence": { "type": ["string", "null"], "description": "证据" }
+            }
+        },
+        "Risk": {
+            "type": "object",
+            "required": ["type", "level", "description"],
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": ["security", "logic", "performance", "scalability"],
+                    "description": "风险类型"
+                },
+                "level": {
+                    "type": "string",
+                    "enum": ["low", "medium", "high", "critical"],
+                    "description": "风险等级"
+                },
+                "description": { "type": "string", "description": "风险描述" },
+                "mitigation": { "type": ["string", "null"], "description": "缓解建议" }
+            }
+        },
+        "ArbiterVote": {
+            "type": "object",
+            "required": ["model", "role", "passed", "score"],
+            "properties": {
+                "model": { "type": "string", "description": "审查使用的模型" },
+                "role": { "type": "string", "description": "审查员角色" },
+                "passed": { "type": "boolean", "description": "是否通过" },
+                "score": { "type": "number", "minimum": 0, "maximum": 100, "description": "质量分数" },
+                "issues": { "type": "array", "items": { "type": "object" }, "description": "发现的问题" },
+                "suggestions": { "type": "array", "items": { "type": "string" }, "description": "改进建议" }
+            }
+        },
+        "Uncertainty": {
+            "type": "object",
+            "required": ["area", "reason", "severity", "suggestion"],
+            "properties": {
+                "area": { "type": "string", "description": "不确定的区域" },
+                "reason": { "type": "string", "description": "不确定的原因" },
+                "severity": {
+                    "type": "string",
+                    "enum": ["low", "medium", "high"],
+                    "description": "严重程度"
+                },
+                "suggestion": { "type": "string", "description": "建议" }
+            }
+        },
+        "EvidenceChain": {
+            "type": "object",
+            "required": ["hash", "algorithm", "timestamp", "isolation_level"],
+            "properties": {
+                "hash": { "type": "string", "description": "SHA-256 哈希" },
+                "algorithm": { "type": "string", "const": "sha256", "description": "哈希算法" },
+                "timestamp": { "type": "string", "format": "date-time", "description": "时间戳" },
+                "isolation_level": {
+                    "type": "string",
+                    "enum": ["full", "partial", "simulated"],
+                    "description": "隔离级别"
+                },
+                "data_summary": { "type": "object", "description": "数据摘要" }
+            }
+        }
+    }
+}

@@ -13,6 +13,7 @@ from .cache import CacheManager
 from ..brains.brain_one import BrainOne
 from ..brains.brain_two import BrainTwo
 from ..tools import ReadFileTool, WriteFileTool, SearchFilesTool, ListFilesTool, GetFileInfoTool
+from ..engine import TrustEngine, AuditContext
 
 
 class Blueprint(BaseModel):
@@ -89,7 +90,10 @@ class FlowArchitect:
         self.brain_one = BrainOne(model=brain1_model)
         self.brain_two = BrainTwo(model=brain2_model)
         self.blueprint: Optional[Blueprint] = None
-
+        
+        # 初始化信任引擎（审查能力独立模块）
+        self.engine = TrustEngine(brain1=brain1_model, brain2=brain2_model)
+        
         # 启动时扫描可用提供商
         provider_count = self._scan_available_providers()
         
@@ -793,15 +797,25 @@ class FlowArchitect:
         Returns:
             最终结果
         """
-        # 判断复杂度：复杂任务用多元仲裁
-        if len(blueprint.steps) >= 4:
-            logger.info(f"复杂任务（{len(blueprint.steps)}步），启用多元仲裁委员会")
-            audit_result = await self.brain_two.multi_audit(blueprint, execution_result)
-        else:
-            audit_result = await self.brain_two.audit(blueprint, execution_result)
+        # 第一层：蓝图步骤对比（FlowArchitect 专属）
+        step_comparison = await self._compare_blueprint_steps(blueprint, execution_result)
         
-        # 构建证据链
-        evidence = self._build_evidence_chain(blueprint, execution_result, audit_result)
+        # 第二层：深度审查（委托 TrustEngine）
+        execution_output = self._extract_execution_output(execution_result)
+        engine_report = await self.engine.audit(
+            requirement=blueprint.description,
+            ai_output=execution_output,
+            context=AuditContext(
+                description=blueprint.description,
+            )
+        )
+        
+        # 合并结果
+        audit_result = self._merge_phase_three(step_comparison, engine_report)
+        
+        # 构建证据链（引擎证据链作为子证据）
+        engine_evidence = engine_report.evidence if hasattr(engine_report, 'evidence') else None
+        evidence = self._build_evidence_chain(blueprint, execution_result, audit_result, engine_evidence)
         
         if audit_result["passed"]:
             logger.info("质量审核通过，交付最终结果")
@@ -810,6 +824,7 @@ class FlowArchitect:
                 "blueprint": blueprint.model_dump(),
                 "execution_result": execution_result,
                 "audit_result": audit_result,
+                "trust_report": engine_report.to_json(),
                 "evidence_chain": evidence,
             }
         else:
@@ -819,21 +834,114 @@ class FlowArchitect:
                 "blueprint": blueprint.model_dump(),
                 "execution_result": execution_result,
                 "audit_result": audit_result,
+                "trust_report": engine_report.to_json(),
                 "revision_suggestions": audit_result.get("suggestions", []),
                 "evidence_chain": evidence,
             }
+    
+    async def _compare_blueprint_steps(
+        self, 
+        blueprint: Blueprint, 
+        execution_result: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        蓝图步骤对比（FlowArchitect 专属逻辑）。
+        
+        验证"计划 vs 执行"——蓝图规划的步骤是否都完成了。
+        """
+        step_details = []
+        completed_count = 0
+        
+        for i, step in enumerate(blueprint.steps):
+            step_name = step.get("name", f"step_{i}")
+            step_result = execution_result.get(step_name, {})
+            is_completed = step_result.get("status") == "completed"
+            
+            if is_completed:
+                completed_count += 1
+            
+            step_details.append({
+                "step_name": step_name,
+                "expected_expert": step.get("expert"),
+                "actual_expert": step_result.get("expert"),
+                "is_completed": is_completed,
+                "has_output": bool(step_result.get("output")),
+            })
+        
+        total_steps = len(blueprint.steps)
+        match_rate = completed_count / total_steps if total_steps > 0 else 0
+        
+        return {
+            "type": "step_comparison",
+            "total_steps": total_steps,
+            "completed_steps": completed_count,
+            "match_rate": match_rate,
+            "step_details": step_details,
+        }
+    
+    def _extract_execution_output(self, execution_result: Dict[str, Any]) -> str:
+        """
+        从执行结果中提取所有输出内容。
+        """
+        outputs = []
+        for step_name, result in execution_result.items():
+            if isinstance(result, dict):
+                output = result.get("output", "")
+                if output:
+                    outputs.append(f"[{step_name}]\n{output}")
+        return "\n\n".join(outputs)
+    
+    def _merge_phase_three(
+        self, 
+        step_comparison: Dict[str, Any], 
+        engine_report: Any
+    ) -> Dict[str, Any]:
+        """
+        合并步骤对比和引擎审查结果。
+        """
+        # 从 engine_report 中提取数据
+        if hasattr(engine_report, 'model_dump'):
+            report_data = engine_report.model_dump()
+        else:
+            report_data = engine_report
+        
+        # 合并
+        passed = (
+            step_comparison["match_rate"] >= 0.8  # 步骤完成率 >= 80%
+            and report_data.get("verdict") != "reject"
+        )
+        
+        score = report_data.get("confidence", 50)
+        
+        return {
+            "passed": passed,
+            "score": score,
+            "step_comparison": step_comparison,
+            "trust_report": report_data,
+            "suggestions": [
+                f"步骤完成率: {step_comparison['match_rate']:.0%}",
+                *[u.get("suggestion", "") for u in report_data.get("uncertainty", []) if u.get("severity") == "high"]
+            ],
+        }
 
     def _build_evidence_chain(
         self,
         blueprint: Blueprint,
         execution_result: Dict[str, Any],
         audit_result: Dict[str, Any],
+        engine_evidence: Optional[Any] = None,
     ) -> Dict[str, Any]:
         """
         构建不可篡改的证据链（轻量版：SHA256哈希 + 时间戳）
 
         将完整流程数据打包为结构化文档，生成哈希值。
         最终交付物 = 代码 + 完整体检报告。
+        
+        Args:
+            blueprint: 任务蓝图
+            execution_result: 执行结果
+            audit_result: 审核结果
+            engine_evidence: TrustEngine 的证据链（作为子证据）
         """
         import hashlib
         import json
@@ -855,6 +963,13 @@ class FlowArchitect:
             "audit_verdict": audit_result.get("passed"),
             "isolation_level": "full" if self.brain_one.model != self.brain_two.model else "degraded",
         }
+        
+        # 嵌入引擎证据链作为子证据
+        if engine_evidence:
+            if hasattr(engine_evidence, 'model_dump'):
+                chain_data["engine_evidence"] = engine_evidence.model_dump()
+            else:
+                chain_data["engine_evidence"] = engine_evidence
 
         # 序列化并哈希
         data_json = json.dumps(chain_data, sort_keys=True, ensure_ascii=False, default=str)
@@ -868,6 +983,13 @@ class FlowArchitect:
             "data_snapshot": data_json[:2000],  # 前2000字符摘要
             "data_length": len(data_json),
         }
+        
+        # 嵌入引擎证据链
+        if engine_evidence:
+            if hasattr(engine_evidence, 'model_dump'):
+                evidence["engine_evidence"] = engine_evidence.model_dump()
+            else:
+                evidence["engine_evidence"] = engine_evidence
 
         logger.info(f"证据链构建完成 | 哈希: {chain_hash[:16]}... | 数据长度: {len(data_json)} 字符")
         return evidence

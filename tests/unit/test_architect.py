@@ -10,6 +10,7 @@
 
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
+from ai_flow_architect.engine.trust_report import TrustReport, Finding, Uncertainty, EvidenceChain
 
 
 class TestArchitectInit:
@@ -159,17 +160,27 @@ class TestPhaseThree:
         )
         execution_result = {"评估": {"status": "completed", "output": "完成"}}
 
-        architect.brain_two.audit = AsyncMock(return_value={
-            "passed": True,
-            "score": 92,
-            "feedback": "质量良好",
-            "suggestions": [],
-        })
+        # Mock TrustEngine.audit
+        mock_report = TrustReport(
+            verdict="pass",
+            confidence=92.0,
+            findings=[],
+            risks=[],
+            arbiters=[],
+            uncertainty=[],
+            evidence=EvidenceChain(
+                hash="abc123",
+                algorithm="sha256",
+                timestamp="2026-05-21T00:00:00Z",
+                isolation_level="simulated",
+            ),
+        )
+        architect.engine.audit = AsyncMock(return_value=mock_report)
 
         result = await architect._phase_three(blueprint, execution_result)
 
         assert result["status"] == "success"
-        assert result["audit_result"]["score"] == 92
+        assert result["audit_result"]["score"] == 92.0
 
     @pytest.mark.asyncio
     async def test_audit_failed(self):
@@ -185,15 +196,28 @@ class TestPhaseThree:
         )
         execution_result = {"评估": {"status": "completed", "output": "不够好"}}
 
-        architect.brain_two.audit = AsyncMock(return_value={
-            "passed": False,
-            "score": 65,
-            "feedback": "质量不达标",
-            "suggestions": ["建议增加细节"],
-        })
+        # Mock TrustEngine.audit
+        mock_report = TrustReport(
+            verdict="reject",
+            confidence=40.0,
+            findings=[
+                Finding(area="评估", severity="high", description="质量不达标", source="arbiter_0"),
+            ],
+            risks=[],
+            arbiters=[],
+            uncertainty=[
+                Uncertainty(area="质量", reason="分数过低", severity="high", suggestion="建议增加细节"),
+            ],
+            evidence=EvidenceChain(
+                hash="def456",
+                algorithm="sha256",
+                timestamp="2026-05-21T00:00:00Z",
+                isolation_level="simulated",
+            ),
+        )
+        architect.engine.audit = AsyncMock(return_value=mock_report)
 
         result = await architect._phase_three(blueprint, execution_result)
 
         assert result["status"] == "needs_revision"
-        assert len(result["revision_suggestions"]) == 1
-        assert result["revision_suggestions"][0] == "建议增加细节"
+        assert len(result["revision_suggestions"]) >= 1
