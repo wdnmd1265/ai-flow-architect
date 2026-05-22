@@ -71,31 +71,39 @@ class TrustEngine:
             f"隔离级别: {self.isolation_level}"
         )
     
+    def _load_models_config(self) -> Dict[str, Any]:
+        """加载 models.yaml 配置文件。"""
+        import yaml
+        from pathlib import Path
+
+        config_path = Path(__file__).parent.parent / "config" / "models.yaml"
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                return yaml.safe_load(f)
+        except Exception as e:
+            logger.warning(f"加载 models.yaml 失败: {e}，使用空配置")
+            return {}
+
     def _resolve_brain2(self, brain1_model: str) -> str:
-        """自动选择 brain2 模型（跨提供商优先）。"""
-        # 尝试选择不同提供商的模型
-        provider_map = {
-            "gpt-4o": "claude-3-5-sonnet-20241022",
-            "gpt-4o-mini": "claude-3-haiku-20240307",
-            "claude-3-5-sonnet-20241022": "gpt-4o",
-            "claude-3-haiku-20240307": "gpt-4o-mini",
-            "deepseek-chat": "gpt-4o",
-            "qwen-max": "gpt-4o",
-        }
-        
-        # 检查目标模型的 API key 是否可用
-        target = provider_map.get(brain1_model, "gpt-4o")
-        if self._check_api_key(target):
-            return target
-        
-        # 降级：同提供商更便宜的模型
-        fallback_map = {
-            "gpt-4o": "gpt-4o-mini",
-            "gpt-4-turbo": "gpt-4o-mini",
-            "claude-3-5-sonnet-20241022": "claude-3-haiku-20240307",
-        }
-        return fallback_map.get(brain1_model, brain1_model)
-    
+        """根据 models.yaml 的 fallbacks 配置自动选择 brain2 模型。"""
+        config = self._load_models_config()
+        fallbacks = config.get("fallbacks", {})
+
+        for provider, mappings in fallbacks.items():
+            if provider == "default_fallback":
+                continue
+            if isinstance(mappings, dict) and brain1_model in mappings:
+                candidate = mappings[brain1_model]
+                if self._check_api_key(candidate):
+                    logger.info(
+                        f"检测到单 {provider} key：brain2 自动降级为 '{candidate}'。"
+                        f"如需最佳质检效果，请配置跨提供商的 API key。"
+                    )
+                    return candidate
+                break
+
+        return brain1_model
+
     def _check_api_key(self, model: str) -> bool:
         """检查模型对应的 API key 是否存在。"""
         key_map = {
@@ -215,7 +223,7 @@ class TrustEngine:
             result = await self.brain_two.audit_raw(requirement, ai_output)
             return result
         except Exception as e:
-            logger.error(f"交叉审查失败: {e}")
+            logger.error(f"交叉审查失败: {e}", exc_info=True)
             return {
                 "passed": False,
                 "score": 0,
@@ -248,7 +256,7 @@ class TrustEngine:
             
             return findings
         except Exception as e:
-            logger.error(f"反例攻防失败: {e}")
+            logger.error(f"反例攻防失败: {e}", exc_info=True)
             return []
     
     def _merge_findings(
