@@ -94,9 +94,8 @@ class TrustReport(BaseModel):
     # 审计日志
     audit_log: List[str] = Field(default_factory=list, description="审查过程日志")
     
-    def to_json(self, indent: int = 2) -> str:
-        """导出为 JSON 字符串"""
-        return self.model_dump_json(indent=indent)
+    # to_json() 已移除 — 直接使用 Pydantic v2 内置的 model_dump_json(indent=2)
+    # 调用方已全部迁移到 model_dump_json()
     
     def to_markdown(self) -> str:
         """导出为 Markdown 格式"""
@@ -112,8 +111,7 @@ class TrustReport(BaseModel):
             lines.append(f"## 审查发现 ({len(self.findings)})")
             lines.append(f"")
             for i, f in enumerate(self.findings, 1):
-                severity_icon = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🟢"}.get(f.severity, "⚪")
-                lines.append(f"{i}. {severity_icon} **[{f.severity.upper()}]** {f.description}")
+                lines.append(f"{i}. **[{f.severity.upper()}]** {f.description}")
                 lines.append(f"   - 区域: {f.area} | 来源: {f.source}")
                 if f.evidence:
                     lines.append(f"   - 证据: {f.evidence}")
@@ -135,20 +133,19 @@ class TrustReport(BaseModel):
             lines.append(f"## 仲裁者投票 ({len(self.arbiters)})")
             lines.append(f"")
             for a in self.arbiters:
-                status = "✅ 通过" if a.passed else "❌ 未通过"
+                status = "[PASS] 通过" if a.passed else "[FAIL] 未通过"
                 lines.append(f"- **{a.role}** ({a.model}): {status} | 分数: {a.score:.1f}")
                 if a.issues:
                     for issue in a.issues:
-                        lines.append(f"  - ⚠️ {issue.get('description', str(issue))}")
+                        lines.append(f"  - [!] {issue.get('description', str(issue))}")
             lines.append(f"")
         
         # 不确定性
         if self.uncertainty:
-            lines.append(f"## ⚠️ 不确定性 ({len(self.uncertainty)})")
+            lines.append(f"## 不确定性 ({len(self.uncertainty)})")
             lines.append(f"")
             for u in self.uncertainty:
-                severity_icon = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(u.severity, "⚪")
-                lines.append(f"- {severity_icon} **{u.area}**")
+                lines.append(f"- **[{u.severity.upper()}] {u.area}**")
                 lines.append(f"  - 原因: {u.reason}")
                 lines.append(f"  - 建议: {u.suggestion}")
             lines.append(f"")
@@ -167,9 +164,9 @@ class TrustReport(BaseModel):
     
     def summary(self) -> str:
         """生成简洁的一行摘要"""
-        status_icon = {"pass": "✅", "review": "⚠️", "reject": "❌"}.get(self.verdict, "❓")
+        status_label = {"pass": "[PASS]", "review": "[REVIEW]", "reject": "[REJECT]"}.get(self.verdict, "[?]")
         return (
-            f"{status_icon} {self.verdict.upper()} "
+            f"{status_label} {self.verdict.upper()} "
             f"| 置信度 {self.confidence:.0f}/100 "
             f"| 发现 {len(self.findings)} 个问题 "
             f"| 风险 {len(self.risks)} 个 "

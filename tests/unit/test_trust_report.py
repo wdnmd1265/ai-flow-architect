@@ -67,7 +67,7 @@ class TestTrustReport:
     def test_to_json(self):
         """JSON 序列化"""
         report = TrustReport(verdict="pass", confidence=90.0)
-        json_str = report.to_json()
+        json_str = report.model_dump_json(indent=2)
         
         parsed = json.loads(json_str)
         assert parsed["verdict"] == "pass"

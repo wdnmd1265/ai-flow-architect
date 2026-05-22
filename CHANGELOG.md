@@ -7,6 +7,28 @@
 
 ## [未发布]
 
+### 修复
+
+**CLI 可用性**
+- `ai-flow` 现支持 `init`（生成 .env 模板）、`models`（列出所有模型）、`audit`（审查文件）三个子命令
+- API key 检查改为动态：根据 `--brain1` 指定的模型从 models.yaml 查询对应环境变量，不再硬编码 OPENAI_API_KEY
+- `audit` 支持 `--brain1` 和 `--brain2` 参数，可指定审查模型
+
+**API 服务**
+- FastAPI 实例使用 `lifespan` 缓存 TrustEngine，同模型组合不再重复初始化
+
+**依赖整理**
+- `redis`、`diskcache` 移至 `[cache]` 可选依赖，不再强制安装
+- `fastapi`、`uvicorn` 移至 `[api]` 可选依赖
+- 安装核心包不再拉 redis/fastapi
+
+**TrustEngine 模型兼容**
+- `_check_api_key` 补全 glm-/moonshot- 前缀映射，智谱和月之暗面模型的 fallback 不再跳过
+
+**TrustReport 接口统一**
+- 删除冗余 `to_json()`，所有调用方迁移至 Pydantic v2 原生 `model_dump_json(indent=2)`
+- `__init__.py` 补全 TrustEngine 及相关类型导出
+
 ### 新增
 
 **工具系统（Tool System）**

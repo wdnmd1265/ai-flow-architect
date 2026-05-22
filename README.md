@@ -3,16 +3,7 @@
 </p>
 
 <p align="center">
-  <h1>AI proposes. You decide.</h1>
-</p>
-
-<p align="center">
-  <strong>I don't trust AI.<br>
-  One model saying something is right — that's not proof. Two isolated brains,
-  running on different models, debating each other. A third brain arbitrating.
-  <em>That</em> barely qualifies.<br><br>
-  Every framework out there helps you run more AI.<br>
-  This one helps you trust it less.</strong>
+  <strong>开源 AI 输出审查中间件</strong>
 </p>
 
 <p align="center">
@@ -24,183 +15,160 @@
 
 <p align="center">
   <a href="#the-problem">The Problem</a> &middot;
-  <a href="#how-it-works">How It Works</a> &middot;
-  <a href="#comparison">Comparison</a> &middot;
+  <a href="#trustengine">TrustEngine</a> &middot;
+  <a href="#integrations">Integrations</a> &middot;
+  <a href="#flowarchitect">FlowArchitect</a> &middot;
   <a href="#quick-start">Quick Start</a> &middot;
   <a href="#roadmap">Roadmap</a>
 </p>
 
 ---
 
-<!-- Ecosystem Architecture -->
-<p align="center">
-  <img src="docs/img/ecosystem.png" alt="AI Flow Architect — Three-Tier Ecosystem" width="800" />
-</p>
+## The Problem
 
-<p align="center"><em>TrustEngine (core) → Packaging Layer (integration) → FlowArchitect (full framework)</em></p>
+你让 GPT-4 写了一段用户管理代码，它看起来不错。API 设计合理，数据库连接正常。但 TrustEngine 在 1.8 秒内发现：密码哈希用了 MD5、登录端点缺少速率限制。
+
+你信任了一个 AI 模型，它产生了安全幻觉。这不是因为 AI 有恶意——而是因为**单一模型没有机制发现自己的盲点**。
+
+TrustEngine 在终端中的实际输出效果：
+> 终端彩色 TrustReport 审查报告，展示 REJECT 结论、5 个 Findings（CRIT~LOW）、3 个风险点、多模型仲裁投票及证据链。完整截图见 [trustreport-cli.html](docs/img/trustreport-cli.html)。
+
+### 三种接入方式
+
+**CLI — 一行命令**
+
+```bash
+ai-flow audit query.sql -r "检查 SQL 注入和认证漏洞"
+```
+
+**Python SDK — 三行代码**
+
+```python
+from ai_flow_architect import TrustEngine
+engine = TrustEngine()
+report = engine.audit(requirement="实现用户管理系统", ai_output=generated_code)
+```
+
+**LangChain 集成 — 无缝配合**
+
+```python
+from ai_flow_architect import TrustEngine
+from langchain.agents import create_openai_functions_agent
+
+agent = create_openai_functions_agent(llm, tools, prompt)
+result = agent.invoke({"input": "设计用户管理系统的数据库Schema"})
+
+engine = TrustEngine()
+report = engine.audit(requirement="数据库Schema设计", ai_output=result["output"])
+```
 
 ---
 
-## The Problem
+## TrustEngine
 
-You ask GPT-4 to design a user authentication system. It returns code that looks clean. You scan through it — APIs, database schema, middleware. Looks fine. You ship it.
+TrustEngine 是独立的审查层：零状态、零交互、纯审计。
 
-**What you didn't notice**: the password hashing uses MD5 and there is no rate limiting on login endpoints.
+### 输出说明
 
-You trusted a single AI and it hallucinated security. This happens constantly — not because AI is malicious, but because **a single model has no mechanism to catch its own blind spots**.
+```python
+report.verdict       # "pass" | "review" | "reject" — 最终结论
+report.confidence    # 0-100 — 置信度
+report.findings      # 具体问题列表，含严重等级
+report.uncertainty   # 引擎承认自己不确定的事项
+report.evidence_chain # SHA-256 哈希 + 时间戳，可审计
+```
 
-| Existing approach | The flaw |
-|---|---|
-| Single-model prompting | Same model reviews its own output. Blind spots persist. |
-| LangChain / CrewAI | Flexible orchestration, but quality control is your responsibility. |
-| "Trust me bro" | Hoping the model gets it right this time. |
+### 对比
 
-## How It Works
+| | TrustEngine | Mira | 什么都不用 |
+|---|---|---|---|
+| 开源 | ✅ | ❌ | — |
+| 多模型交叉审查 | ✅ | ✅ | ❌ |
+| 不确定性透明 | ✅ | ❌ | ❌ |
+| 证据链可追溯 | ✅ | ❌ | ❌ |
+| 价格 | 免费 | $X/月 | 免费（风险自负） |
 
-### Full Framework: FlowArchitect
+### 关键设计
 
-Run your task through **two independent AI brains** with built-in adversarial review:
+- **单 API 密钥即可运行。** 省略 brain2 参数时自动选择同提供商的廉价模型。一个 OpenAI Key 就够。
+- **跨提供商审查效果最好。** OpenAI + Anthropic 组合因训练数据和失败模式不同，提供最强的仲裁能力。
+- **固定的质量流水线。** 用灵活性换可预测性——每个任务走相同的质量控制流程。
+- **专家会话隔离。** 各专家互不知晓彼此存在，数据仅通过结构化字段传递。
+
+---
+
+## Integrations
+
+同一场景：审查一段 AI 生成的代码。选择最适合你的集成方式。
+
+| 集成方式 | 代码量 | 示例 |
+|----------|--------|------|
+| CLI | 1 行 | `ai-flow audit output.py -r "检查安全漏洞"` — [详情](integrations/cli.md) |
+| Python | 3 行 | `TrustEngine().audit(requirement=..., ai_output=...)` — [详情](integrations/python.md) |
+| LangChain | 3 行 | `agent.run()` + `engine.audit()` — [详情](integrations/langchain.md) |
+| CrewAI | 4 行 | `crew.kickoff()` + `engine.audit()` — [详情](integrations/crewai.md) |
+| OpenAI SDK | 5 行 | `client.chat.completions.create()` + `engine.audit()` — [详情](integrations/openai-sdk.md) |
+| GitHub Action | YAML | 引用 `.github/workflows/audit.yml` — [查看](.github/workflows/audit.yml) |
+
+---
+
+## FlowArchitect
+
+### 进阶：完整工作流
+
+如果审查 AI 输出还不够——你想要 AI 在生成阶段就接受审查。
 
 ```
   You: "Design a user management system"
          |
          v
 +--------------------+
-| Brain #1 (Planner) |  Analyzes requirements, generates a step-by-step blueprint
-| Model: GPT-4o      |  with risk annotations and alternative approaches
+| Brain #1 (Planner) |  Analyzes requirements, generates blueprint
+| Model: GPT-4o      |  with risk annotations
 +--------+-----------+
          |
          v
 +--------------------+
-| Opponent Brain     |  Challenges the blueprint from adversarial perspectives:
-| (5 review styles)  |  Security audit, cost analysis, user empathy, data rigor, minimalism
+| Opponent Brain     |  5 adversarial perspectives challenge the plan
 +--------+-----------+
          |
-    [You review and approve the blueprint]
+    [You review and approve]
          |
          v
 +--------------------+
-| Expert Team        |  Each expert runs in an isolated session.
-| Creative           |  No cross-contamination. Structured handoffs only.
-| Evaluator          |
-| Programmer         |
-| Reviewer           |
+| Expert Team        |  Isolated sessions. Structured handoffs only.
 +--------+-----------+
          |
          v
 +--------------------+
-| Brain #2 (Arbiter) |  Compares the blueprint against deliverables item-by-item.
-| Model: Claude      |  Cross-model review. Different model = different blind spots.
+| Brain #2 (Arbiter) |  Cross-model review. Different blind spots.
+| Model: Claude      |
 +--------+-----------+
          |
          v
-     You get: a quality report, not a gamble.
+     Quality report, not a gamble.
 ```
-
-### Standalone: TrustEngine
-
-Don't need the full framework? Use **TrustEngine** directly — a pure audit layer with zero state, zero interaction:
 
 ```python
-from ai_flow_architect import TrustEngine, AuditContext
+import asyncio
+from ai_flow_architect import FlowArchitect
 
-engine = TrustEngine(brain2="claude-3-5-sonnet")
-report = engine.audit(
-    requirement="Implement password reset with rate limiting",
-    ai_output=generated_code,
-    context=AuditContext(
-        project_path="./src",
-        language="python",
-        description="User authentication module"
-    )
-)
+async def main():
+    architect = FlowArchitect(config={"brain1": "gpt-4o"})
+    result = await architect.run("Design a user management system")
+    if result["status"] == "success":
+        print(f"Quality score: {result['audit_result'].get('score', 'N/A')}/100")
 
-print(report.verdict)      # "pass" | "review" | "reject"
-print(report.confidence)   # 0-100
-print(report.uncertainty)  # What the engine admits it doesn't know
+asyncio.run(main())
 ```
 
-**What you get:**
+→ 详细文档: [docs/flow-architect.md](docs/flow-architect.md)
 
-<p align="center">
-  <img src="docs/img/trustreport-example.png" alt="TrustReport Terminal Output" width="750" />
-</p>
-
-- **Verdict** with confidence score
-- **Findings** — specific issues with severity
-- **Risk Points** — security/logic/performance risks
-- **Uncertainty** — the engine's honest admission of its own limits
-- **Multi-arbiter votes** — cross-model consensus (or divergence)
-- **Evidence chain** — SHA-256 hashed, timestamped, auditable
-
-**Key design decisions:**
-
-- **Single key works out of the box.** Omit brain2 and it auto-selects a cheaper model from the same provider. One OpenAI key is enough to start.
-- **Cross-provider is best.** OpenAI + Anthropic gives the strongest arbitration — different training data, different failure modes.
-- **Different models matter.** Same-model self-review lets hallucinations through. The framework enforces model diversity for Brain #2.
-- **Fixed workflow, not free orchestration.** You trade flexibility for predictability. Every task follows the same quality-controlled pipeline.
-- **Every expert is session-isolated.** They don't know about each other. Data passes through structured fields only.
-- **Opponent Brain before execution.** Five adversarial perspectives challenge the plan before a single API call is wasted.
-- **TrustEngine: audit anything, anywhere.** Drop the `engine.audit()` call into your existing pipeline — no framework lock-in.
-
-## Comparison
-
-| | AI Flow Architect | LangChain | CrewAI |
-|---|---|---|---|
-| **Philosophy** | Adversarial quality control | Flexible pipeline composition | Role-based agent teams |
-| **Quality control** | Built-in (dual-brain arbitration + opponent review) | Manual — your responsibility | Optional |
-| **Single API key** | Works out of the box | Works | Works |
-| **Model isolation** | Auto-enforced (brain2 auto-resolves to different model) | Not enforced | Not enforced |
-| **Token saving** | 4 mechanisms, zero-config | Manual optimization | Manual optimization |
-| **Flow control** | Fixed 3-phase pipeline with user approval gate | Free-form chains/agents | Configurable process |
-| **Best for** | Auditable quality. You need to trust the output. | Maximum flexibility. You own the pipeline. | Multi-agent simulations. |
-| **Integration** | Three tiers: Skill → API → Full framework | Framework-first | Framework-first |
-
-If you need maximum flexibility, use LangChain or CrewAI. If you need **auditable quality where AI hallucinations have consequences** — or just want to drop a `trust_engine.audit()` call into your existing code — this is it.
-
-## Model Support
-
-### Production-tested
-
-| Provider | Models | API Key |
-|----------|--------|---------|
-| **OpenAI** | gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-3.5-turbo | `OPENAI_API_KEY` |
-| **Anthropic** | claude-3-5-sonnet-20241022, claude-3-5-haiku-20240620, claude-3-opus | `ANTHROPIC_API_KEY` |
-
-### Community-ready (OpenAI-compatible protocol — needs your verification)
-
-These providers expose OpenAI-compatible APIs. The framework already supports them through `models.yaml` configuration. If you test one and it works, a PR moving it to "Production-tested" is more than welcome.
-
-| Provider | Models | API Key | Status |
-|----------|--------|---------|--------|
-| **DashScope (Alibaba)** | qwen-max, qwen-plus, qwen-turbo | `DASHSCOPE_API_KEY` | Needs verification |
-| **Zhipu GLM** | glm-4, glm-4-flash, glm-3-turbo | `ZHIPU_API_KEY` | Needs verification |
-| **Moonshot** | moonshot-v1-8k, moonshot-v1-32k, moonshot-v1-128k | `MOONSHOT_API_KEY` | Needs verification |
-| **DeepSeek** | deepseek-chat, deepseek-coder | `DEEPSEEK_API_KEY` | Needs verification |
-| **Ollama (local)** | llama3, qwen2.5-coder, ... | None required | Needs verification |
-| **Custom API** | custom-model | `CUSTOM_API_KEY` + `CUSTOM_BASE_URL` | Needs verification |
-
-**Adding a new provider takes 3 steps in `models.yaml`** — no Python code changes needed:
-1. Add provider config (base_url, api_key_env)
-2. Add model entries (name, context_window, pricing)
-3. Add fallback paths
-
-See `models.yaml` for the full configuration structure.
-
-## Token-Saving Mechanisms
-
-All four work out of the box, zero configuration:
-
-| Mechanism | How | Cost |
-|-----------|-----|------|
-| **Semantic cache** | Same expert+task combo hits cache, skips API call | 0 API calls |
-| **Context compression** | History exceeds threshold -> auto-compress | ~60% fewer input tokens |
-| **Local rule precheck** | Empty task / unknown expert / invalid complexity — rejected before any API call | 0 cost |
-| **Smart skip** | Current step fails -> skip remaining; all remaining are `low` complexity -> skip; explicit `skip_next` flag | 0 API calls |
+---
 
 ## Quick Start
 
-### 1. Install
+### 安装
 
 ```bash
 git clone https://github.com/wdnmd1265/ai-flow-architect.git
@@ -208,124 +176,33 @@ cd ai-flow-architect
 pip install -e .
 ```
 
-### 2. Configure
+### 配置
 
 ```bash
 cp .env.example .env
 ```
 
-**Single key (works out of the box):**
+**单 API 密钥（开箱即用）：**
 ```bash
 OPENAI_API_KEY=sk-your-key
-# brain2 auto-selects gpt-4o-mini — one API key is enough to start
+# brain2 自动选择 gpt-4o-mini，一个 Key 即可启动
 ```
 
-**Dual key (recommended for best quality):**
+**双 API 密钥（推荐，审查质量最高）：**
 ```bash
 OPENAI_API_KEY=sk-your-key
 ANTHROPIC_API_KEY=sk-ant-your-key
-# brain2 uses a Claude model — cross-provider arbitration is most effective
+# brain2 使用 Claude 模型，跨提供商仲裁效果最佳
 ```
 
-### 3. Run
-
-```python
-import asyncio
-from ai_flow_architect import FlowArchitect
-
-async def main():
-    # Single key: brain2 auto-resolves to gpt-4o-mini
-    # Dual key: brain2 defaults to your Anthropic model
-    architect = FlowArchitect(config={
-        "brain1": "gpt-4o",
-        # "brain2": optional — auto-selected if omitted
-    })
-
-    result = await architect.run("Design a user management system")
-
-    if result["status"] == "success":
-        print(f"Quality score: {result['audit_result'].get('score', 'N/A')}/100")
-    else:
-        for s in result.get("revision_suggestions", []):
-            print(f"  - {s}")
-
-asyncio.run(main())
-```
-
-### 4. What happens at runtime
-
-```
-============================================================
-Task Blueprint
-============================================================
-Task ID: task_20260518_001
-Description: Design a user management system
-Estimated tokens: 5000
-
-Steps:
-  1. Requirements analysis [expert: evaluator]
-     Task: Analyze functional and non-functional requirements...
-  2. Architecture design [expert: creative]
-     Task: Design system architecture and technical approach...
-  3. Implementation [expert: programmer]
-     Task: Implement core user management features...
-
-Opponent Brain Review (Security perspective):
-  - WARNING: Authentication flow lacks rate limiting
-  - WARNING: Password hashing algorithm not specified — verify bcrypt/argon2
-
-============================================================
-
-[A]pprove / [R]eject + feedback / [C]ancel: A
-```
-
-### 5. Run tests
+### 运行测试
 
 ```bash
 pip install pytest pytest-asyncio
 pytest tests/unit/ -v    # 177 tests
 ```
 
-## Architecture Deep Dive
-
-### Three-Layer Prompt System
-
-Each expert receives a **three-layer prompt stack**:
-
-1. **Global base** (hardcoded): "All output must be valid JSON, no fluff."
-2. **Role preset** (from ExpertConfig): Domain-specific instructions
-3. **Brain #1 task directive** (per-task): Specific instructions for the current task
-
-This ensures output format consistency while allowing per-task customization. The scheduler checks for empty prompts at zero cost before any API call.
-
-### Three-Level Error Handling
-
-| Level | Trigger | Response |
-|-------|---------|----------|
-| **1 — Retry** | Timeout, rate limit (429), connection error | Exponential backoff, up to 3 retries |
-| **2 — Fallback** | Model not found, auth error, quota exhausted | Switch to backup model (e.g. gpt-4o -> gpt-4o-mini), 1 retry |
-| **3 — User decision** | All else fails | Prompt user: [R]etry / re[P]lan / [T]erminate |
-
-### Field Filtering
-
-Each expert declares `required_input_fields`. The scheduler extracts **only those fields** from previous step results and passes them in — no full context dump, no information overload.
-
-```python
-class ProgrammerExpert(BaseExpert):
-    required_input_fields = {"architecture", "api_spec", "data_model"}
-    # Scheduler extracts only these 3 fields from prior steps
-```
-
-## Built-in Expert Roles
-
-| Role | Expert ID | Purpose |
-|------|-----------|---------|
-| Creative | `creative` | Innovation, design solutions, brainstorming |
-| Evaluator | `evaluator` | Requirement analysis, feasibility assessment |
-| Programmer | `programmer` | Code implementation, technical solutions |
-| Reviewer | `reviewer` | Code review, quality control |
-
-Create custom experts by subclassing `BaseExpert` and declaring `required_input_fields` + `output_format`.
+---
 
 ## Project Structure
 
@@ -358,20 +235,28 @@ ai-flow-architect/
 │       ├── compressor.py        # Context compression (4 strategies)
 │       └── validator.py         # Input validation
 ├── tests/unit/                  # 177 unit tests
-├── examples/
-│   └── basic_usage.py
+├── integrations/                # Integration guides
+│   ├── cli.md
+│   ├── python.md
+│   ├── langchain.md
+│   ├── crewai.md
+│   └── openai-sdk.md
 ├── docs/
-│   └── getting_started.md
+│   ├── flow-architect.md
+│   ├── getting_started.md
+│   └── img/
 ├── .env.example
 ├── pyproject.toml
 └── models.yaml                  # Provider + model configuration
 ```
 
+---
+
 ## Roadmap
 
 - [ ] **PyPI package** — `pip install ai-flow-architect`
-- [ ] **CLI interface** — `ai-flow run "design a system"`
-- [x] **Expert execution layer** — Real LLM calls with tool support (mock fallback available)
+- [x] **CLI interface** — `ai-flow audit "..."` with custom review rules
+- [x] **Expert execution layer** — Real LLM calls with tool support
 - [x] **TrustEngine** — Standalone audit layer with multi-arbiter + adversarial + evidence chain
 - [ ] **Expert team templates** — Pre-configured teams for web dev, data analysis, content creation
 - [ ] **Web UI** — Visual blueprint editor and execution monitor
@@ -379,6 +264,8 @@ ai-flow-architect/
 - [x] **Model providers** — OpenAI + Anthropic production-tested, 5 more via OpenAI-compatible protocol
 - [ ] **Parallel execution** — Independent steps run concurrently
 - [ ] **Streaming output** — Real-time expert output streaming
+
+---
 
 ## Contributing
 

@@ -4,6 +4,7 @@
 在 Brain #1 和用户审批之间介入，提供对抗性视角。
 """
 
+import json
 import random
 from typing import List, Dict, Any
 from loguru import logger
@@ -166,8 +167,6 @@ class BrainOpponent:
         Returns:
             反例场景字典，含 adversarial_examples 列表
         """
-        import json
-        
         steps_desc = "\n".join([
             f"步骤{i+1}: {s.get('name', '')} ({s.get('expert', '')}) - {s.get('task', '')[:80]}"
             for i, s in enumerate(blueprint.steps)

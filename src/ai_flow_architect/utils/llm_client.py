@@ -317,7 +317,7 @@ class LLMClient:
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
         tools: Optional[List[Dict[str, Any]]] = None,
-    ) -> Dict[str, Any]:
+    ) -> str:
         """
         分析任务（一号脑使用）
         
@@ -329,19 +329,20 @@ class LLMClient:
             tools: 工具 schema 列表（可选）
             
         Returns:
-            响应字典
+            LLM 响应的纯文本内容
         """
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_input},
         ]
         
-        return await self.chat(
+        result = await self.chat(
             messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
             tools=tools,
         )
+        return result.get("content", "")
     
     async def audit(
         self,

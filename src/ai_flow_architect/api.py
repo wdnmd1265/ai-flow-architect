@@ -12,7 +12,9 @@ TrustEngine API — FastAPI 包装
     }
 """
 
-from typing import Optional
+from contextlib import asynccontextmanager
+from typing import Optional, Dict
+
 from pydantic import BaseModel, Field
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,10 +22,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from .engine import TrustEngine, AuditContext
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用生命周期：缓存 TrustEngine 实例，避免每次请求重复初始化。"""
+    app.state.engine_cache: Dict[str, TrustEngine] = {}
+    yield
+    app.state.engine_cache.clear()
+
+
 app = FastAPI(
     title="AI Trust Engine",
     description="克服 AI 幻觉的信任审查服务",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -54,7 +65,12 @@ async def audit(request: AuditRequest):
     进阶调用：加上 project_path / files / dependencies，审查深度自动升级。
     """
     try:
-        engine = TrustEngine(brain1=request.brain1, brain2=request.brain2)
+        cache_key = f"{request.brain1}:{request.brain2}"
+        if cache_key not in request.app.state.engine_cache:
+            request.app.state.engine_cache[cache_key] = TrustEngine(
+                brain1=request.brain1, brain2=request.brain2
+            )
+        engine = request.app.state.engine_cache[cache_key]
         
         context = None
         if request.project_path or request.files or request.dependencies:

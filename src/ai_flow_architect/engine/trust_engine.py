@@ -6,7 +6,6 @@
 """
 
 import os
-import json
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from types import SimpleNamespace
@@ -111,6 +110,8 @@ class TrustEngine:
             "claude-": "ANTHROPIC_API_KEY",
             "deepseek-": "DEEPSEEK_API_KEY",
             "qwen-": "DASHSCOPE_API_KEY",
+            "glm-": "ZHIPU_API_KEY",
+            "moonshot-": "MOONSHOT_API_KEY",
         }
         for prefix, env_var in key_map.items():
             if model.startswith(prefix):
@@ -136,6 +137,10 @@ class TrustEngine:
                 providers.add("deepseek")
             elif model.startswith("qwen-"):
                 providers.add("dashscope")
+            elif model.startswith("glm-"):
+                providers.add("zhipu")
+            elif model.startswith("moonshot-"):
+                providers.add("moonshot")
             else:
                 providers.add("other")
         
@@ -199,13 +204,15 @@ class TrustEngine:
         audit_log.append(f"  结论: {verdict} | 置信度: {confidence:.1f}")
         
         # 第六步：证据链打包
-        evidence = self._build_evidence(requirement, ai_output, arbiter_result)
+        ts = datetime.now(timezone.utc).isoformat()
+        evidence = self._build_evidence(requirement, ai_output, arbiter_result, ts)
         audit_log.append(f"  证据链: {evidence.hash[:16]}...")
         
         # 构建报告
         report = TrustReport(
             verdict=verdict,
             confidence=confidence,
+            timestamp=ts,
             findings=all_findings,
             risks=self._extract_risks(all_findings),
             arbiters=arbiter_result.get("arbiter_votes", []),
@@ -238,7 +245,7 @@ class TrustEngine:
             # 构造 blueprint-like 对象给 BrainOpponent
             mock_blueprint = SimpleNamespace(
                 description=requirement,
-                steps=[{"name": "audit_target", "task": ai_output[:500]}]
+                steps=[{"name": "audit_target", "task": (ai_output or "")[:500]}]
             )
             
             # 生成反例
@@ -372,13 +379,47 @@ class TrustEngine:
         # 置信度高且无严重问题 → pass
         return "pass"
     
+    # 安全风险关键词（中英文）
+    _SECURITY_PATTERNS = [
+        "安全", "注入", "inject", "xss", "csrf", "sql", "overflow",
+        "traversal", "遍历", "escape", "转义", "bypass", "绕过",
+        "leak", "泄露", "泄漏", "auth", "认证", "权限", "permission",
+        "deserialize", "反序列化", "crypto", "加密", "token", "session",
+        "upload", "上传", "command", "命令", "eval", "exec",
+    ]
+
+    # 性能风险关键词
+    _PERFORMANCE_PATTERNS = [
+        "性能", "performance", "慢", "slow", "瓶颈", "bottleneck",
+        "oom", "内存", "memory", "cpu", "latency", "延迟", "timeout",
+        "超时", "并发", "concurrent", "死锁", "deadlock", "race",
+    ]
+
+    # 依赖风险关键词
+    _DEPENDENCY_PATTERNS = [
+        "依赖", "dependency", "版本", "version", "过时", "deprecated",
+        "cve", "漏洞", "vulnerability", "供应链", "supply chain",
+    ]
+
+    def _classify_risk_type(self, description: str) -> str:
+        desc_lower = description.lower()
+        for pattern in self._SECURITY_PATTERNS:
+            if pattern in desc_lower:
+                return "security"
+        for pattern in self._PERFORMANCE_PATTERNS:
+            if pattern in desc_lower:
+                return "performance"
+        for pattern in self._DEPENDENCY_PATTERNS:
+            if pattern in desc_lower:
+                return "dependency"
+        return "logic"
+
     def _extract_risks(self, findings: List[Finding]) -> List[Risk]:
-        """从 findings 中提取风险点。"""
         risks = []
         for f in findings:
             if f.severity in ("high", "critical"):
                 risks.append(Risk(
-                    type="security" if "安全" in f.description or "inject" in f.description.lower() else "logic",
+                    type=self._classify_risk_type(f.description),
                     level=f.severity,
                     description=f.description,
                     mitigation=f.evidence,
@@ -390,19 +431,20 @@ class TrustEngine:
         requirement: str,
         ai_output: str,
         arbiter_result: Dict[str, Any],
+        timestamp: str,
     ) -> EvidenceChain:
         """构建证据链。"""
         data = {
             "requirement": requirement,
             "ai_output_hash": TrustReport.compute_hash({"output": ai_output}),
             "arbiter_result_hash": TrustReport.compute_hash({"result": arbiter_result}),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": timestamp,
         }
         
         return EvidenceChain(
             hash=TrustReport.compute_hash(data),
             algorithm="sha256",
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=timestamp,
             isolation_level=self.isolation_level,
             data_summary={
                 "requirement_length": len(requirement),

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #1a1b26;
+  font-family: 'Fira Code', 'Cascadia Code', 'Consolas', 'Menlo', monospace;
+  padding: 40px;
+  display: flex; justify-content: center;
+}
+.terminal {
+  background: #1a1b26;
+  border-radius: 12px;
+  overflow: hidden;
+  width: 820px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.05);
+}
+.titlebar {
+  background: #24283b;
+  padding: 12px 20px;
+  display: flex; align-items: center; gap: 10px;
+}
+.dot { width: 12px; height: 12px; border-radius: 50%; }
+.dot.red { background: #f7768e; }
+.dot.ylw { background: #e0af68; }
+.dot.grn { background: #9ece6a; }
+.titlebar span {
+  color: #a9b1d6; font-size: 13px; margin-left: 12px;
+}
+.body {
+  padding: 24px 30px 30px;
+  line-height: 1.7;
+  font-size: 13px;
+}
+.prompt { color: #7dcfff; }
+.cmd    { color: #c0caf5; }
+.flag   { color: #ff9e64; }
+.path   { color: #2ac3de; }
+
+.meta { color: #565f89; margin-top: 4px; font-size: 11px; }
+
+.panel-top, .panel-bot {
+  color: #f7768e; font-weight: bold;
+  padding: 2px 0; margin: 6px 0;
+}
+.panel-label {
+  color: #c0caf5; font-weight: bold;
+  margin: 0 12px;
+}
+.verdict { color: #f7768e; font-weight: bold; }
+.conf    { color: #f7768e; }
+
+.section { color: #7dcfff; font-weight: bold; margin-top: 14px; }
+.sev-crit { color: #f7768e; font-weight: bold; }
+.sev-high { color: #f7768e; }
+.sev-med  { color: #e0af68; }
+.sev-low  { color: #565f89; }
+
+.dim { color: #565f89; }
+.info { color: #9ece6a; }
+.warn { color: #e0af68; }
+
+.arbiter-name { color: #bb9af7; font-weight: bold; }
+.arbiter-score { color: #565f89; }
+</style>
+</head>
+<body>
+<div class="terminal">
+  <div class="titlebar">
+    <div class="dot red"></div>
+    <div class="dot ylw"></div>
+    <div class="dot grn"></div>
+    <span>Terminal — ai-flow audit</span>
+  </div>
+  <div class="body">
+
+<div class="prompt">$</div><div class="cmd"> ai-flow audit D:\test.sql <span class="flag">-r</span> <span class="path">"检查 SQL 注入和认证漏洞"</span></div>
+<div class="meta">[TrustEngine] brain1=gpt-4o  brain2=claude-3-5-sonnet  isolation=full</div>
+<div class="meta">[TrustEngine] cross-audit &#x2713;  adversarial &#x2713;  uncertainty &#x2713;</div>
+<br>
+
+<div class="panel-top">&#x250c;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2510;</div>
+<div class="panel-top">&#x2502;  <div class="panel-label" style="display:inline">TrustReport</div>  &#x2502;</div>
+<div class="panel-top">&#x2514;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2518;</div>
+<br>
+<div style="margin-left: 2em;">
+  <span style="color:#a9b1d6">&#x7ed3;&#x8bba;:</span>
+  <span class="verdict">REJECT</span>
+  <span style="color:#a9b1d6">&#x7f6e;&#x4fe1;&#x5ea6;:</span>
+  <span class="conf">40/100</span>
+</div>
+<br>
+
+<div class="section">&#x25c6; Findings (5)</div>
+<div style="margin-left: 1.5em;">
+  <span class="sev-crit">CRIT</span> <span style="color:#c0caf5">UPDATE &#x8bed;&#x53e5;&#x7f3a;&#x5c11; WHERE &#x6761;&#x4ef6;&#xff0c;&#x4f1a;&#x66f4;&#x65b0;&#x5168;&#x8868;&#x3002;&#x8fd9;&#x662f;&#x707e;&#x96be;&#x6027;&#x7684;&#x6570;&#x636e;&#x5b89;&#x5168;&#x6f0f;&#x6d1e;&#x3002;</span><br>
+  <span class="sev-high">HIGH</span> <span style="color:#c0caf5">email &#x503c;&#x76f4;&#x63a5;&#x62fc;&#x63a5;&#x8fdb; SQL&#xff0c;&#x5b58;&#x5728; SQL &#x6ce8;&#x5165;&#x98ce;&#x9669;&#x3002;&#x5e94;&#x4f7f;&#x7528;&#x53c2;&#x6570;&#x5316;&#x67e5;&#x8be2;&#x6216; ORM&#x3002;</span><br>
+  <span class="sev-high">HIGH</span> <span style="color:#c0caf5">&#x7f3a;&#x5c11;&#x8ba4;&#x8bc1;&#x68c0;&#x67e5;&#x3002;&#x4efb;&#x4f55;&#x7528;&#x6237;&#x90fd;&#x80fd;&#x6267;&#x884c;&#x6b64; UPDATE&#x2014;&#x2014;&#x9700;&#x8981;&#x9a8c;&#x8bc1;&#x8c03;&#x7528;&#x8005;&#x8eab;&#x4efd;&#x548c;&#x6743;&#x9650;&#x3002;</span><br>
+  <span class="sev-med">MED</span> <span style="color:#c0caf5">&#x65e0;&#x64cd;&#x4f5c;&#x5ba1;&#x8ba1;&#x65e5;&#x5fd7;&#x3002;email &#x53d8;&#x66f4;&#x8fd9;&#x7c7b;&#x654f;&#x611f;&#x64cd;&#x4f5c;&#x5e94;&#x8bb0;&#x5f55;&#x64cd;&#x4f5c;&#x8005;&#x3001;&#x65f6;&#x95f4;&#x3001;&#x65e7;&#x503c;&#x548c;&#x65b0;&#x503c;&#x3002;</span><br>
+  <span class="sev-low">LOW</span> <span style="color:#c0caf5">&#x5168;&#x8868;&#x626b;&#x63cf;&#x98ce;&#x9669;&#x3002;&#x5982;&#x679c; users &#x8868;&#x5f88;&#x5927;&#xff0c;&#x7f3a;&#x5c11; WHERE &#x7684;&#x5b50;&#x53e5;&#x4f1a;&#x5bfc;&#x81f4;&#x9501;&#x8868;&#x3002;</span>
+</div>
+<br>
+
+<div class="section">&#x25c6; Risks (3)</div>
+<div style="margin-left: 1.5em;">
+  <span class="sev-crit">CRITICAL</span> [security] <span style="color:#c0caf5">SQL &#x6ce8;&#x5165;&#x98ce;&#x9669;&#xff1a;email &#x503c;&#x672a;&#x505a;&#x53c2;&#x6570;&#x5316;&#x5904;&#x7406;</span><br>
+  <span class="sev-crit">CRITICAL</span> [logic] <span style="color:#c0caf5">&#x5168;&#x8868;&#x66f4;&#x65b0;&#x98ce;&#x9669;&#xff1a;&#x7f3a;&#x5c11; WHERE &#x6761;&#x4ef6;</span><br>
+  <span class="sev-high">HIGH</span> [security] <span style="color:#c0caf5">&#x672a;&#x6388;&#x6743;&#x8bbf;&#x95ee;&#xff1a;&#x7f3a;&#x5c11;&#x8ba4;&#x8bc1;&#x4e2d;&#x95f4;&#x4ef6;</span>
+</div>
+<br>
+
+<div class="section">&#x25c6; &#x4ef2;&#x88c1;&#x5458;&#x6295;&#x7968;</div>
+<div style="margin-left: 1.5em;">
+  <span class="arbiter-name">GPT-4o</span>: <span class="arbiter-score">60</span>
+  &nbsp;&nbsp;
+  <span class="arbiter-name">Claude-3.5-Sonnet</span>: <span class="arbiter-score">85</span>
+  &nbsp;&nbsp;
+  <span class="arbiter-name">DeepSeek-Chat</span>: <span class="arbiter-score">70</span>
+</div>
+<br>
+
+<div class="section">&#x25c6; Uncertainty &#x2014; &#x5f15;&#x64ce;&#x4e0d;&#x786e;&#x5b9a;&#x7684;&#x4e8b;</div>
+<div style="margin-left: 1.5em;">
+  <span class="sev-med">MED</span> <span style="color:#c0caf5">GPT-4o &#x548c; Claude &#x5bf9;&#x98ce;&#x9669;&#x8bc4;&#x4f30;&#x5b58;&#x5728;&#x663e;&#x8457;&#x5206;&#x6b67;&#xff08;60 vs 85&#xff09;&#xff0c;&#x5efa;&#x8bae;&#x4eba;&#x5de5;&#x4ecb;&#x5165;&#x51b3;&#x7b56;&#x3002;</span><br>
+  <span class="sev-high">HIGH</span> <span style="color:#c0caf5">&#x53cd;&#x4f8b;&#x653b;&#x9632;&#x53d1;&#x73b0; 1 &#x4e2a;&#x9ad8;&#x98ce;&#x9669;&#x95ee;&#x9898;&#xff1a;&#x7f3a;&#x5c11;&#x5ba1;&#x8ba1;&#x65e5;&#x5fd7;&#x5728;&#x5408;&#x89c4;&#x573a;&#x666f;&#xff08;SOC2/GDPR&#xff09;&#x4e0b;&#x662f;&#x963b;&#x585e;&#x6027;&#x95ee;&#x9898;&#x3002;</span><br>
+  <span class="sev-low">LOW</span> <span style="color:#c0caf5">DeepSeek &#x5efa;&#x8bae;&#x8865;&#x5145;&#x4e8b;&#x52a1;&#x56de;&#x6eda;&#x903b;&#x8f91;&#x548c;&#x4e50;&#x89c2;&#x9501;&#x673a;&#x5236;&#x3002;</span>
+</div>
+<br>
+
+<div class="section">&#x25c6; &#x8bc1;&#x636e;&#x94fe;</div>
+<div style="margin-left: 1.5em;">
+  <span class="dim">sha256:a1b2c3d4e5f6a7b8...</span>
+  <span style="color:#565f89">|</span>
+  <span class="dim">2026-05-22T16:06:14Z</span>
+  <span style="color:#565f89">|</span>
+  <span class="dim">&#x9694;&#x79bb;: full</span>
+</div>
+<br>
+
+<div class="panel-bot">&#x250c;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2510;</div>
+<div class="panel-bot">&#x2514;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2518;</div>
+
+  </div>
+</div>
+</body>
+</html>

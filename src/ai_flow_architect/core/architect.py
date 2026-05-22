@@ -824,7 +824,7 @@ class FlowArchitect:
                 "blueprint": blueprint.model_dump(),
                 "execution_result": execution_result,
                 "audit_result": audit_result,
-                "trust_report": engine_report.to_json(),
+                "trust_report": engine_report.model_dump_json(indent=2),
                 "evidence_chain": evidence,
             }
         else:
@@ -834,7 +834,7 @@ class FlowArchitect:
                 "blueprint": blueprint.model_dump(),
                 "execution_result": execution_result,
                 "audit_result": audit_result,
-                "trust_report": engine_report.to_json(),
+                "trust_report": engine_report.model_dump_json(indent=2),
                 "revision_suggestions": audit_result.get("suggestions", []),
                 "evidence_chain": evidence,
             }
