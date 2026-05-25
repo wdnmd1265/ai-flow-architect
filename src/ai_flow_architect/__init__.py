@@ -19,6 +19,7 @@ from .engine import (
     Uncertainty,
     EvidenceChain,
     AuditContext,
+    EvidenceDB,
 )
 
 __all__ = [
@@ -31,4 +32,5 @@ __all__ = [
     "Uncertainty",
     "EvidenceChain",
     "AuditContext",
+    "EvidenceDB",
 ]

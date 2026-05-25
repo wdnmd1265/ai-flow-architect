@@ -15,6 +15,7 @@ from .trust_report import (
 )
 from .audit_context import AuditContext
 from .trust_engine import TrustEngine
+from .evidence_db import EvidenceDB
 
 __all__ = [
     "TrustEngine",
@@ -25,4 +26,5 @@ __all__ = [
     "Uncertainty",
     "EvidenceChain",
     "AuditContext",
+    "EvidenceDB",
 ]

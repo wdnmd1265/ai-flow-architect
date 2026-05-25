@@ -310,6 +310,8 @@ def main():
     p_audit.add_argument("--html", action="store_true", help="导出自包含 HTML 报告")
     p_audit.add_argument("-o", "--output", default=None, help="输出文件路径（与 --html / --json / --markdown 配合使用）")
     p_audit.add_argument("--no-color", action="store_true", help="关闭彩色输出")
+    p_audit.add_argument("--cross-family", action="store_true", help="启用跨家族校验（warning 模式，同家族时仅告警）")
+    p_audit.add_argument("--cross-family-strict", action="store_true", help="启用严格跨家族校验（同家族时直接拒绝）")
 
     args = parser.parse_args()
 
@@ -349,7 +351,12 @@ def main():
 
     content = _read_content(args.file)
 
-    engine = TrustEngine(brain1=args.brain1, brain2=args.brain2)
+    engine = TrustEngine(
+        brain1=args.brain1,
+        brain2=args.brain2,
+        enforce_cross_family=args.cross_family or args.cross_family_strict,
+        cross_family_strict=args.cross_family_strict,
+    )
 
     async def _run():
         return await engine.audit(args.requirement, content)

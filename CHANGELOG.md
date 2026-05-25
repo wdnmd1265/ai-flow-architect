@@ -9,6 +9,14 @@
 
 ### 新增
 
+**Phase 3 P0：信任基础设施**
+- 信任地图 HTML 报告：重写 `templates/report.html`，三色标注（置信绿/争议黄/盲区红）、争议热图展示各模型投票、信任仪表盘一句话总结 + 置信度进度条
+- 证据链 SQLite 持久化：新建 `engine/evidence_db.py`，`TrustEngine(enable_db=True)` 开启，写入失败静默降级，`get_disputed()` 检测模型间分歧
+- 方向文档：`docs/DIRECTION.md`，基于头脑风暴文档 + 三方评审意见的综合决策文档
+- `trust_report.py` 新增 `_compute_trust_analysis()` 方法，预计算三色标注和争议热图数据
+- 新增 14 个证据链数据库测试：`test_evidence_db.py`，覆盖 CRUD + 争议检测 + 统计 + 引擎集成 + 写入失败降级
+- 总测试数：221 → 235
+
 **Phase 1：增长基础设施**
 - README 重写：英文优先，标题 "Two AIs review. A third attacks. You get the truth."，Before/After 对比块、差异化说明、方法论融入正文
 - Playground 上线：docs/playground.html，2 个预生成案例卡片（Express.js / React Form），点击跳转完整 TrustReport
@@ -193,6 +201,20 @@
 - 反例攻防降级：LLM失败路径 3个测试
 - 全部 133 个单元测试通过（零回归）
 - 改动文件：`tests/unit/test_cache_domain_entities.py`, `tests/unit/test_shadow_cold_start.py`, `tests/unit/test_shadow_matching.py`, `tests/unit/test_multi_arbitration.py`, `tests/unit/test_adversarial_fallback.py`
+
+## [0.1.2] - 2026-05-25
+
+### 新增
+
+**Phase 2 生产化**
+- 超时配置：`utils/llm_client.py` 超时从 30s 延长至 120s
+- JSON 异常降级处理：`brains/brain_two.py` 中 `_audit_with_llm`、`_single_arbiter_audit`、`_single_arbiter_audit_raw` 三处新增 `except json.JSONDecodeError` 降级路径
+- trace_id 注入：新建 `engine/logging_config.py`，`engine/trust_engine.py` 的 `audit()` 方法调用 `set_trace_id()` 实现请求链路追踪
+- 新增依赖：`shortuuid`（`pyproject.toml`）
+
+**测试**
+- 新增 35 个测试用例：`test_trust_report_serialization.py`（10 个）、`test_cli_e2e.py`（14 个）、`test_trust_engine_degradation.py`（11 个）
+- 总测试数：186 → 221
 
 ## [0.1.0] - 2026-05-18
 

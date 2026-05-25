@@ -14,6 +14,8 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 from loguru import logger
 
+from ..brains.brain_blind import BlindVerdict
+
 try:
     from jinja2 import Template
     _JINJA2_AVAILABLE = True
@@ -102,6 +104,15 @@ class TrustReport(BaseModel):
     # 审计日志
     audit_log: List[str] = Field(default_factory=list, description="审查过程日志")
     
+    # 盲审结果（Phase 3 P1：无上下文终审）
+    blind_verdict: Optional[BlindVerdict] = Field(None, description="盲审独立判决（None 表示未启用）")
+    blind_model: Optional[str] = Field(None, description="盲审使用的模型")
+    blind_agreement: Optional[bool] = Field(None, description="盲审是否与仲裁一致")
+    
+    # 跨家族审查（Phase 3 P1：Cross-Family Enforcement）
+    cross_family_validated: bool = Field(False, description="是否通过了跨家族校验")
+    brain_families: tuple = Field(default_factory=lambda: ("", ""), description="brain1 和 brain2 的 family")
+    
     # to_json() 已移除 — 直接使用 Pydantic v2 内置的 model_dump_json(indent=2)
     # 调用方已全部迁移到 model_dump_json()
     
@@ -168,6 +179,31 @@ class TrustReport(BaseModel):
             lines.append(f"- **隔离级别**: {self.evidence.isolation_level}")
             lines.append(f"")
         
+        # 盲审结果（如果存在）
+        if self.blind_verdict:
+            lines.append(f"## 盲审结果（无上下文终审）")
+            lines.append(f"")
+            lines.append(f"**模型**: {self.blind_model or '未知'}")
+            lines.append(f"**结论**: {self.blind_verdict.verdict.upper()}")
+            lines.append(f"**分数**: {self.blind_verdict.score:.1f}/100")
+            
+            if self.blind_agreement is not None:
+                agreement_text = "✅ 一致" if self.blind_agreement else "⚠️ 分歧"
+                lines.append(f"**与仲裁一致性**: {agreement_text}")
+            
+            if self.blind_verdict.rationale:
+                lines.append(f"")
+                lines.append(f"**判决理由**: {self.blind_verdict.rationale}")
+            
+            if self.blind_verdict.findings:
+                lines.append(f"")
+                lines.append(f"**盲审发现**:")
+                for i, finding in enumerate(self.blind_verdict.findings, 1):
+                    lines.append(f"{i}. **[{finding.get('severity', 'medium').upper()}]** {finding.get('description', '')}")
+                    if finding.get('type'):
+                        lines.append(f"   类型: {finding.get('type')}")
+            lines.append(f"")
+        
         return "\n".join(lines)
     
     def to_html(self, cost: Optional[Dict[str, Any]] = None) -> str:
@@ -199,21 +235,193 @@ class TrustReport(BaseModel):
         template_path = files("ai_flow_architect.templates") / "report.html"
         template = Template(template_path.read_text(encoding="utf-8"))
         
+        # 预计算信任分析数据（锯齿状智能可视化）
+        trust_analysis = self._compute_trust_analysis()
+        
+        # 盲审数据（如果存在）
+        blind_data = None
+        if self.blind_verdict:
+            blind_data = {
+                "verdict": self.blind_verdict.verdict,
+                "score": self.blind_verdict.score,
+                "rationale": self.blind_verdict.rationale,
+                "findings": self.blind_verdict.findings or [],
+                "model": self.blind_model or "unknown",
+                "agreement": self.blind_agreement,
+            }
+        
         return template.render(
             report=self.model_dump(),
             cost=cost,
+            trust_analysis=trust_analysis,
+            blind_data=blind_data,
         )
+
+    @staticmethod
+    def _extract_keywords(text: str) -> list:
+        """从描述文本中提取实义关键词（去停用词，取长度>=3的词）"""
+        stopwords = {
+            "the", "a", "an", "is", "are", "was", "were", "be", "been",
+            "in", "on", "at", "to", "for", "of", "from", "by", "with",
+            "and", "or", "not", "no", "has", "have", "had", "it", "its",
+            "this", "that", "can", "will", "may", "should", "could", "would",
+            "missing", "found", "line", "value", "issue", "risk", "potential",
+        }
+        words = text.lower().split()
+        return [w for w in words if len(w) >= 3 and w not in stopwords]
+
+    def _compute_trust_analysis(self) -> Dict[str, Any]:
+        """
+        计算锯齿状智能可视化所需的信任分析数据。
+        
+        三色标注：
+        - confident（绿色）：所有仲裁员一致同意的发现
+        - disputed（黄色）：仲裁员之间存在分歧
+        - uncertain（红色）：所有模型都承认不确定
+        
+        Returns:
+            dict with: summary_text, confident_count, disputed_count,
+            uncertain_count, models_used, findings zones, dispute_details
+        """
+        models_used = sorted(set(a.model for a in self.arbiters)) if self.arbiters else []
+        total_arbiters = len(self.arbiters)
+        
+        # 构建每个仲裁员发现的问题描述集合，用于匹配
+        arbiter_issue_areas = {}  # arbiter_index -> set of areas they flagged
+        for i, arbiter in enumerate(self.arbiters):
+            areas = set()
+            for issue in arbiter.issues:
+                desc = str(issue.get("description", issue)) if isinstance(issue, dict) else str(issue)
+                areas.add(desc)
+            arbiter_issue_areas[i] = areas
+        
+        findings_zones = {}
+        dispute_map = {}
+        
+        for finding in self.findings:
+            key = finding.area
+            # 计算有多少仲裁员标记了类似问题
+            matching_count = 0
+            vote_details = []
+            
+            # 提取 finding 的关键词（描述中去停用词的实义词）
+            finding_keywords = self._extract_keywords(finding.description)
+            
+            for i, arbiter in enumerate(self.arbiters):
+                area_set = arbiter_issue_areas.get(i, set())
+                
+                # 多级匹配：area 子串 > 描述关键词交集 > 描述前缀
+                matched = False
+                for issue_area in area_set:
+                    issue_lower = issue_area.lower()
+                    # Level 1: finding.area 作为子串出现在 issue 中
+                    if finding.area.lower() in issue_lower:
+                        matched = True
+                        break
+                    # Level 2: 关键词交集匹配（>=50% 的关键词命中即认为匹配）
+                    if finding_keywords:
+                        hit_count = sum(1 for kw in finding_keywords if kw in issue_lower)
+                        if hit_count >= max(1, len(finding_keywords) * 0.5):
+                            matched = True
+                            break
+                    # Level 3: 描述前 40 字符作为子串
+                    if finding.description.lower()[:40] in issue_lower:
+                        matched = True
+                        break
+                
+                if matched:
+                    matching_count += 1
+                    vote_details.append({
+                        "model": arbiter.model,
+                        "role": arbiter.role,
+                        "attitude": "agree",
+                    })
+                elif arbiter.passed:
+                    vote_details.append({
+                        "model": arbiter.model,
+                        "role": arbiter.role,
+                        "attitude": "disagree",
+                    })
+                else:
+                    vote_details.append({
+                        "model": arbiter.model,
+                        "role": arbiter.role,
+                        "attitude": "oppose",
+                    })
+            
+            # 判定信任级别
+            if matching_count >= max(total_arbiters - 1, 2) or (
+                total_arbiters <= 2 and matching_count >= total_arbiters):
+                zone = "confident"
+            elif matching_count >= 1:
+                zone = "disputed"
+            else:
+                zone = "uncertain"
+            
+            findings_zones[key] = zone
+            
+            if zone == "disputed":
+                # 收集仲裁员论据（使用多级匹配）
+                arguments = []
+                fkw = finding_keywords  # 复用上层已提取的关键词
+                for i, arbiter in enumerate(self.arbiters):
+                    for issue in arbiter.issues:
+                        desc = str(issue.get("description", issue)) if isinstance(issue, dict) else str(issue)
+                        desc_lower = desc.lower()
+                        # 同样的多级匹配
+                        if (finding.area.lower() in desc_lower or
+                            (fkw and sum(1 for kw in fkw if kw in desc_lower) >= max(1, len(fkw) * 0.5)) or
+                            finding.description.lower()[:40] in desc_lower):
+                            arguments.append(f"{arbiter.model} ({arbiter.role}): {desc[:120]}")
+                
+                dispute_map[key] = {
+                    "votes": vote_details,
+                    "reason": "; ".join(arguments) if arguments else "Model disagreement — suggested manual review",
+                }
+        
+        # 统计
+        confident_count = sum(1 for z in findings_zones.values() if z == "confident")
+        disputed_count = sum(1 for z in findings_zones.values() if z == "disputed")
+        uncertain_count = sum(1 for z in findings_zones.values() if z == "uncertain")
+        
+        # 一句话总结
+        status_label = {"pass": "PASS", "review": "REVIEW", "reject": "REJECT"}.get(self.verdict, "?")
+        summary_text = (
+            f"审查完毕。{len(models_used)} 个模型参与（{', '.join(models_used) if models_used else 'N/A'}），"
+            f"{disputed_count} 个区域存在争议。"
+            f"以下是我们确认的内容以及我们不确定的内容。"
+            f"最终结论：{status_label}，置信度 {self.confidence:.0f}/100。"
+        )
+        
+        return {
+            "summary_text": summary_text,
+            "confident_count": confident_count,
+            "disputed_count": disputed_count,
+            "uncertain_count": uncertain_count,
+            "models_used": models_used,
+            "finding_trust": findings_zones,
+            "dispute_details": dispute_map,
+        }
     
     def summary(self) -> str:
         """生成简洁的一行摘要"""
         status_label = {"pass": "[PASS]", "review": "[REVIEW]", "reject": "[REJECT]"}.get(self.verdict, "[?]")
-        return (
+        summary = (
             f"{status_label} {self.verdict.upper()} "
             f"| 置信度 {self.confidence:.0f}/100 "
             f"| 发现 {len(self.findings)} 个问题 "
             f"| 风险 {len(self.risks)} 个 "
             f"| 不确定 {len(self.uncertainty)} 项"
         )
+        
+        # 盲审信息
+        if self.blind_verdict:
+            blind_info = f" | 盲审: {self.blind_verdict.verdict} ({self.blind_verdict.score:.0f})"
+            if self.blind_agreement is not None:
+                blind_info += f" [{'✅' if self.blind_agreement else '⚠️'}]"
+            summary += blind_info
+        
+        return summary
     
     @property
     def needs_review(self) -> bool:
