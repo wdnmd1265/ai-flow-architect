@@ -1,206 +1,277 @@
 <p align="center">
-  <img src="docs/img/logo.svg" alt="AI Flow Architect" width="600" />
+  <img src="docs/img/logo.svg" alt="AI Flow Architect" width="500" />
 </p>
 
 <p align="center">
-  <strong>开源 AI 输出审查中间件</strong>
+  <strong>Two AIs review. A third attacks. You get the truth.</strong>
+</p>
+
+<p align="center">
+  <a href="https://wdnmd1265.github.io/ai-flow-architect/playground.html"><strong>🎮 Try it live →</strong></a>
 </p>
 
 <p align="center">
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.9%2B-3776AB.svg" alt="Python 3.9+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-4CAF50.svg" alt="License"></a>
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/status-alpha-FF9800.svg" alt="Alpha"></a>
-  <a href="https://github.com/wdnmd1265/ai-flow-architect/actions"><img src="https://img.shields.io/badge/tests-177%20passing-4CAF50.svg" alt="Tests"></a>
+  <a href="https://github.com/wdnmd1265/ai-flow-architect/actions"><img src="https://img.shields.io/badge/tests-186%20passing-4CAF50.svg" alt="Tests"></a>
+  <a href="https://wdnmd1265.github.io/ai-flow-architect/playground.html"><img src="https://img.shields.io/badge/playground-live-58a6ff.svg" alt="Playground"></a>
+  <a href="https://wdnmd1265.github.io/ai-flow-architect/"><img src="https://img.shields.io/badge/docs-deployed-success.svg" alt="GitHub Pages"></a>
 </p>
 
 <p align="center">
-  <a href="#the-problem">The Problem</a> &middot;
-  <a href="#trustengine">TrustEngine</a> &middot;
-  <a href="#integrations">Integrations</a> &middot;
-  <a href="#flowarchitect">FlowArchitect</a> &middot;
+  <a href="#before--after">Before/After</a> &middot;
+  <a href="#what-makes-this-different">Why Different</a> &middot;
   <a href="#quick-start">Quick Start</a> &middot;
-  <a href="#roadmap">Roadmap</a>
+  <a href="#how-it-works">Pipeline</a> &middot;
+  <a href="#why-not">Why Not X</a> &middot;
+  <a href="#trustengine">TrustEngine</a> &middot;
+  <a href="README_CN.md">中文</a>
 </p>
 
 ---
 
-## The Problem
-
-你让 GPT-4 写了一段用户管理代码，它看起来不错。API 设计合理，数据库连接正常。但 TrustEngine 在 1.8 秒内发现：密码哈希用了 MD5、登录端点缺少速率限制。
-
-你信任了一个 AI 模型，它产生了安全幻觉。这不是因为 AI 有恶意——而是因为**单一模型没有机制发现自己的盲点**。
-
-TrustEngine 在终端中的实际输出效果：
-> 终端彩色 TrustReport 审查报告，展示 REJECT 结论、5 个 Findings（CRIT~LOW）、3 个风险点、多模型仲裁投票及证据链。完整截图见 [trustreport-cli.html](docs/img/trustreport-cli.html)。
-
-### 三种接入方式
-
-**CLI — 一行命令**
-
-```bash
-ai-flow audit query.sql -r "检查 SQL 注入和认证漏洞"
-```
-
-**Python SDK — 三行代码**
-
-```python
-from ai_flow_architect import TrustEngine
-engine = TrustEngine()
-report = engine.audit(requirement="实现用户管理系统", ai_output=generated_code)
-```
-
-**LangChain 集成 — 无缝配合**
-
-```python
-from ai_flow_architect import TrustEngine
-from langchain.agents import create_openai_functions_agent
-
-agent = create_openai_functions_agent(llm, tools, prompt)
-result = agent.invoke({"input": "设计用户管理系统的数据库Schema"})
-
-engine = TrustEngine()
-report = engine.audit(requirement="数据库Schema设计", ai_output=result["output"])
-```
+![OG Image](docs/og-image.png)
 
 ---
 
-## TrustEngine
+## Before / After
 
-TrustEngine 是独立的审查层：零状态、零交互、纯审计。
+### Before: Single-AI Review
 
-### 输出说明
-
-```python
-report.verdict       # "pass" | "review" | "reject" — 最终结论
-report.confidence    # 0-100 — 置信度
-report.findings      # 具体问题列表，含严重等级
-report.uncertainty   # 引擎承认自己不确定的事项
-report.evidence_chain # SHA-256 哈希 + 时间戳，可审计
+```
+┌─────────────────────────────────────────────────────┐
+│ You ask an AI to write a login handler.              │
+│ It comes back confident:                             │
+│                                                     │
+│   def login(username, password):                    │
+│       query = "SELECT * FROM users "                │
+│       query += "WHERE name='" + username + "'"      │
+│       query += " AND password='" + hash(password)   │
+│       return db.execute(query)                      │
+│                                                     │
+│ A single AI reviewer says: "Looks fine."            │
+│                                                     │
+│ ❌ SQL injection in line 3 — missed.                 │
+│ ❌ hash() is not cryptographic — missed.             │
+│ ❌ No rate limiting — missed.                        │
+│                                                     │
+│ One model. One perspective. Three blind spots.       │
+└─────────────────────────────────────────────────────┘
 ```
 
-### 对比
+### After: ai-flow-architect Adversarial Audit
 
-| | TrustEngine | Mira | 什么都不用 |
-|---|---|---|---|
-| 开源 | ✅ | ❌ | — |
-| 多模型交叉审查 | ✅ | ✅ | ❌ |
-| 不确定性透明 | ✅ | ❌ | ❌ |
-| 证据链可追溯 | ✅ | ❌ | ❌ |
-| 价格 | 免费 | $X/月 | 免费（风险自负） |
+```
+┌──────────────────────────────────────────────────────────┐
+│ Brain One (GPT-4o): Primary audit — flags SQL injection, │
+│   unsafe hash, missing rate limit.                       │
+│                                                          │
+│ Opponent Brain (Claude 3.5 Sonnet): Attacks the same     │
+│   code from 5 adversarial angles — confirms Brain One's  │
+│   findings, adds: race condition in session renewal.     │
+│                                                          │
+│ Cross-Verification: Where they agree → confirmed finding.│
+│   Where they disagree → flagged UNCERTAIN, not hidden.   │
+│                                                          │
+│ TrustReport — REJECT (confidence 32/100)                 │
+│                                                          │
+│ > [CRITICAL] SQL Injection — username concatenated       │
+│   directly into query string at line 3                   │
+│   "Attacker input ' OR 1=1 --  bypasses auth entirely"   │
+│                                                          │
+│ > [HIGH] Unsafe Hash — hash() is not a cryptographic     │
+│   function. Use bcrypt or argon2.                        │
+│                                                          │
+│ > [MEDIUM] Missing Rate Limit — brute-forceable in       │
+│   under 10 minutes. Add exponential backoff.             │
+│                                                          │
+│ > [!] UNCERTAIN: Race condition in session renewal —     │
+│   arbiters disagree. Manual review recommended.          │
+│                                                          │
+│ Evidence chain: a1b2c3... (SHA-256, verifiable)          │
+│                                                          │
+│ ✅ Multi-model consensus on critical findings             │
+│ ✅ Opponent caught what Brain One missed                  │
+│ ✅ Disagreement surfaced, not suppressed                  │
+└──────────────────────────────────────────────────────────┘
+```
 
-### 关键设计
-
-- **单 API 密钥即可运行。** 省略 brain2 参数时自动选择同提供商的廉价模型。一个 OpenAI Key 就够。
-- **跨提供商审查效果最好。** OpenAI + Anthropic 组合因训练数据和失败模式不同，提供最强的仲裁能力。
-- **固定的质量流水线。** 用灵活性换可预测性——每个任务走相同的质量控制流程。
-- **专家会话隔离。** 各专家互不知晓彼此存在，数据仅通过结构化字段传递。
+> **[Try the interactive Playground](https://wdnmd1265.github.io/ai-flow-architect/playground.html)** — see real audits of real AI outputs. No installation. No API key.
 
 ---
 
-## Integrations
+## What Makes This Different
 
-同一场景：审查一段 AI 生成的代码。选择最适合你的集成方式。
+**Multi-Model Arbitration.** Not a vote. Brain One audits first. Then the Opponent Brain challenges the same output from adversarial angles. Findings that survive both models are confirmed. Disagreements are flagged as UNCERTAIN — not swept under the rug.
 
-| 集成方式 | 代码量 | 示例 |
-|----------|--------|------|
-| CLI | 1 行 | `ai-flow audit output.py -r "检查安全漏洞"` — [详情](integrations/cli.md) |
-| Python | 3 行 | `TrustEngine().audit(requirement=..., ai_output=...)` — [详情](integrations/python.md) |
-| LangChain | 3 行 | `agent.run()` + `engine.audit()` — [详情](integrations/langchain.md) |
-| CrewAI | 4 行 | `crew.kickoff()` + `engine.audit()` — [详情](integrations/crewai.md) |
-| OpenAI SDK | 5 行 | `client.chat.completions.create()` + `engine.audit()` — [详情](integrations/openai-sdk.md) |
-| GitHub Action | YAML | 引用 `.github/workflows/audit.yml` — [查看](.github/workflows/audit.yml) |
+**Opponent Brain.** A dedicated third perspective designed to find flaws. It attacks from five adversarial stances (attacker, edge-case hunter, assumption breaker, spec lawyer, logic checker). Unlike a second-pass review, it actively tries to break the output.
 
----
-
-## FlowArchitect
-
-### 进阶：完整工作流
-
-如果审查 AI 输出还不够——你想要 AI 在生成阶段就接受审查。
-
-```
-  You: "Design a user management system"
-         |
-         v
-+--------------------+
-| Brain #1 (Planner) |  Analyzes requirements, generates blueprint
-| Model: GPT-4o      |  with risk annotations
-+--------+-----------+
-         |
-         v
-+--------------------+
-| Opponent Brain     |  5 adversarial perspectives challenge the plan
-+--------+-----------+
-         |
-    [You review and approve]
-         |
-         v
-+--------------------+
-| Expert Team        |  Isolated sessions. Structured handoffs only.
-+--------+-----------+
-         |
-         v
-+--------------------+
-| Brain #2 (Arbiter) |  Cross-model review. Different blind spots.
-| Model: Claude      |
-+--------+-----------+
-         |
-         v
-     Quality report, not a gamble.
-```
-
-```python
-import asyncio
-from ai_flow_architect import FlowArchitect
-
-async def main():
-    architect = FlowArchitect(config={"brain1": "gpt-4o"})
-    result = await architect.run("Design a user management system")
-    if result["status"] == "success":
-        print(f"Quality score: {result['audit_result'].get('score', 'N/A')}/100")
-
-asyncio.run(main())
-```
-
-→ 详细文档: [docs/flow-architect.md](docs/flow-architect.md)
+**TrustEngine with Cryptographic Evidence.** Every finding is hashed with SHA-256 and timestamped. You get a verifiable evidence chain — proof of what was found and when. Share the report. The hash proves it hasn't been tampered with.
 
 ---
 
 ## Quick Start
 
-### 安装
-
 ```bash
-git clone https://github.com/wdnmd1265/ai-flow-architect.git
-cd ai-flow-architect
-pip install -e .
+pip install ai-flow-architect[html]
 ```
 
-### 配置
+Set one API key — or two for cross-provider arbitration (recommended):
 
 ```bash
-cp .env.example .env
+export OPENAI_API_KEY="sk-..."        # Required
+export ANTHROPIC_API_KEY="sk-ant-..."  # Optional, for stronger audits
 ```
 
-**单 API 密钥（开箱即用）：**
-```bash
-OPENAI_API_KEY=sk-your-key
-# brain2 自动选择 gpt-4o-mini，一个 Key 即可启动
-```
-
-**双 API 密钥（推荐，审查质量最高）：**
-```bash
-OPENAI_API_KEY=sk-your-key
-ANTHROPIC_API_KEY=sk-ant-your-key
-# brain2 使用 Claude 模型，跨提供商仲裁效果最佳
-```
-
-### 运行测试
+Audit anything in one command:
 
 ```bash
-pip install pytest pytest-asyncio
-pytest tests/unit/ -v    # 177 tests
+# Audit a file with a specific concern
+ai-flow audit login.py -r "Check for SQL injection, auth bypass, and rate limiting"
+
+# Export as a shareable HTML report
+ai-flow audit login.py -r "Security audit" --html -o report.html
+
+# Pipe from other tools
+cat generated_code.py | ai-flow audit -r "Validate correctness"
 ```
+
+```python
+# Or use the Python SDK — 3 lines
+from ai_flow_architect import TrustEngine
+
+engine = TrustEngine()
+report = engine.audit(
+    requirement="Secure user authentication with rate limiting",
+    ai_output=ai_generated_code,
+)
+print(report.summary())  # "REJECT (32/100): 3 findings, 2 uncertain"
+```
+
+---
+
+## How It Works
+
+```
+  Input Code
+      │
+      ▼
+┌─────────────────────┐
+│  Brain One Audit     │  Primary review. Identifies issues across
+│  (GPT-4o)            │  security, correctness, and logic dimensions.
+└─────────┬───────────┘
+          │  findings
+          ▼
+┌─────────────────────┐
+│  Opponent Challenge  │  5 adversarial perspectives attack the same
+│  (Claude 3.5 Sonnet) │  output. Confirms or disputes each finding.
+└─────────┬───────────┘
+          │  confirmed / disputed
+          ▼
+┌─────────────────────┐
+│  Cross-Verification  │  Consensus → confirmed finding.
+│                      │  Disagreement → UNCERTAIN flag, not hidden.
+└─────────┬───────────┘
+          │  verdict + evidence
+          ▼
+┌─────────────────────┐
+│  TrustReport         │  Verdict (pass / review / reject) +
+│                      │  Confidence score + Findings +
+│                      │  SHA-256 evidence chain + Timestamp
+└─────────────────────┘
+```
+
+The core insight: a single model cannot discover its own blind spots. Two models trained on different data, with an adversarial opponent actively trying to break the output, catch what either would miss alone.
+
+**One API key is enough.** If you only provide `OPENAI_API_KEY`, the engine automatically falls back to `gpt-4o-mini` for the secondary auditor. Cross-provider (OpenAI + Anthropic) gives the strongest results because the models have different failure modes.
+
+---
+
+## Why Not PR-Agent / CodeRabbit / Copilot
+
+| | PR-Agent / CodeRabbit / Copilot | ai-flow-architect |
+|---|---|---|
+| **Review model** | Single model reviews in one pass | Two models + adversarial opponent cross-verify |
+| **False positives** | Reported as-is. You triage manually. | Opponent Brain challenges and filters unconfirmed claims |
+| **Disagreement** | Not applicable (single model, no dissent) | Flagged UNCERTAIN with both positions quoted — you decide |
+| **Evidence** | A review comment in a PR thread | SHA-256 hashed, timestamped evidence chain. Tamper-proof. |
+| **Auditability** | "Trust the bot said so" | Verifiable cryptographic proof of what was found and when |
+
+The difference isn't "we're better." It's that single-model review has a fundamental ceiling: one model cannot reliably challenge its own conclusions. Adding an opponent changes the game.
+
+---
+
+## HTML Reports
+
+Export self-contained HTML reports with `--html`. Send them to your team. Post them in issues. Every share is an audit your AI didn't get away with.
+
+```bash
+ai-flow audit contract.pdf -r "Check for unfair terms" --html -o contract-audit.html
+```
+
+The report includes color-coded findings, arbiter votes with model attribution, collapsible evidence chains, and a transparent cost breakdown. No external CSS, no JavaScript frameworks, no server — one file, works everywhere.
+
+---
+
+## TrustEngine
+
+TrustEngine is the standalone audit layer. Zero state. Zero interaction. Pure verification.
+
+```python
+report.verdict        # "pass" | "review" | "reject"
+report.confidence     # 0-100
+report.findings       # Specific issues with severity + evidence
+report.uncertainty    # What the engine admits it cannot confirm
+report.evidence_chain # SHA-256 hash + timestamp, fully verifiable
+```
+
+### Output Formats
+
+| Format | Command | Use Case |
+|--------|---------|----------|
+| Terminal | `ai-flow audit ...` | Interactive, color-coded |
+| HTML | `ai-flow audit ... --html -o report.html` | Share with team, post in issues |
+| JSON | `ai-flow audit ... --json` | Pipe to other tools, CI/CD |
+| Markdown | `ai-flow audit ... --markdown` | Embed in docs, PR comments |
+
+### Integrations
+
+| Integration | Effort | Guide |
+|-------------|--------|-------|
+| CLI | 1 line | `ai-flow audit ...` |
+| Python SDK | 3 lines | `TrustEngine().audit(...)` |
+| LangChain | 3 lines | `agent.run()` + `engine.audit()` |
+| CrewAI | 4 lines | `crew.kickoff()` + `engine.audit()` |
+| OpenAI SDK | 5 lines | `client.create()` + `engine.audit()` |
+| GitHub Action | YAML | Copy `.github/workflows/ai-review.example.yml` |
+
+### Comparison
+
+| Feature | ai-flow-architect | Mira | Raw LLM |
+|---------|-------------------|------|---------|
+| Open Source | ✅ | ❌ | — |
+| Multi-model Arbitration | ✅ | ✅ | ❌ |
+| Adversarial Review | ✅ | ❌ | ❌ |
+| Uncertainty Transparency | ✅ | ❌ | ❌ |
+| Verifiable Evidence Chain | ✅ | ❌ | ❌ |
+| Cost | Free software; you pay for your own API keys | $X/month subscription | Free (trust at your own risk) |
+
+---
+
+### Advanced: FlowArchitect
+
+TrustEngine audits existing AI output. FlowArchitect builds the output under audit from the start. For when "review after generation" isn't enough — you want the opponent in the room during planning.
+
+```python
+from ai_flow_architect import FlowArchitect
+
+async def main():
+    architect = FlowArchitect(config={"brain1": "gpt-4o"})
+    result = await architect.run("Design a user management system")
+    # Brain #1 plans → Opponent challenges → You approve → Experts execute → Brain #2 audits
+```
+
+→ [Full FlowArchitect documentation](docs/flow-architect.md)
 
 ---
 
@@ -209,42 +280,32 @@ pytest tests/unit/ -v    # 177 tests
 ```
 ai-flow-architect/
 ├── src/ai_flow_architect/
-│   ├── __init__.py              # Exports FlowArchitect, TrustEngine, TrustReport
+│   ├── engine/                  # TrustEngine — standalone audit layer
+│   │   ├── trust_engine.py      # Core audit interface
+│   │   ├── trust_report.py      # TrustReport schema + serialization (JSON/MD/HTML)
+│   │   └── audit_context.py     # AuditContext for project metadata
+│   ├── brains/
+│   │   ├── brain_one.py         # Brain #1: requirement analysis + blueprint generation
+│   │   ├── brain_two.py         # Brain #2: quality arbitration (cross-model)
+│   │   └── brain_opponent.py    # Opponent Brain: 5 adversarial review styles
 │   ├── core/
 │   │   ├── architect.py         # Three-phase orchestration + user approval loop
 │   │   ├── scheduler.py         # Serial execution + 4 token-saving mechanisms
 │   │   ├── context.py           # Session CRUD + history compression
 │   │   └── cache.py             # CRUD + TTL + hit stats
-│   ├── brains/
-│   │   ├── brain_one.py         # Brain #1: requirement analysis + blueprint generation
-│   │   ├── brain_two.py         # Brain #2: quality arbitration (cross-model)
-│   │   └── brain_opponent.py    # Opponent Brain: 5 adversarial review styles
-│   ├── experts/
-│   │   ├── base.py              # BaseExpert + ExpertConfig + three-layer prompts
-│   │   ├── creative.py          # CreativeExpert
-│   │   ├── evaluator.py         # EvaluatorExpert
-│   │   ├── programmer.py        # ProgrammerExpert
-│   │   └── reviewer.py          # ReviewerExpert
-│   ├── engine/                  # TrustEngine — standalone audit layer
-│   │   ├── trust_engine.py      # Core audit interface
-│   │   ├── trust_report.py      # TrustReport schema + serialization
-│   │   └── audit_context.py     # AuditContext for project metadata
-│   └── utils/
-│       ├── llm_client.py        # Unified LLM client (8 providers)
-│       ├── token_counter.py     # Token counting + cost estimation
-│       ├── compressor.py        # Context compression (4 strategies)
-│       └── validator.py         # Input validation
-├── tests/unit/                  # 177 unit tests
-├── integrations/                # Integration guides
-│   ├── cli.md
-│   ├── python.md
-│   ├── langchain.md
-│   ├── crewai.md
-│   └── openai-sdk.md
+│   ├── experts/                 # Expert team: creative, evaluator, programmer, reviewer
+│   ├── utils/
+│   │   ├── llm_client.py        # Unified LLM client (8 providers)
+│   │   ├── token_counter.py     # Token counting + cost estimation
+│   │   ├── compressor.py        # Context compression (4 strategies)
+│   │   └── validator.py         # Input validation
+│   └── templates/
+│       └── report.html          # Jinja2 template for --html export
+├── tests/unit/                  # 186 unit tests
 ├── docs/
 │   ├── flow-architect.md
 │   ├── getting_started.md
-│   └── img/
+│   └── sample-report.html       # Example TrustReport (open in browser)
 ├── .env.example
 ├── pyproject.toml
 └── models.yaml                  # Provider + model configuration
@@ -254,14 +315,14 @@ ai-flow-architect/
 
 ## Roadmap
 
+- [ ] **GitHub Action** — Automated PR review comments with --html report links
 - [ ] **PyPI package** — `pip install ai-flow-architect`
-- [x] **CLI interface** — `ai-flow audit "..."` with custom review rules
-- [x] **Expert execution layer** — Real LLM calls with tool support
-- [x] **TrustEngine** — Standalone audit layer with multi-arbiter + adversarial + evidence chain
-- [ ] **Expert team templates** — Pre-configured teams for web dev, data analysis, content creation
-- [ ] **Web UI** — Visual blueprint editor and execution monitor
-- [ ] **DeepSeek verification** — Most cost-effective provider, high priority for community validation
-- [x] **Model providers** — OpenAI + Anthropic production-tested, 5 more via OpenAI-compatible protocol
+- [ ] **Persona marketplace** — Community-contributed adversarial review styles (`/personas`)
+- [ ] **Community showdown** — "Can you beat our opponent brain?" challenge
+- [x] **HTML report export** — Self-contained, shareable audit reports
+- [x] **CLI interface** — `ai-flow audit` with `--html`, `--json`, `--markdown`
+- [x] **TrustEngine** — Multi-arbiter + adversarial + evidence chain
+- [x] **Model providers** — OpenAI + Anthropic production-tested, 5 more via compatible protocol
 - [ ] **Parallel execution** — Independent steps run concurrently
 - [ ] **Streaming output** — Real-time expert output streaming
 
@@ -269,14 +330,16 @@ ai-flow-architect/
 
 ## Contributing
 
-Contributions are welcome — especially provider verification PRs. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Contributions welcome. If you've tested the engine with a provider not yet in our compatibility list, that alone is a valuable PR.
 
 ```bash
 git clone https://github.com/wdnmd1265/ai-flow-architect.git
 cd ai-flow-architect
-pip install -e .
-pytest tests/unit/ -v    # 177 tests
+pip install -e ".[html]"
+pytest tests/unit/ -v    # 186 tests
 ```
+
+---
 
 ## License
 
@@ -286,4 +349,10 @@ pytest tests/unit/ -v    # 177 tests
 
 <p align="center">
   <em>AI generates. AI challenges. You decide. This is how we solve hallucination.</em>
+</p>
+
+<p align="center">
+  <a href="https://wdnmd1265.github.io/ai-flow-architect/playground.html"><strong>See it in action: playground.html</strong></a>
+  &nbsp;|&nbsp;
+  <a href="https://wdnmd1265.github.io/ai-flow-architect/">GitHub Pages — deployed</a>
 </p>

@@ -307,6 +307,8 @@ def main():
     p_audit.add_argument("--brain2", default=None, help="副审查模型（默认: 自动选择）")
     p_audit.add_argument("--json", action="store_true", help="输出 JSON")
     p_audit.add_argument("--markdown", action="store_true", help="输出 Markdown")
+    p_audit.add_argument("--html", action="store_true", help="导出自包含 HTML 报告")
+    p_audit.add_argument("-o", "--output", default=None, help="输出文件路径（与 --html / --json / --markdown 配合使用）")
     p_audit.add_argument("--no-color", action="store_true", help="关闭彩色输出")
 
     args = parser.parse_args()
@@ -359,9 +361,30 @@ def main():
         sys.exit(1)
 
     if args.json:
-        print(report.model_dump_json(indent=2))
+        output = report.model_dump_json(indent=2)
+        if args.output:
+            Path(args.output).write_text(output, encoding="utf-8")
+            print(f"JSON 报告已写入: {args.output}")
+        else:
+            print(output)
+    elif args.html:
+        try:
+            output = report.to_html()
+        except ImportError as e:
+            print(f"错误: {e}", file=sys.stderr)
+            sys.exit(1)
+        if args.output:
+            Path(args.output).write_text(output, encoding="utf-8")
+            print(f"HTML 报告已写入: {args.output}")
+        else:
+            print(output)
     elif args.markdown:
-        print(report.to_markdown())
+        output = report.to_markdown()
+        if args.output:
+            Path(args.output).write_text(output, encoding="utf-8")
+            print(f"Markdown 报告已写入: {args.output}")
+        else:
+            print(output)
     elif args.no_color:
         _render_plain(report)
     else:

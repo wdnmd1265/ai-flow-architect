@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TrustReport — {{ report.verdict.upper() }}</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-hover: #1c2128;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-secondary: #8b949e;
+    --text-tertiary: #6e7681;
+    --accent: #58a6ff;
+    --pass: #3fb950;
+    --review: #d29922;
+    --reject: #f85149;
+    --critical: #f85149;
+    --high: #f0883e;
+    --medium: #d29922;
+    --low: #8b949e;
+    --radius: 8px;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+    --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    line-height: 1.6;
+    padding: 2rem;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+  .header {
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  .header h1 {
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+  .header .meta {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-family: var(--mono);
+  }
+  .header .meta span { margin-right: 1.5rem; }
+  .verdict-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    letter-spacing: 0.05em;
+  }
+  .verdict-pass { background: rgba(63,185,80,0.15); color: var(--pass); border: 1px solid rgba(63,185,80,0.3); }
+  .verdict-review { background: rgba(210,153,34,0.15); color: var(--review); border: 1px solid rgba(210,153,34,0.3); }
+  .verdict-reject { background: rgba(248,81,73,0.15); color: var(--reject); border: 1px solid rgba(248,81,73,0.3); }
+  .summary-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin: 1rem 0 0.5rem;
+  }
+  .summary-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.75rem 1.25rem;
+    text-align: center;
+    min-width: 100px;
+  }
+  .summary-item .num {
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-family: var(--mono);
+  }
+  .summary-item .label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  section {
+    margin-bottom: 2.5rem;
+  }
+  section h2 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  section h2 .count {
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+    font-weight: 400;
+  }
+  .finding-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--medium);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    margin-bottom: 0.75rem;
+  }
+  .finding-card.sev-critical { border-left-color: var(--critical); }
+  .finding-card.sev-high { border-left-color: var(--high); }
+  .finding-card.sev-medium { border-left-color: var(--medium); }
+  .finding-card.sev-low { border-left-color: var(--low); }
+  .finding-card .sev-tag {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    margin-bottom: 0.5rem;
+    font-family: var(--mono);
+  }
+  .tag-critical { background: rgba(248,81,73,0.2); color: var(--critical); }
+  .tag-high { background: rgba(240,136,62,0.2); color: var(--high); }
+  .tag-medium { background: rgba(210,153,34,0.2); color: var(--review); }
+  .tag-low { background: rgba(139,148,158,0.15); color: var(--low); }
+  .finding-card .area { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.25rem; }
+  .finding-card .desc { font-size: 0.95rem; margin-bottom: 0.5rem; line-height: 1.5; }
+  .finding-card .evidence {
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+    font-family: var(--mono);
+    background: rgba(255,255,255,0.03);
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    margin-top: 0.5rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .arbiter-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+  .arbiter-table th, .arbiter-table td {
+    text-align: left;
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .arbiter-table th {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    font-weight: 600;
+  }
+  .arbiter-table tr:last-child td { border-bottom: none; }
+  .arbiter-table .status-pass { color: var(--pass); font-weight: 600; }
+  .arbiter-table .status-fail { color: var(--reject); font-weight: 600; }
+  .arbiter-issues {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    max-width: 320px;
+  }
+  .arbiter-issues li { margin-bottom: 0.15rem; }
+  .risk-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .risk-row:last-child { border-bottom: none; }
+  .risk-row .risk-tag {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    padding: 0.1rem 0.5rem;
+    border-radius: 3px;
+    flex-shrink: 0;
+    min-width: 70px;
+    text-align: center;
+  }
+  .risk-row .risk-detail { flex: 1; }
+  .risk-row .risk-desc { font-size: 0.9rem; }
+  .risk-row .risk-mitigation {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 0.15rem;
+    font-style: italic;
+  }
+  .uncertainty-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    margin-bottom: 0.75rem;
+  }
+  .uncertainty-card .unc-area {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 0.35rem;
+  }
+  .uncertainty-card .unc-reason {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.35rem;
+  }
+  .uncertainty-card .unc-suggestion {
+    font-size: 0.8rem;
+    color: var(--accent);
+    font-family: var(--mono);
+  }
+  .evidence-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .evidence-section summary {
+    padding: 0.75rem 1.25rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    user-select: none;
+  }
+  .evidence-section summary:hover { background: var(--surface-hover); }
+  .evidence-body {
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--border);
+  }
+  .evidence-body dl {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 0.4rem 1rem;
+    font-size: 0.85rem;
+    font-family: var(--mono);
+  }
+  .evidence-body dt { color: var(--text-secondary); }
+  .evidence-body dd { color: var(--text); word-break: break-all; }
+  .cost-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-top: 0.75rem;
+  }
+  .cost-section summary {
+    padding: 0.75rem 1.25rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    user-select: none;
+  }
+  .cost-section summary:hover { background: var(--surface-hover); }
+  .cost-body {
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.85rem;
+  }
+  .cost-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+    margin-bottom: 0.75rem;
+  }
+  .cost-table th, .cost-table td {
+    text-align: left;
+    padding: 0.35rem 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .cost-table th { color: var(--text-secondary); font-weight: 600; font-size: 0.7rem; text-transform: uppercase; }
+  .cost-summary { color: var(--text-secondary); font-family: var(--mono); }
+  .footer {
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+  }
+  .footer a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .footer a:hover { text-decoration: underline; }
+  .audit-log {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--text-tertiary);
+    line-height: 1.8;
+    list-style: none;
+  }
+  .audit-log li::before { content: "> "; color: var(--text-tertiary); }
+  .empty-state {
+    text-align: center;
+    color: var(--text-tertiary);
+    padding: 1.5rem;
+    font-size: 0.9rem;
+  }
+  @media (max-width: 640px) {
+    body { padding: 1rem; }
+    .summary-row { gap: 0.5rem; }
+    .summary-item { padding: 0.5rem 0.75rem; min-width: 70px; }
+    .summary-item .num { font-size: 1.2rem; }
+    .arbiter-table { font-size: 0.78rem; }
+    .evidence-body dl { grid-template-columns: 1fr; gap: 0.15rem; }
+  }
+  @media print {
+    body { background: #fff; color: #000; max-width: 100%; }
+    .finding-card, .uncertainty-card, .evidence-section, .cost-section, .arbiter-table th, .arbiter-table td {
+      background: #fff; border-color: #ccc; color: #000;
+    }
+    .verdict-badge { border-color: #000; }
+    .footer a { color: #000; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>TrustReport</h1>
+  <div class="meta">
+    <span>Version {{ report.version }}</span>
+    <span>{{ report.timestamp }}</span>
+    <span>Engine {{ report.engine_version }}</span>
+  </div>
+  <div style="margin-top:1rem;">
+    <span class="verdict-badge verdict-{{ report.verdict }}">{{ report.verdict | upper }}</span>
+    <span style="margin-left:1rem;font-size:1.1rem;font-weight:600;color:var(--text);">Confidence: {{ "%.0f"|format(report.confidence) }}/100</span>
+  </div>
+  <div class="summary-row">
+    <div class="summary-item">
+      <div class="num" style="color:var(--accent);">{{ report.findings | length }}</div>
+      <div class="label">Findings</div>
+    </div>
+    <div class="summary-item">
+      <div class="num">{{ report.risks | length }}</div>
+      <div class="label">Risks</div>
+    </div>
+    <div class="summary-item">
+      <div class="num">{{ report.arbiters | length }}</div>
+      <div class="label">Arbiters</div>
+    </div>
+    <div class="summary-item">
+      <div class="num">{{ report.uncertainty | length }}</div>
+      <div class="label">Uncertain</div>
+    </div>
+  </div>
+</div>
+
+<!-- Findings -->
+{% if report.findings %}
+<section>
+  <h2>Findings <span class="count">({{ report.findings | length }})</span></h2>
+  {% for f in report.findings %}
+  <div class="finding-card sev-{{ f.severity }}">
+    <div class="area">{{ f.area }} &middot; Source: {{ f.source }}</div>
+    <span class="sev-tag tag-{{ f.severity }}">{{ f.severity | upper }}</span>
+    <div class="desc">{{ f.description }}</div>
+    {% if f.evidence %}
+    <div class="evidence">{{ f.evidence }}</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<!-- Risks -->
+{% if report.risks %}
+<section>
+  <h2>Risks <span class="count">({{ report.risks | length }})</span></h2>
+  {% for r in report.risks %}
+  <div class="risk-row">
+    <span class="risk-tag tag-{{ r.level }}">{{ r.level | upper }}</span>
+    <div class="risk-detail">
+      <div class="risk-desc">[{{ r.type }}] {{ r.description }}</div>
+      {% if r.mitigation %}
+      <div class="risk-mitigation">Mitigation: {{ r.mitigation }}</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<!-- Arbiter Votes -->
+{% if report.arbiters %}
+<section>
+  <h2>Arbiter Votes <span class="count">({{ report.arbiters | length }})</span></h2>
+  <table class="arbiter-table">
+    <thead>
+      <tr>
+        <th>Role</th>
+        <th>Model</th>
+        <th>Verdict</th>
+        <th>Score</th>
+        <th>Issues</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for a in report.arbiters %}
+      <tr>
+        <td>{{ a.role }}</td>
+        <td style="font-family:var(--mono);font-size:0.8rem;">{{ a.model }}</td>
+        <td>
+          {% if a.passed %}
+          <span class="status-pass">[PASS]</span>
+          {% else %}
+          <span class="status-fail">[FAIL]</span>
+          {% endif %}
+        </td>
+        <td style="font-family:var(--mono);">{{ "%.0f"|format(a.score) }}</td>
+        <td>
+          {% if a.issues %}
+          <ul class="arbiter-issues">
+            {% for issue in a.issues %}
+            <li>{{ issue.get('description', issue) | string | truncate(100) }}</li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <span style="color:var(--text-tertiary);">—</span>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+<!-- Uncertainty -->
+{% if report.uncertainty %}
+<section>
+  <h2>Uncertainty — What the Engine Cannot Confirm <span class="count">({{ report.uncertainty | length }})</span></h2>
+  {% for u in report.uncertainty %}
+  <div class="uncertainty-card">
+    <div class="unc-area">
+      <span class="sev-tag tag-{{ u.severity }}">{{ u.severity | upper }}</span>
+      {{ u.area }}
+    </div>
+    <div class="unc-reason">Reason: {{ u.reason }}</div>
+    <div class="unc-suggestion">Suggestion: {{ u.suggestion }}</div>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<!-- Evidence Chain -->
+{% if report.evidence %}
+<section>
+  <h2>Evidence Chain</h2>
+  <details class="evidence-section">
+    <summary>SHA-256: {{ report.evidence.hash[:24] }}...</summary>
+    <div class="evidence-body">
+      <dl>
+        <dt>Full Hash</dt>
+        <dd>{{ report.evidence.hash }}</dd>
+        <dt>Algorithm</dt>
+        <dd>{{ report.evidence.algorithm }}</dd>
+        <dt>Timestamp</dt>
+        <dd>{{ report.evidence.timestamp }}</dd>
+        <dt>Isolation</dt>
+        <dd>{{ report.evidence.isolation_level }}</dd>
+        {% if report.evidence.data_summary %}
+        {% for k, v in report.evidence.data_summary.items() %}
+        <dt>{{ k }}</dt>
+        <dd>{{ v }}</dd>
+        {% endfor %}
+        {% endif %}
+      </dl>
+    </div>
+  </details>
+
+  <!-- Cost Breakdown (default collapsed) -->
+  {% if cost %}
+  <details class="cost-section">
+    <summary>Audit Details (click to expand)</summary>
+    <div class="cost-body">
+      <table class="cost-table">
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th>Provider</th>
+            <th>Prompt Tokens</th>
+            <th>Completion Tokens</th>
+            <th>Cost (USD)</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for entry in cost.calls %}
+          <tr>
+            <td style="font-family:var(--mono);">{{ entry.model }}</td>
+            <td>{{ entry.provider }}</td>
+            <td>{{ entry.prompt_tokens }}</td>
+            <td>{{ entry.completion_tokens }}</td>
+            <td>${{ "%.4f"|format(entry.cost) }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      <p class="cost-summary">
+        Total: ${{ "%.4f"|format(cost.total) }}
+        {% if cost.comparison_total %}
+        &emsp;Full audit estimate (all top-tier): ${{ "%.4f"|format(cost.comparison_total) }}
+        {% endif %}
+        {% if cost.cache_hit_rate is not none %}
+        &emsp;Cache hit rate: {{ "%.0f"|format(cost.cache_hit_rate * 100) }}%, saved ~${{ "%.4f"|format(cost.cache_saved) }}
+        {% endif %}
+      </p>
+    </div>
+  </details>
+  {% endif %}
+</section>
+{% endif %}
+
+<!-- Audit Log -->
+{% if report.audit_log %}
+<section>
+  <h2>Audit Log <span class="count">({{ report.audit_log | length }} steps)</span></h2>
+  <ul class="audit-log">
+    {% for entry in report.audit_log %}
+    <li>{{ entry }}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<div class="footer">
+  Generated by <a href="https://github.com/wdnmd1265/ai-flow-architect" target="_blank">ai-flow-architect</a>
+  &mdash; Two brains are better than one.
+</div>
+
+</body>
+</html>

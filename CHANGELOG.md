@@ -7,6 +7,23 @@
 
 ## [未发布]
 
+### 新增
+
+**Phase 1：增长基础设施**
+- README 重写：英文优先，标题 "Two AIs review. A third attacks. You get the truth."，Before/After 对比块、差异化说明、方法论融入正文
+- Playground 上线：docs/playground.html，2 个预生成案例卡片（Express.js / React Form），点击跳转完整 TrustReport
+- 示例报告：docs/sample-report.html，完整 REJECT 级 TrustReport 演示（4 Findings / 4 Risks / 3 Arbiters / 2 Uncertain）
+- OG 图片：docs/og-image.png（1200x630），社交分享预览图
+- 中文 README：README_CN.md 独立中文版，结构与英文版对齐
+- GitHub Action 示例：.github/workflows/audit-pr.yml，PR 触发自动审查 + 评论摘要
+
+**HTML 报告导出**
+- `ai-flow audit` 新增 `--html` 参数，生成自包含单文件 HTML 报告
+- Jinja2 模板：src/ai_flow_architect/templates/report.html，与 Python 逻辑分离
+- `[html]` 可选依赖组：pip install ai-flow-architect[html]
+- `-o` / `--output` 参数：所有输出格式（JSON/HTML/Markdown）均支持写入文件
+- setuptools package-data 配置：确保模板文件随包分发
+
 ### 修复
 
 **CLI 可用性**

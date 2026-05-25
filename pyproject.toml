@@ -72,11 +72,15 @@ api = [
     "fastapi>=0.100.0",
     "uvicorn>=0.23.0",
 ]
+html = [
+    "jinja2>=3.1.0",
+]
 all = [
     "redis>=5.0.0",
     "diskcache>=5.6.0",
     "fastapi>=0.100.0",
     "uvicorn>=0.23.0",
+    "jinja2>=3.1.0",
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
     "black>=23.0.0",
@@ -94,6 +98,9 @@ ai-flow = "ai_flow_architect.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"ai_flow_architect" = ["templates/*.html"]
 
 [tool.black]
 line-length = 88

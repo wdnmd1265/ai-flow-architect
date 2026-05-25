@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TrustReport — REJECT</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-hover: #1c2128;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-secondary: #8b949e;
+    --text-tertiary: #6e7681;
+    --accent: #58a6ff;
+    --pass: #3fb950;
+    --review: #d29922;
+    --reject: #f85149;
+    --critical: #f85149;
+    --high: #f0883e;
+    --medium: #d29922;
+    --low: #8b949e;
+    --radius: 8px;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+    --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    line-height: 1.6;
+    padding: 2rem;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+  .header {
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  .header h1 {
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+  .header .meta {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-family: var(--mono);
+  }
+  .header .meta span { margin-right: 1.5rem; }
+  .verdict-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    letter-spacing: 0.05em;
+  }
+  .verdict-pass { background: rgba(63,185,80,0.15); color: var(--pass); border: 1px solid rgba(63,185,80,0.3); }
+  .verdict-review { background: rgba(210,153,34,0.15); color: var(--review); border: 1px solid rgba(210,153,34,0.3); }
+  .verdict-reject { background: rgba(248,81,73,0.15); color: var(--reject); border: 1px solid rgba(248,81,73,0.3); }
+  .summary-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin: 1rem 0 0.5rem;
+  }
+  .summary-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.75rem 1.25rem;
+    text-align: center;
+    min-width: 100px;
+  }
+  .summary-item .num {
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-family: var(--mono);
+  }
+  .summary-item .label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  section {
+    margin-bottom: 2.5rem;
+  }
+  section h2 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  section h2 .count {
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+    font-weight: 400;
+  }
+  .finding-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--medium);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    margin-bottom: 0.75rem;
+  }
+  .finding-card.sev-critical { border-left-color: var(--critical); }
+  .finding-card.sev-high { border-left-color: var(--high); }
+  .finding-card.sev-medium { border-left-color: var(--medium); }
+  .finding-card.sev-low { border-left-color: var(--low); }
+  .finding-card .sev-tag {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    margin-bottom: 0.5rem;
+    font-family: var(--mono);
+  }
+  .tag-critical { background: rgba(248,81,73,0.2); color: var(--critical); }
+  .tag-high { background: rgba(240,136,62,0.2); color: var(--high); }
+  .tag-medium { background: rgba(210,153,34,0.2); color: var(--review); }
+  .tag-low { background: rgba(139,148,158,0.15); color: var(--low); }
+  .finding-card .area { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.25rem; }
+  .finding-card .desc { font-size: 0.95rem; margin-bottom: 0.5rem; line-height: 1.5; }
+  .finding-card .evidence {
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+    font-family: var(--mono);
+    background: rgba(255,255,255,0.03);
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    margin-top: 0.5rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .arbiter-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+  .arbiter-table th, .arbiter-table td {
+    text-align: left;
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .arbiter-table th {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    font-weight: 600;
+  }
+  .arbiter-table tr:last-child td { border-bottom: none; }
+  .arbiter-table .status-pass { color: var(--pass); font-weight: 600; }
+  .arbiter-table .status-fail { color: var(--reject); font-weight: 600; }
+  .arbiter-issues {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    max-width: 320px;
+  }
+  .arbiter-issues li { margin-bottom: 0.15rem; }
+  .risk-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .risk-row:last-child { border-bottom: none; }
+  .risk-row .risk-tag {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    padding: 0.1rem 0.5rem;
+    border-radius: 3px;
+    flex-shrink: 0;
+    min-width: 70px;
+    text-align: center;
+  }
+  .risk-row .risk-detail { flex: 1; }
+  .risk-row .risk-desc { font-size: 0.9rem; }
+  .risk-row .risk-mitigation {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 0.15rem;
+    font-style: italic;
+  }
+  .uncertainty-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    margin-bottom: 0.75rem;
+  }
+  .uncertainty-card .unc-area {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 0.35rem;
+  }
+  .uncertainty-card .unc-reason {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.35rem;
+  }
+  .uncertainty-card .unc-suggestion {
+    font-size: 0.8rem;
+    color: var(--accent);
+    font-family: var(--mono);
+  }
+  .evidence-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .evidence-section summary {
+    padding: 0.75rem 1.25rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    user-select: none;
+  }
+  .evidence-section summary:hover { background: var(--surface-hover); }
+  .evidence-body {
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--border);
+  }
+  .evidence-body dl {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 0.4rem 1rem;
+    font-size: 0.85rem;
+    font-family: var(--mono);
+  }
+  .evidence-body dt { color: var(--text-secondary); }
+  .evidence-body dd { color: var(--text); word-break: break-all; }
+  .cost-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-top: 0.75rem;
+  }
+  .cost-section summary {
+    padding: 0.75rem 1.25rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    user-select: none;
+  }
+  .cost-section summary:hover { background: var(--surface-hover); }
+  .cost-body {
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.85rem;
+  }
+  .cost-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+    margin-bottom: 0.75rem;
+  }
+  .cost-table th, .cost-table td {
+    text-align: left;
+    padding: 0.35rem 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .cost-table th { color: var(--text-secondary); font-weight: 600; font-size: 0.7rem; text-transform: uppercase; }
+  .cost-summary { color: var(--text-secondary); font-family: var(--mono); }
+  .footer {
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+  }
+  .footer a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .footer a:hover { text-decoration: underline; }
+  .audit-log {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--text-tertiary);
+    line-height: 1.8;
+    list-style: none;
+  }
+  .audit-log li::before { content: "> "; color: var(--text-tertiary); }
+  .empty-state {
+    text-align: center;
+    color: var(--text-tertiary);
+    padding: 1.5rem;
+    font-size: 0.9rem;
+  }
+  @media (max-width: 640px) {
+    body { padding: 1rem; }
+    .summary-row { gap: 0.5rem; }
+    .summary-item { padding: 0.5rem 0.75rem; min-width: 70px; }
+    .summary-item .num { font-size: 1.2rem; }
+    .arbiter-table { font-size: 0.78rem; }
+    .evidence-body dl { grid-template-columns: 1fr; gap: 0.15rem; }
+  }
+  @media print {
+    body { background: #fff; color: #000; max-width: 100%; }
+    .finding-card, .uncertainty-card, .evidence-section, .cost-section, .arbiter-table th, .arbiter-table td {
+      background: #fff; border-color: #ccc; color: #000;
+    }
+    .verdict-badge { border-color: #000; }
+    .footer a { color: #000; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>TrustReport</h1>
+  <div class="meta">
+    <span>Version 1.0</span>
+    <span>2026-05-23T14:30:05.123456+00:00</span>
+    <span>Engine 0.1.0</span>
+  </div>
+  <div style="margin-top:1rem;">
+    <span class="verdict-badge verdict-reject">REJECT</span>
+    <span style="margin-left:1rem;font-size:1.1rem;font-weight:600;color:var(--text);">Confidence: 32/100</span>
+  </div>
+  <div class="summary-row">
+    <div class="summary-item">
+      <div class="num" style="color:var(--accent);">4</div>
+      <div class="label">Findings</div>
+    </div>
+    <div class="summary-item">
+      <div class="num">4</div>
+      <div class="label">Risks</div>
+    </div>
+    <div class="summary-item">
+      <div class="num">3</div>
+      <div class="label">Arbiters</div>
+    </div>
+    <div class="summary-item">
+      <div class="num">2</div>
+      <div class="label">Uncertain</div>
+    </div>
+  </div>
+</div>
+
+<!-- Findings -->
+
+<section>
+  <h2>Findings <span class="count">(4)</span></h2>
+  
+  <div class="finding-card sev-critical">
+    <div class="area">src/login.py:42 &middot; Source: arbiter_1</div>
+    <span class="sev-tag tag-critical">CRITICAL</span>
+    <div class="desc">SQL injection vulnerability: user input directly concatenated into query string without parameterization</div>
+    
+    <div class="evidence">query = "SELECT * FROM users WHERE name = '" + username + "'"</div>
+    
+  </div>
+  
+  <div class="finding-card sev-high">
+    <div class="area">src/login.py:87 &middot; Source: arbiter_2</div>
+    <span class="sev-tag tag-high">HIGH</span>
+    <div class="desc">Password logged in plaintext to application log</div>
+    
+    <div class="evidence">logger.info(f"User {username} authenticated with password {password}")</div>
+    
+  </div>
+  
+  <div class="finding-card sev-medium">
+    <div class="area">src/session.py:23 &middot; Source: opponent</div>
+    <span class="sev-tag tag-medium">MEDIUM</span>
+    <div class="desc">Session token lacks HttpOnly flag, vulnerable to XSS-based theft</div>
+    
+    <div class="evidence">Set-Cookie: session_id=abc123; Path=/</div>
+    
+  </div>
+  
+  <div class="finding-card sev-low">
+    <div class="area">src/login.py:15 &middot; Source: arbiter_1</div>
+    <span class="sev-tag tag-low">LOW</span>
+    <div class="desc">Hardcoded timeout value (300s) without configuration option</div>
+    
+    <div class="evidence">TIMEOUT = 300  # seconds</div>
+    
+  </div>
+  
+</section>
+
+
+<!-- Risks -->
+
+<section>
+  <h2>Risks <span class="count">(4)</span></h2>
+  
+  <div class="risk-row">
+    <span class="risk-tag tag-critical">CRITICAL</span>
+    <div class="risk-detail">
+      <div class="risk-desc">[security] SQL injection in login handler</div>
+      
+      <div class="risk-mitigation">Mitigation: Use parameterized queries</div>
+      
+    </div>
+  </div>
+  
+  <div class="risk-row">
+    <span class="risk-tag tag-high">HIGH</span>
+    <div class="risk-detail">
+      <div class="risk-desc">[security] Plaintext password logging</div>
+      
+      <div class="risk-mitigation">Mitigation: Remove sensitive data from log statements</div>
+      
+    </div>
+  </div>
+  
+  <div class="risk-row">
+    <span class="risk-tag tag-medium">MEDIUM</span>
+    <div class="risk-detail">
+      <div class="risk-desc">[security] Missing HttpOnly on session cookie</div>
+      
+      <div class="risk-mitigation">Mitigation: Set HttpOnly=True</div>
+      
+    </div>
+  </div>
+  
+  <div class="risk-row">
+    <span class="risk-tag tag-low">LOW</span>
+    <div class="risk-detail">
+      <div class="risk-desc">[performance] Hardcoded timeout limits scalability</div>
+      
+      <div class="risk-mitigation">Mitigation: Make timeout configurable via env var</div>
+      
+    </div>
+  </div>
+  
+</section>
+
+
+<!-- Arbiter Votes -->
+
+<section>
+  <h2>Arbiter Votes <span class="count">(3)</span></h2>
+  <table class="arbiter-table">
+    <thead>
+      <tr>
+        <th>Role</th>
+        <th>Model</th>
+        <th>Verdict</th>
+        <th>Score</th>
+        <th>Issues</th>
+      </tr>
+    </thead>
+    <tbody>
+    
+      <tr>
+        <td>Primary Auditor</td>
+        <td style="font-family:var(--mono);font-size:0.8rem;">gpt-4o</td>
+        <td>
+          
+          <span class="status-fail">[FAIL]</span>
+          
+        </td>
+        <td style="font-family:var(--mono);">42</td>
+        <td>
+          
+          <ul class="arbiter-issues">
+            
+            <li>SQL injection at line 42</li>
+            
+            <li>Plaintext password in logs</li>
+            
+          </ul>
+          
+        </td>
+      </tr>
+    
+      <tr>
+        <td>Secondary Auditor</td>
+        <td style="font-family:var(--mono);font-size:0.8rem;">claude-3-5-sonnet</td>
+        <td>
+          
+          <span class="status-fail">[FAIL]</span>
+          
+        </td>
+        <td style="font-family:var(--mono);">38</td>
+        <td>
+          
+          <ul class="arbiter-issues">
+            
+            <li>Missing input validation on username field</li>
+            
+            <li>XSS risk in session cookie</li>
+            
+          </ul>
+          
+        </td>
+      </tr>
+    
+      <tr>
+        <td>Opposition (成本优化)</td>
+        <td style="font-family:var(--mono);font-size:0.8rem;">gpt-4o-mini</td>
+        <td>
+          
+          <span class="status-pass">[PASS]</span>
+          
+        </td>
+        <td style="font-family:var(--mono);">75</td>
+        <td>
+          
+          <span style="color:var(--text-tertiary);">—</span>
+          
+        </td>
+      </tr>
+    
+    </tbody>
+  </table>
+</section>
+
+
+<!-- Uncertainty -->
+
+<section>
+  <h2>Uncertainty — What the Engine Cannot Confirm <span class="count">(2)</span></h2>
+  
+  <div class="uncertainty-card">
+    <div class="unc-area">
+      <span class="sev-tag tag-medium">MEDIUM</span>
+      Race condition in session renewal
+    </div>
+    <div class="unc-reason">Reason: Arbiters disagree: one flags it, one considers it mitigated by DB transaction</div>
+    <div class="unc-suggestion">Suggestion: Manual review of src/session.py:55-72 recommended</div>
+  </div>
+  
+  <div class="uncertainty-card">
+    <div class="unc-area">
+      <span class="sev-tag tag-high">HIGH</span>
+      CSRF protection completeness
+    </div>
+    <div class="unc-reason">Reason: Adversarial test coverage incomplete — only 2 of 5 attack vectors covered</div>
+    <div class="unc-suggestion">Suggestion: Expand adversarial test suite for CSRF scenarios</div>
+  </div>
+  
+</section>
+
+
+<!-- Evidence Chain -->
+
+<section>
+  <h2>Evidence Chain</h2>
+  <details class="evidence-section">
+    <summary>SHA-256: a1b2c3d4e5f6a7b8c9d0e1f2...</summary>
+    <div class="evidence-body">
+      <dl>
+        <dt>Full Hash</dt>
+        <dd>a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2</dd>
+        <dt>Algorithm</dt>
+        <dd>sha256</dd>
+        <dt>Timestamp</dt>
+        <dd>2026-05-23T14:30:00.000000+00:00</dd>
+        <dt>Isolation</dt>
+        <dd>full</dd>
+        
+        
+        <dt>requirement_length</dt>
+        <dd>156</dd>
+        
+        <dt>output_length</dt>
+        <dd>2048</dd>
+        
+        <dt>arbiter_count</dt>
+        <dd>3</dd>
+        
+        
+      </dl>
+    </div>
+  </details>
+
+  <!-- Cost Breakdown (default collapsed) -->
+  
+  <details class="cost-section">
+    <summary>Audit Details (click to expand)</summary>
+    <div class="cost-body">
+      <table class="cost-table">
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th>Provider</th>
+            <th>Prompt Tokens</th>
+            <th>Completion Tokens</th>
+            <th>Cost (USD)</th>
+          </tr>
+        </thead>
+        <tbody>
+        
+          <tr>
+            <td style="font-family:var(--mono);">gpt-4o</td>
+            <td>openai</td>
+            <td>1240</td>
+            <td>380</td>
+            <td>$0.0069</td>
+          </tr>
+        
+          <tr>
+            <td style="font-family:var(--mono);">claude-3-5-sonnet</td>
+            <td>anthropic</td>
+            <td>1180</td>
+            <td>420</td>
+            <td>$0.0098</td>
+          </tr>
+        
+          <tr>
+            <td style="font-family:var(--mono);">gpt-4o-mini</td>
+            <td>openai</td>
+            <td>960</td>
+            <td>150</td>
+            <td>$0.0002</td>
+          </tr>
+        
+        </tbody>
+      </table>
+      <p class="cost-summary">
+        Total: $0.0170
+        
+        &emsp;Full audit estimate (all top-tier): $0.0420
+        
+        
+        &emsp;Cache hit rate: 23%, saved ~$0.0030
+        
+      </p>
+    </div>
+  </details>
+  
+</section>
+
+
+<!-- Audit Log -->
+
+<section>
+  <h2>Audit Log <span class="count">(9 steps)</span></h2>
+  <ul class="audit-log">
+    
+    <li>→ 加载模型配置 (brain1=gpt-4o, brain2=claude-3-5-sonnet)</li>
+    
+    <li>→ 交叉审查中 (3 位审查员)...</li>
+    
+    <li>→ 反例攻防测试...</li>
+    
+    <li>  生成 5 个反例</li>
+    
+    <li>→ 不确定性计算...</li>
+    
+    <li>  不确定性: 2 项</li>
+    
+    <li>  结论: reject | 置信度: 32.5</li>
+    
+    <li>→ 证据链打包</li>
+    
+    <li>  证据链: a1b2c3d4e5f6a7b8...</li>
+    
+  </ul>
+</section>
+
+
+<div class="footer">
+  Generated by <a href="https://github.com/wdnmd1265/ai-flow-architect" target="_blank">ai-flow-architect</a>
+  &mdash; Two brains are better than one.
+</div>
+
+</body>
+</html>

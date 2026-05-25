@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Flow Architect - Audit Playground</title>
+<meta property="og:title" content="AI Flow Architect — Multi-Agent Code Auditing">
+<meta property="og:description" content="Two LLMs verify every finding. Zero hallucinated vulnerabilities.">
+<meta property="og:image" content="https://wdnmd1265.github.io/ai-flow-architect/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --text-secondary: #8b949e;
+    --accent: #58a6ff;
+    --critical: #f85149;
+    --high: #d29922;
+    --medium: #3fb950;
+    --low: #8b949e;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+  }
+  header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  h1 { font-size: 1.5rem; font-weight: 600; color: var(--text); }
+  h2 { font-size: 1.1rem; font-weight: 600; margin: 2rem 0 1rem; color: var(--text); }
+  .subtitle { color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem; }
+
+  .report-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1.5rem 0; }
+  .report-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.25rem;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .report-card:hover { border-color: var(--accent); }
+  .report-card .title { font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem; }
+  .report-card .desc { font-size: 0.82rem; color: var(--text-secondary); }
+  .report-card .meta { font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.75rem; }
+
+  .findings-table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+  .findings-table th, .findings-table td {
+    padding: 0.6rem 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.85rem;
+  }
+  .findings-table th { color: var(--text-secondary); font-weight: 600; }
+
+  .severity-critical { color: var(--critical); font-weight: 600; }
+  .severity-high { color: var(--high); font-weight: 600; }
+  .severity-medium { color: var(--medium); font-weight: 600; }
+
+  .badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+  .badge-critical { background: rgba(248,81,73,0.15); color: var(--critical); }
+  .badge-high { background: rgba(210,153,34,0.15); color: var(--high); }
+
+  .collapsible { margin: 1rem 0; }
+  .collapsible summary {
+    cursor: pointer;
+    padding: 0.5rem 0.75rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    list-style: none;
+  }
+  .collapsible summary::-webkit-details-marker { display: none; }
+  .collapsible summary::before { content: "+ "; }
+  .collapsible[open] summary::before { content: "- "; }
+  .collapsible .content {
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    border-top: none;
+    background: var(--bg);
+    border-radius: 0 0 4px 4px;
+    font-size: 0.82rem;
+    font-family: "SF Mono", "Fira Code", monospace;
+    white-space: pre-wrap;
+    color: var(--text-secondary);
+  }
+
+  .cta {
+    margin-top: 2rem;
+    padding: 1.25rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+  .hero-cta { margin-top: 0; margin-bottom: 2rem; }
+  .cta p { font-size: 0.9rem; }
+  .cta code {
+    background: var(--bg);
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    font-size: 0.82rem;
+    font-family: "SF Mono", "Fira Code", monospace;
+  }
+
+  a.report-card {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+  }
+
+  .pipeline {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 1.5rem 0;
+    flex-wrap: wrap;
+  }
+  .pipeline-step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    font-size: 0.82rem;
+    flex: 1;
+    min-width: 160px;
+    text-align: center;
+  }
+  .pipeline-step strong { display: block; margin-bottom: 0.2rem; }
+  .step-num {
+    display: inline-block;
+    width: 20px; height: 20px;
+    line-height: 20px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    margin-right: 0.4rem;
+    vertical-align: middle;
+  }
+  .pipeline-arrow {
+    color: var(--text-secondary);
+    font-size: 1.2rem;
+    flex-shrink: 0;
+  }
+  footer {
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>AI Flow Architect</h1>
+  <p class="subtitle">Multi-agent code auditing. Two LLMs independently verify every finding before it reaches the report — no hallucinated vulnerabilities, no noise.</p>
+</header>
+
+<div class="cta hero-cta">
+  <p>Run your own audit in one command:</p>
+  <code>pip install ai-flow-architect[html]</code>
+  <code style="display:block;margin-top:0.5rem;">ai-flow audit ./your-project --html --output report.html</code>
+  <p style="margin-top:0.75rem;color:var(--text-secondary);">Results below are pre-generated. Install the CLI and configure your API keys to run live audits.</p>
+</div>
+
+<h2>Example Audit Reports</h2>
+<p class="subtitle" style="margin-bottom:1rem;">Click either report to view the full audit with severity breakdowns, arbiter evidence chains, and fix suggestions.</p>
+
+<div class="report-grid">
+
+  <a href="sample-report.html" class="report-card">
+    <div class="title">Express.js API Server</div>
+    <div class="desc">A toy Express.js server with deliberately introduced vulnerabilities: raw SQL queries, exposed stack traces, and missing CORS headers.</div>
+    <div class="meta">
+      <span class="badge badge-critical">2 Critical</span>
+      <span class="badge badge-high">3 High</span>
+      &middot; 4 findings &middot; 2 arbiters
+    </div>
+  </a>
+
+  <a href="sample-report.html" class="report-card">
+    <div class="title">React Form Component</div>
+    <div class="desc">Client-side form with unsanitized user input rendered via dangerouslySetInnerHTML and missing CSRF token validation.</div>
+    <div class="meta">
+      <span class="badge badge-critical">1 Critical</span>
+      <span class="badge badge-high">2 High</span>
+      &middot; 1 finding &middot; 2 arbiters
+    </div>
+  </a>
+
+</div>
+
+<h2>How It Works</h2>
+
+<div class="pipeline">
+  <div class="pipeline-step">
+    <span class="step-num">1</span>
+    <strong>Auditor</strong> scans your code for 20+ vulnerability patterns
+  </div>
+  <span class="pipeline-arrow">&rarr;</span>
+  <div class="pipeline-step">
+    <span class="step-num">2</span>
+    <strong>Arbiter A</strong> independently verifies each finding with line-level evidence
+  </div>
+  <span class="pipeline-arrow">&rarr;</span>
+  <div class="pipeline-step">
+    <span class="step-num">3</span>
+    <strong>Arbiter B</strong> does the same — both must agree
+  </div>
+  <span class="pipeline-arrow">&rarr;</span>
+  <div class="pipeline-step">
+    <span class="step-num">4</span>
+    <strong>Report</strong> includes only confirmed findings with severity, evidence, and fixes
+  </div>
+</div>
+
+<footer>
+  AI Flow Architect &mdash; Multi-agent code auditing pipeline. Open source on GitHub.
+</footer>
+
+</body>
+</html>

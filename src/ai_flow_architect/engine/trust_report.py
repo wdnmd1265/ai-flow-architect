@@ -9,8 +9,16 @@ import json
 import hashlib
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
+from pathlib import Path
+
 from pydantic import BaseModel, Field
 from loguru import logger
+
+try:
+    from jinja2 import Template
+    _JINJA2_AVAILABLE = True
+except ImportError:
+    _JINJA2_AVAILABLE = False
 
 
 class Finding(BaseModel):
@@ -161,6 +169,40 @@ class TrustReport(BaseModel):
             lines.append(f"")
         
         return "\n".join(lines)
+    
+    def to_html(self, cost: Optional[Dict[str, Any]] = None) -> str:
+        """
+        导出为自包含的单文件 HTML 报告。
+        
+        Args:
+            cost: 可选的成本数据，包含：
+                - calls: [{"model", "provider", "prompt_tokens", "completion_tokens", "cost"}]
+                - total: 总费用
+                - comparison_total: 全部使用顶级模型估算费用
+                - cache_hit_rate: 缓存命中率
+                - cache_saved: 缓存节省金额
+        
+        Returns:
+            完整的自包含 HTML 字符串
+        
+        Raises:
+            ImportError: 如果 jinja2 未安装（提示 pip install ai-flow-architect[html]）
+        """
+        if not _JINJA2_AVAILABLE:
+            raise ImportError(
+                "Jinja2 未安装。要使用 --html 导出功能，请运行:\n"
+                "  pip install ai-flow-architect[html]"
+            )
+        
+        from importlib.resources import files
+        
+        template_path = files("ai_flow_architect.templates") / "report.html"
+        template = Template(template_path.read_text(encoding="utf-8"))
+        
+        return template.render(
+            report=self.model_dump(),
+            cost=cost,
+        )
     
     def summary(self) -> str:
         """生成简洁的一行摘要"""
