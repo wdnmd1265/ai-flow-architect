@@ -114,7 +114,7 @@ class LLMClient:
             base_url = base_url_env
         
         # 获取超时和重试配置
-        timeout = self.provider_config.get("timeout", 30)
+        timeout = self.provider_config.get("timeout", 120)
         max_retries = self.provider_config.get("max_retries", 3)
         
         # 根据 provider 创建不同的客户端

@@ -153,6 +153,20 @@ class BrainTwo:
                     audit_result["comparison_summary"]["total_steps"]
                 )
             
+        except json.JSONDecodeError:
+            logger.warning(f"解析 LLM 响应失败: JSONDecodeError，使用降级审核结果")
+            audit_result = {
+                "passed": False,
+                "score": 0.0,
+                "issues": [{"type": "invalid_json", "description": "LLM returned non-JSON output", "severity": "high"}],
+                "suggestions": ["LLM 返回了非 JSON 格式，请检查模型配置"],
+                "detailed_report": "LLM 返回了非 JSON 格式，无法解析审核结果",
+                "comparison_summary": {
+                    "total_steps": len(blueprint.steps),
+                    "completed_steps": len([s for s in execution_result.values() if s.get("status") == "completed"]),
+                    "overall_match": 0.0,
+                },
+            }
         except Exception as e:
             logger.warning(f"解析 LLM 响应失败: {e}，使用默认审核结果")
             # 如果解析失败，使用默认审核结果
@@ -605,6 +619,11 @@ class BrainTwo:
                 "passed": result.get("passed", False), "score": result.get("score", 0),
                 "issues": result.get("issues", []), "suggestions": result.get("suggestions", []),
             }
+        except json.JSONDecodeError:
+            logger.warning(f"仲裁者 {temp_role} 返回非JSON响应，使用降级结果")
+            return {"arbiter": temp_role, "model": temp_model, "passed": False, "score": 0,
+                    "issues": [{"type": "invalid_json", "description": "LLM returned non-JSON output", "severity": "high"}],
+                    "suggestions": []}
         except Exception as e:
             logger.warning(f"仲裁者 {temp_role} 失败: {e}")
             raise
@@ -778,6 +797,11 @@ class BrainTwo:
                 "passed": result.get("passed", False), "score": result.get("score", 0),
                 "issues": result.get("issues", []), "suggestions": result.get("suggestions", []),
             }
+        except json.JSONDecodeError:
+            logger.warning(f"仲裁者 {temp_role} 返回非JSON响应，使用降级结果")
+            return {"arbiter": temp_role, "model": temp_model, "passed": False, "score": 0,
+                    "issues": [{"type": "invalid_json", "description": "LLM returned non-JSON output", "severity": "high"}],
+                    "suggestions": []}
         except Exception as e:
             logger.warning(f"仲裁者 {temp_role} 失败: {e}")
             return {"arbiter": temp_role, "model": temp_model, "passed": False, "score": 0, "issues": [], "suggestions": []}

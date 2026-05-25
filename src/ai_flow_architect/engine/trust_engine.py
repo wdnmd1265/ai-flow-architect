@@ -11,6 +11,7 @@ from typing import Optional, List, Dict, Any
 from types import SimpleNamespace
 from loguru import logger
 
+from .logging_config import set_trace_id, get_trace_id
 from .trust_report import (
     TrustReport,
     Finding,
@@ -178,7 +179,9 @@ class TrustEngine:
         audit_log.append(f"产出长度: {len(ai_output)} 字符")
         audit_log.append(f"审查深度: {context.audit_depth if context else 'quick'}")
         
-        logger.info(f"TrustEngine.audit() 开始 | 审查深度: {context.audit_depth if context else 'quick'}")
+        set_trace_id()
+        trace_id = get_trace_id()
+        logger.info(f"TrustEngine.audit() 开始 | trace_id: {trace_id} | 审查深度: {context.audit_depth if context else 'quick'}")
         
         # 第一步：多模型交叉审查
         audit_log.append("→ 多模型交叉审查...")
