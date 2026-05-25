@@ -22,6 +22,8 @@ from .trust_report import (
     EvidenceChain,
 )
 from .audit_context import AuditContext
+from .complexity_router import ComplexityRouter, RouteDecision
+from .local_checker import LocalChecker, LocalCheckResult
 from ..brains.brain_two import BrainTwo
 from ..brains.brain_opponent import BrainOpponent
 from ..brains.brain_blind import BrainBlind, BlindVerdict
@@ -52,6 +54,7 @@ class TrustEngine:
         enable_blind_review: bool = False,
         enforce_cross_family: bool = False,
         cross_family_strict: bool = False,
+        enable_routing: bool = False,
     ):
         """
         初始化信任引擎。
@@ -64,6 +67,7 @@ class TrustEngine:
             enable_blind_review: 是否启用无上下文盲审（默认关闭，向后兼容）
             enforce_cross_family: 是否启用跨家族校验（默认关闭）
             cross_family_strict: 跨家族校验严格模式（默认 False，warning 模式）
+            enable_routing: 是否启用 4 层模型路由（默认关闭，向后兼容）
         """
         self.brain1_model = brain1
         self.brain2_model = brain2 or self._resolve_brain2(brain1)
@@ -72,6 +76,15 @@ class TrustEngine:
         self.enable_blind_review = enable_blind_review
         self.enforce_cross_family = enforce_cross_family
         self.cross_family_strict = cross_family_strict
+        self.enable_routing = enable_routing
+        
+        # 复杂度路由器（Phase 3 P2）
+        self.router: Optional[ComplexityRouter] = None
+        self.local_checker: Optional[LocalChecker] = None
+        if self.enable_routing:
+            self.router = ComplexityRouter()
+            self.local_checker = LocalChecker()
+            logger.info("4 层模型路由已启用")
         
         # 初始化组件
         self.brain_two = BrainTwo(model=self.brain2_model)
@@ -117,6 +130,7 @@ class TrustEngine:
             f"隔离级别: {self.isolation_level}"
             f"{' | 盲审: ' + self._blind_model if self.enable_blind_review else ''}"
             f"{' | 跨家族: ' + ('enabled' if self.enforce_cross_family else 'disabled')}"
+            f"{' | 路由: enabled' if self.enable_routing else ''}"
         )
     
     def _load_models_config(self) -> Dict[str, Any]:
@@ -269,6 +283,7 @@ class TrustEngine:
         requirement: str,
         ai_output: str,
         context: Optional[AuditContext] = None,
+        force_tier: Optional[int] = None,
     ) -> TrustReport:
         """
         纯审查接口。
@@ -296,6 +311,42 @@ class TrustEngine:
         logger.info(f"TrustEngine.audit() 开始 | trace_id: {trace_id} | 审查深度: {context.audit_depth if context else 'quick'}")
         
         start_time = time.perf_counter()
+        
+        # ── Phase 3 P2: 4 层模型路由 ──
+        route_decision: Optional[RouteDecision] = None
+        local_check_result: Optional[LocalCheckResult] = None
+        
+        if self.enable_routing and self.router:
+            audit_log.append("→ 复杂度路由评估...")
+            if force_tier is not None:
+                route_decision = self.router.force_tier(force_tier)
+                audit_log.append(f"  强制路由: {route_decision.reason}")
+            else:
+                route_decision = self.router.route(requirement, ai_output, context.model_dump() if context else {})
+                audit_log.append(f"  路由决策: Tier {route_decision.tier} ({route_decision.reason})")
+            
+            # Tier 1: 本地初筛
+            if route_decision.tier == 1 and self.local_checker:
+                audit_log.append("→ 执行 Tier 1 本地初筛...")
+                local_check_result = self.local_checker.check(requirement, ai_output)
+                audit_log.append(f"  本地初筛完成: {'通过' if local_check_result.passed else '未通过'} (分数: {local_check_result.score:.1f})")
+                
+                # 构建 Tier 1 报告
+                report = self._build_tier1_report(
+                    requirement, ai_output, route_decision, local_check_result, audit_log
+                )
+                logger.info(f"TrustEngine.audit() 完成 (Tier 1) | {report.summary()}")
+                return report
+            
+            # Tier 2: 工具锚定（单模型快速审查）
+            if route_decision.tier == 2:
+                # 使用 brain_one 进行单模型快速审查
+                audit_log.append("→ 执行 Tier 2 单模型快速审查...")
+                # 这里需要调用 brain_one 的简化审查流程
+                # 暂时降级为 Tier 3 处理，待 brain_one 实现
+                audit_log.append("  Tier 2 暂未实现，降级为 Tier 3 处理")
+                route_decision.tier = 3
+                route_decision.reason += " (Tier 2 未实现，降级为 Tier 3)"
         
         # 第一步：多模型交叉审查
         audit_log.append("→ 多模型交叉审查...")
@@ -360,6 +411,8 @@ class TrustEngine:
             blind_agreement=blind_agreement,
             cross_family_validated=self.cross_family_validated,
             brain_families=self.brain_families,
+            route_tier=route_decision.tier if route_decision else 0,
+            route_reason=route_decision.reason if route_decision else "",
         )
         
         logger.info(f"TrustEngine.audit() 完成 | {report.summary()}")
@@ -610,6 +663,74 @@ class TrustEngine:
                 "output_length": len(ai_output),
                 "arbiter_count": len(arbiter_result.get("arbiter_votes", [])),
             },
+        )
+
+    def _build_tier1_report(
+        self,
+        requirement: str,
+        ai_output: str,
+        route_decision: RouteDecision,
+        local_result: LocalCheckResult,
+        audit_log: List[str],
+    ) -> TrustReport:
+        """构建 Tier 1 本地初筛报告（零 LLM 调用）。"""
+        ts = datetime.now(timezone.utc).isoformat()
+        
+        # 将 LocalFinding 转换为 Finding
+        findings = []
+        for lf in local_result.findings:
+            findings.append(Finding(
+                area=lf.category,
+                severity=lf.severity,
+                description=lf.description,
+                source="local_checker",
+                evidence=lf.evidence,
+            ))
+        
+        # 提取风险
+        risks = self._extract_risks(findings)
+        
+        # 计算置信度
+        confidence = local_result.score
+        
+        # 确定 verdict
+        critical_findings = [f for f in findings if f.severity == "critical"]
+        high_findings = [f for f in findings if f.severity == "high"]
+        if critical_findings:
+            verdict = "reject"
+        elif confidence < 70 or len(high_findings) >= 2:
+            verdict = "review"
+        elif confidence < 85:
+            verdict = "review"
+        else:
+            verdict = "pass"
+        
+        # 构建证据链
+        evidence = EvidenceChain(
+            hash=TrustReport.compute_hash({"tier": 1, "output": ai_output, "findings": str(local_result.score)}),
+            algorithm="sha256",
+            timestamp=ts,
+            isolation_level="local",
+            data_summary={
+                "requirement_length": len(requirement),
+                "output_length": len(ai_output),
+                "tier": 1,
+                "checker": "LocalChecker",
+            },
+        )
+        
+        return TrustReport(
+            verdict=verdict,
+            confidence=confidence,
+            timestamp=ts,
+            findings=findings,
+            risks=risks,
+            arbiters=[],
+            uncertainty=[],
+            evidence=evidence,
+            audit_log=audit_log,
+            route_tier=route_decision.tier,
+            route_reason=route_decision.reason,
         )
 
     def _compare_blind_with_arbiter(

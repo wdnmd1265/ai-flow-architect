@@ -281,6 +281,138 @@ def _do_models():
     console.print(f"\n共 {len(models)} 个模型。使用 ai-flow audit --brain1 <模型名> 指定审查模型。")
 
 
+def _do_mistakes(args):
+    """错题本分析：跨模型对抗模式。"""
+    from .engine.evidence_db import EvidenceDB, MistakeAnalyzer
+    
+    console = Console()
+    
+    try:
+        # 初始化数据库和分析器
+        db = EvidenceDB()
+        analyzer = MistakeAnalyzer(db)
+        
+        # 导出错题集
+        if args.export:
+            output_path = args.output or str(Path.home() / ".ai-flow" / "mistake_corpus.jsonl")
+            exported_path = analyzer.export_mistake_corpus(output_path)
+            console.print(f"[green]✓[/green] 错题集已导出: {exported_path}")
+            console.print(f"  共导出 {sum(1 for _ in open(exported_path, 'r', encoding='utf-8'))} 条记录")
+            return
+        
+        # 按家族统计
+        if args.family:
+            family_perf = analyzer.get_family_performance()
+            if not family_perf:
+                console.print("[yellow]⚠[/yellow] 暂无足够数据按家族统计")
+                return
+            
+            table = Table(title="家族性能统计", box=box.SIMPLE)
+            table.add_column("家族", style="bold cyan")
+            table.add_column("审查数", justify="right")
+            table.add_column("通过率", justify="right")
+            table.add_column("平均分", justify="right")
+            table.add_column("盲点发现", justify="right")
+            table.add_column("模型数", justify="right")
+            
+            for family, stats in sorted(family_perf.items(), key=lambda x: x[1]['total_reviews'], reverse=True):
+                table.add_row(
+                    family,
+                    str(stats['total_reviews']),
+                    f"{stats['pass_rate']*100:.1f}%",
+                    f"{stats['avg_score']:.1f}",
+                    str(stats['blind_spot_discoveries']),
+                    str(len(stats['models']))
+                )
+            
+            console.print(table)
+            return
+        
+        # 共识失败分析
+        if args.consensus_failures:
+            failures = analyzer.get_consensus_failures(threshold=args.threshold)
+            if not failures:
+                console.print(f"[yellow]⚠[/yellow] 未找到共识失败记录（阈值: {args.threshold})")
+                return
+            
+            table = Table(title=f"共识失败记录（阈值≥{args.threshold})", box=box.SIMPLE)
+            table.add_column("ID", justify="right")
+            table.add_column("时间", style="dim")
+            table.add_column("结论", style="bold")
+            table.add_column("失败比例", justify="right")
+            table.add_column("分数", justify="right")
+            table.add_column("模型数", justify="right")
+            
+            for failure in failures[:20]:  # 只显示前20条
+                timestamp = failure['timestamp'].split('T')[0] if 'T' in failure['timestamp'] else failure['timestamp']
+                table.add_row(
+                    str(failure['id']),
+                    timestamp,
+                    failure['verdict'].upper(),
+                    f"{failure['failure_ratio']*100:.0f}%",
+                    f"{failure['score']:.1f}",
+                    str(len(failure['model_votes']))
+                )
+            
+            console.print(table)
+            if len(failures) > 20:
+                console.print(f"[dim]... 还有 {len(failures) - 20} 条记录未显示[/dim]")
+            return
+        
+        # 默认：模型错误模式分析
+        table_data = analyzer.get_model_performance_table()
+        if not table_data:
+            console.print("[yellow]⚠[/yellow] 暂无足够数据进行分析")
+            return
+        
+        table = Table(title="模型错误模式分析", box=box.SIMPLE)
+        table.add_column("模型", style="bold cyan")
+        table.add_column("审查数", justify="right")
+        table.add_column("通过率", justify="right")
+        table.add_column("错过数", justify="right")
+        table.add_column("盲点", style="dim")
+        table.add_column("家族", style="green")
+        table.add_column("家族通过率", justify="right")
+        
+        for row in sorted(table_data, key=lambda x: x['reviews'], reverse=True):
+            # 根据通过率着色
+            pass_rate = float(row['pass_rate'].replace('%', ''))
+            pass_rate_style = "green" if pass_rate >= 80 else "yellow" if pass_rate >= 60 else "red"
+            
+            # 根据错过数着色
+            missed = row['missed']
+            missed_style = "red" if missed > 5 else "yellow" if missed > 0 else "dim"
+            
+            table.add_row(
+                row['model'],
+                str(row['reviews']),
+                f"[{pass_rate_style}]{row['pass_rate']}[/{pass_rate_style}]",
+                f"[{missed_style}]{row['missed']}[/{missed_style}]",
+                row['blind_spots'],
+                row['family'],
+                row['family_pass_rate']
+            )
+        
+        console.print(table)
+        
+        # 显示统计摘要
+        total_reviews = sum(row['reviews'] for row in table_data)
+        avg_pass_rate = sum(float(row['pass_rate'].replace('%', '')) for row in table_data) / len(table_data)
+        total_missed = sum(row['missed'] for row in table_data)
+        
+        console.print(f"\n[bold]统计摘要:[/bold]")
+        console.print(f"  总审查数: {total_reviews}")
+        console.print(f"  平均通过率: {avg_pass_rate:.1f}%")
+        console.print(f"  总错过数: {total_missed}")
+        console.print(f"  分析模型数: {len(table_data)}")
+        
+    except Exception as e:
+        console.print(f"[red]✗[/red] 分析失败: {e}")
+        if "no such table" in str(e).lower():
+            console.print("[dim]提示: 数据库可能为空，请先运行一些审查任务[/dim]")
+        sys.exit(1)
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="ai-flow",
@@ -293,6 +425,18 @@ def main():
 
     # ── models ──
     p_models = sub.add_parser("models", help="查看支持的模型列表")
+
+    # ── analyze ──
+    p_analyze = sub.add_parser("analyze", help="分析审查数据")
+    p_analyze_sub = p_analyze.add_subparsers(dest="analyze_command")
+
+    p_mistakes = p_analyze_sub.add_parser("mistakes", help="错题本分析：跨模型对抗模式")
+    p_mistakes.add_argument("--limit", type=int, default=50, help="分析记录数（默认：50）")
+    p_mistakes.add_argument("--export", action="store_true", help="导出错题集 JSONL")
+    p_mistakes.add_argument("-o", "--output", default=None, help="导出路径（默认：~/.ai-flow/mistake_corpus.jsonl）")
+    p_mistakes.add_argument("--family", action="store_true", help="按家族统计")
+    p_mistakes.add_argument("--consensus-failures", action="store_true", help="显示全模型共识失败")
+    p_mistakes.add_argument("--threshold", type=float, default=0.8, help="共识失败阈值（默认：0.8）")
 
     # ── audit ──
     p_audit = sub.add_parser("audit", help="审查 AI 输出")
@@ -312,6 +456,12 @@ def main():
     p_audit.add_argument("--no-color", action="store_true", help="关闭彩色输出")
     p_audit.add_argument("--cross-family", action="store_true", help="启用跨家族校验（warning 模式，同家族时仅告警）")
     p_audit.add_argument("--cross-family-strict", action="store_true", help="启用严格跨家族校验（同家族时直接拒绝）")
+    p_audit.add_argument(
+        "--route",
+        default="auto",
+        choices=["auto", "tier1", "tier2", "tier3"],
+        help="审查路由层级（默认: auto 自动选择）",
+    )
 
     args = parser.parse_args()
 
@@ -320,6 +470,12 @@ def main():
         return
     elif args.command == "models":
         _do_models()
+        return
+    elif args.command == "analyze":
+        if args.analyze_command == "mistakes":
+            _do_mistakes(args)
+        else:
+            p_analyze.print_help()
         return
     elif args.command != "audit":
         parser.print_help()
@@ -351,15 +507,24 @@ def main():
 
     content = _read_content(args.file)
 
+    enable_routing = args.route in ("auto", "tier1", "tier2", "tier3")
+    force_tier = None
+    if args.route.startswith("tier"):
+        try:
+            force_tier = int(args.route.replace("tier", ""))
+        except ValueError:
+            pass
+
     engine = TrustEngine(
         brain1=args.brain1,
         brain2=args.brain2,
         enforce_cross_family=args.cross_family or args.cross_family_strict,
         cross_family_strict=args.cross_family_strict,
+        enable_routing=enable_routing,
     )
 
     async def _run():
-        return await engine.audit(args.requirement, content)
+        return await engine.audit(args.requirement, content, force_tier=force_tier)
 
     try:
         report = asyncio.run(_run())

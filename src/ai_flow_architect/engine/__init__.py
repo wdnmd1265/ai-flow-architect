@@ -15,7 +15,9 @@ from .trust_report import (
 )
 from .audit_context import AuditContext
 from .trust_engine import TrustEngine
-from .evidence_db import EvidenceDB
+from .evidence_db import EvidenceDB, MistakeAnalyzer
+from .complexity_router import ComplexityRouter, RouteDecision
+from .local_checker import LocalChecker, LocalCheckResult, LocalFinding
 
 __all__ = [
     "TrustEngine",
@@ -27,4 +29,10 @@ __all__ = [
     "EvidenceChain",
     "AuditContext",
     "EvidenceDB",
+    "MistakeAnalyzer",
+    "ComplexityRouter",
+    "RouteDecision",
+    "LocalChecker",
+    "LocalCheckResult",
+    "LocalFinding",
 ]

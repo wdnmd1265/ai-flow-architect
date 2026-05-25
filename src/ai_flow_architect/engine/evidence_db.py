@@ -8,6 +8,7 @@
 import json
 import hashlib
 import sqlite3
+from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -272,3 +273,422 @@ class EvidenceDB:
                 "average_score": avg_score,
                 "model_counts": model_counts,
             }
+
+
+# ------------------------------------------------------------------
+# MistakeAnalyzer — 错题本分析
+# ------------------------------------------------------------------
+
+
+class MistakeAnalyzer:
+    """错题本分析器，从证据链数据库提取跨模型对抗模式。
+
+    核心价值：识别"哪些问题某个模型会错但另一个模型能发现"。
+    这是护城河的核心数据——跨模型对抗的实战模式无法从论文复制。
+    """
+
+    def __init__(self, db: EvidenceDB):
+        """初始化分析器。"""
+        self.db = db
+
+    def _get_rejected_reviews(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """获取被拒绝或需要复审的记录。"""
+        with self.db._connect() as conn:
+            cursor = conn.execute(
+                """
+                SELECT * FROM evidence_records
+                WHERE verdict IN ('review', 'reject')
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (limit,),
+            )
+            rows = cursor.fetchall()
+            return [self.db._row_to_dict(row) for row in rows]
+
+    @staticmethod
+    def _parse_arbiter_votes(
+        arbiter_votes_json: Any,
+    ) -> Dict[str, Dict[str, Any]]:
+        """解析仲裁员投票 JSON，返回 {模型名: {passed, score, ...}}。"""
+        if not arbiter_votes_json:
+            return {}
+
+        try:
+            votes_list = (
+                json.loads(arbiter_votes_json)
+                if isinstance(arbiter_votes_json, str)
+                else arbiter_votes_json
+            )
+            result = {}
+            for vote in votes_list:
+                if isinstance(vote, dict) and "model" in vote:
+                    model = vote["model"]
+                    result[model] = {
+                        "passed": vote.get("passed", False),
+                        "score": vote.get("score", 0.0),
+                        "issues": vote.get("issues", []),
+                        "suggestions": vote.get("suggestions", []),
+                        "role": vote.get("role", ""),
+                    }
+            return result
+        except (json.JSONDecodeError, TypeError, AttributeError):
+            return {}
+
+    @staticmethod
+    def _infer_family_from_model(model_name: str) -> str:
+        """从模型名推断所属 provider family。"""
+        model_lower = model_name.lower()
+
+        if model_lower.startswith("gpt-"):
+            return "openai"
+        elif model_lower.startswith("claude-"):
+            return "anthropic"
+        elif model_lower.startswith("gemini-") or "gemini" in model_lower:
+            return "google"
+        elif model_lower.startswith("deepseek-"):
+            return "deepseek"
+        elif model_lower.startswith("qwen-"):
+            return "dashscope"
+        elif model_lower.startswith("glm-"):
+            return "zhipu"
+        elif model_lower.startswith("moonshot-"):
+            return "moonshot"
+        elif "llama" in model_lower or "mistral" in model_lower:
+            return "ollama"
+        else:
+            return "unknown"
+
+    # ------------------------------------------------------------------
+    # 公开方法
+    # ------------------------------------------------------------------
+
+    def get_model_mistake_patterns(
+        self, limit: int = 100
+    ) -> Dict[str, Dict[str, Any]]:
+        """分析模型错误模式，识别盲点。
+
+        模型 A 通过但模型 B 拒绝 → 模型 B 发现了模型 A 的盲点。
+
+        Returns:
+            {
+                "gpt-4o": {
+                    "total_reviews": 50,
+                    "pass_rate": 0.82,
+                    "blind_spots": ["claude-3", "gemini"],
+                    "missed_count": 9,
+                    "detected_by": {"claude-3": 6, "gemini": 3}
+                },
+                ...
+            }
+        """
+        records = self._get_rejected_reviews(limit)
+
+        model_stats: Dict[str, Dict[str, Any]] = defaultdict(
+            lambda: {
+                "total_reviews": 0,
+                "passed_count": 0,
+                "blind_spots": set(),
+                "missed_by": defaultdict(int),
+            }
+        )
+
+        for record in records:
+            votes = self._parse_arbiter_votes(record.get("arbiter_votes_json"))
+            if len(votes) < 2:
+                continue
+
+            models = list(votes.keys())
+
+            for model in models:
+                model_stats[model]["total_reviews"] += 1
+                if votes[model]["passed"]:
+                    model_stats[model]["passed_count"] += 1
+
+            # 盲点分析：模型A通过但模型B拒绝
+            for i, model_a in enumerate(models):
+                for model_b in models[i + 1 :]:
+                    passed_a = votes[model_a]["passed"]
+                    passed_b = votes[model_b]["passed"]
+
+                    if passed_a and not passed_b:
+                        model_stats[model_a]["blind_spots"].add(model_b)
+                        model_stats[model_a]["missed_by"][model_b] += 1
+
+                    if passed_b and not passed_a:
+                        model_stats[model_b]["blind_spots"].add(model_a)
+                        model_stats[model_b]["missed_by"][model_a] += 1
+
+        result = {}
+        for model, stats in model_stats.items():
+            total = stats["total_reviews"]
+            passed = stats["passed_count"]
+            pass_rate = passed / total if total > 0 else 0.0
+            missed_count = sum(stats["missed_by"].values())
+
+            result[model] = {
+                "total_reviews": total,
+                "pass_rate": round(pass_rate, 3),
+                "blind_spots": list(stats["blind_spots"]),
+                "missed_count": missed_count,
+                "detected_by": dict(stats["missed_by"]),
+            }
+
+        return result
+
+    def get_consensus_failures(
+        self, threshold: float = 0.8
+    ) -> List[Dict[str, Any]]:
+        """找出所有模型都失败的问题（≥threshold 比例模型 passed=False）。
+
+        Returns:
+            记录列表，含 requirement_hash、各模型投票
+        """
+        records = self._get_rejected_reviews(limit=1000)
+        failures = []
+
+        for record in records:
+            votes = self._parse_arbiter_votes(record.get("arbiter_votes_json"))
+            if len(votes) < 2:
+                continue
+
+            total_models = len(votes)
+            failed_models = sum(1 for v in votes.values() if not v["passed"])
+            failure_ratio = failed_models / total_models
+
+            if failure_ratio >= threshold:
+                failure_record = {
+                    "id": record["id"],
+                    "session_id": record["session_id"],
+                    "timestamp": record["timestamp"],
+                    "requirement_hash": record["requirement_hash"],
+                    "verdict": record["verdict"],
+                    "score": record["score"],
+                    "failure_ratio": round(failure_ratio, 2),
+                    "model_votes": {},
+                }
+
+                for model, vote_data in votes.items():
+                    failure_record["model_votes"][model] = {
+                        "passed": vote_data["passed"],
+                        "score": vote_data["score"],
+                        "issues_count": len(vote_data.get("issues", [])),
+                    }
+
+                failures.append(failure_record)
+
+        return failures
+
+    def get_family_performance(self) -> Dict[str, Dict[str, Any]]:
+        """按 provider family 统计性能。
+
+        Returns:
+            {
+                "openai": {
+                    "total_reviews": 120,
+                    "pass_rate": 0.85,
+                    "avg_score": 78.5,
+                    "blind_spot_discoveries": 15,
+                    "models": ["gpt-4o", "gpt-4-turbo", ...]
+                },
+                ...
+            }
+        """
+        records = self._get_rejected_reviews(limit=1000)
+
+        family_stats: Dict[str, Dict[str, Any]] = defaultdict(
+            lambda: {
+                "total_reviews": 0,
+                "passed_count": 0,
+                "total_score": 0.0,
+                "blind_spot_discoveries": 0,
+                "models": set(),
+                "model_stats": defaultdict(lambda: {"reviews": 0, "passed": 0}),
+            }
+        )
+
+        for record in records:
+            votes = self._parse_arbiter_votes(record.get("arbiter_votes_json"))
+            if len(votes) < 2:
+                continue
+
+            model_families = {}
+            for model in votes.keys():
+                family = self._infer_family_from_model(model)
+                model_families[model] = family
+                family_stats[family]["models"].add(model)
+
+            for model, family in model_families.items():
+                stats = family_stats[family]
+                stats["total_reviews"] += 1
+                stats["total_score"] += votes[model]["score"]
+
+                if votes[model]["passed"]:
+                    stats["passed_count"] += 1
+                    stats["model_stats"][model]["passed"] += 1
+
+                stats["model_stats"][model]["reviews"] += 1
+
+            # 盲点发现统计
+            models = list(votes.keys())
+            for i, model_a in enumerate(models):
+                for model_b in models[i + 1 :]:
+                    passed_a = votes[model_a]["passed"]
+                    passed_b = votes[model_b]["passed"]
+                    family_a = model_families[model_a]
+                    family_b = model_families[model_b]
+
+                    if passed_a and not passed_b:
+                        family_stats[family_b]["blind_spot_discoveries"] += 1
+
+                    if passed_b and not passed_a:
+                        family_stats[family_a]["blind_spot_discoveries"] += 1
+
+        result = {}
+        for family, stats in family_stats.items():
+            total = stats["total_reviews"]
+            if total == 0:
+                continue
+
+            passed = stats["passed_count"]
+            pass_rate = passed / total if total > 0 else 0.0
+            avg_score = stats["total_score"] / total if total > 0 else 0.0
+
+            model_performance = {}
+            for model, ms in stats["model_stats"].items():
+                mr = ms["reviews"]
+                if mr > 0:
+                    model_performance[model] = {
+                        "reviews": mr,
+                        "pass_rate": round(ms["passed"] / mr, 3),
+                    }
+
+            result[family] = {
+                "total_reviews": total,
+                "pass_rate": round(pass_rate, 3),
+                "avg_score": round(avg_score, 2),
+                "blind_spot_discoveries": stats["blind_spot_discoveries"],
+                "models": list(stats["models"]),
+                "model_performance": model_performance,
+            }
+
+        return result
+
+    def export_mistake_corpus(
+        self, output_path: Optional[str] = None
+    ) -> str:
+        """导出错题集为 JSONL 文件。
+
+        Returns:
+            导出的文件路径
+        """
+        if output_path is None:
+            output_path = str(
+                Path.home() / ".ai-flow" / "mistake_corpus.jsonl"
+            )
+
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with self.db._connect() as conn:
+            cursor = conn.execute(
+                """
+                SELECT * FROM evidence_records
+                WHERE verdict IN ('review', 'reject')
+                ORDER BY id
+                """
+            )
+            rows = cursor.fetchall()
+
+        with open(output_path, "w", encoding="utf-8") as f:
+            for row in rows:
+                record = self.db._row_to_dict(row)
+
+                corpus_entry = {
+                    "id": record["id"],
+                    "session_id": record["session_id"],
+                    "timestamp": record["timestamp"],
+                    "requirement_hash": record["requirement_hash"],
+                    "output_hash": record["output_hash"],
+                    "verdict": record["verdict"],
+                    "score": record["score"],
+                    "brain1_model": record.get("brain1_model", ""),
+                    "brain2_model": record.get("brain2_model", ""),
+                }
+
+                votes = self._parse_arbiter_votes(
+                    record.get("arbiter_votes_json")
+                )
+                if votes:
+                    corpus_entry["arbiter_votes"] = votes
+
+                findings = record.get("findings_json")
+                if findings:
+                    if isinstance(findings, str):
+                        try:
+                            findings = json.loads(findings)
+                        except (json.JSONDecodeError, TypeError):
+                            findings = []
+
+                    if isinstance(findings, list):
+                        corpus_entry["findings_summary"] = [
+                            {
+                                "area": f.get("area", ""),
+                                "severity": f.get("severity", ""),
+                                "description": (
+                                    (f.get("description", "")[:100] + "...")
+                                    if f.get("description")
+                                    else ""
+                                ),
+                            }
+                            for f in findings[:5]
+                        ]
+
+                f.write(
+                    json.dumps(corpus_entry, ensure_ascii=False) + "\n"
+                )
+
+        return str(output_path)
+
+    def get_model_performance_table(self) -> List[Dict[str, Any]]:
+        """获取模型性能表格数据，用于 CLI 输出。"""
+        patterns = self.get_model_mistake_patterns(limit=200)
+        family_perf = self.get_family_performance()
+
+        table_data = []
+        for model, stats in patterns.items():
+            family = self._infer_family_from_model(model)
+            family_info = family_perf.get(family, {})
+
+            blind_spots = stats["blind_spots"]
+            detected_by = stats["detected_by"]
+
+            if blind_spots:
+                blind_info = f"{len(blind_spots)} models"
+                if detected_by:
+                    top_detector = max(
+                        detected_by.items(), key=lambda x: x[1]
+                    )
+                    blind_info += (
+                        f" (top: {top_detector[0]}:{top_detector[1]})"
+                    )
+            else:
+                blind_info = "none"
+
+            table_data.append(
+                {
+                    "model": model,
+                    "reviews": stats["total_reviews"],
+                    "pass_rate": f"{stats['pass_rate'] * 100:.1f}%",
+                    "missed": stats["missed_count"],
+                    "blind_spots": blind_info,
+                    "family": family,
+                    "family_pass_rate": (
+                        f"{family_info.get('pass_rate', 0) * 100:.1f}%"
+                        if family_info
+                        else "N/A"
+                    ),
+                }
+            )
+
+        return table_data

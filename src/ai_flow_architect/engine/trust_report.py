@@ -112,6 +112,10 @@ class TrustReport(BaseModel):
     # 跨家族审查（Phase 3 P1：Cross-Family Enforcement）
     cross_family_validated: bool = Field(False, description="是否通过了跨家族校验")
     brain_families: tuple = Field(default_factory=lambda: ("", ""), description="brain1 和 brain2 的 family")
+
+    # 4 层模型路由（Phase 3 P2：ComplexityRouter）
+    route_tier: int = Field(0, ge=0, le=4, description="路由层级 (0=未启用路由, 1-4=对应层级)")
+    route_reason: str = Field("", description="路由到当前层级的原因")
     
     # to_json() 已移除 — 直接使用 Pydantic v2 内置的 model_dump_json(indent=2)
     # 调用方已全部迁移到 model_dump_json()
@@ -123,6 +127,11 @@ class TrustReport(BaseModel):
         lines.append(f"")
         lines.append(f"**版本**: {self.version} | **时间**: {self.timestamp}")
         lines.append(f"**结论**: {self.verdict.upper()} | **置信度**: {self.confidence:.1f}/100")
+        if self.route_tier > 0:
+            tier_labels = {1: "Quick Check (T1)", 2: "Standard Review (T2)", 3: "Deep Audit (T3)", 4: "Formal Verification (T4)"}
+            lines.append(f"**审查层级**: {tier_labels.get(self.route_tier, f'Tier {self.route_tier}')}")
+            if self.route_reason:
+                lines.append(f"**路由理由**: {self.route_reason}")
         lines.append(f"")
         
         # 审查发现
@@ -206,7 +215,11 @@ class TrustReport(BaseModel):
         
         return "\n".join(lines)
     
-    def to_html(self, cost: Optional[Dict[str, Any]] = None) -> str:
+    def to_html(
+        self,
+        cost: Optional[Dict[str, Any]] = None,
+        model_performance: Optional[Dict[str, Any]] = None,
+    ) -> str:
         """
         导出为自包含的单文件 HTML 报告。
         
@@ -255,6 +268,8 @@ class TrustReport(BaseModel):
             cost=cost,
             trust_analysis=trust_analysis,
             blind_data=blind_data,
+            model_performance=model_performance,
+            route_data=self._get_route_data() if self.route_tier > 0 else None,
         )
 
     @staticmethod
@@ -403,15 +418,48 @@ class TrustReport(BaseModel):
             "dispute_details": dispute_map,
         }
     
+    def _get_route_data(self) -> Dict[str, Any]:
+        """获取路由数据用于 HTML 报告渲染。"""
+        tier_labels = {
+            1: "Quick Check",
+            2: "Standard Review",
+            3: "Deep Audit",
+            4: "Formal Verification",
+        }
+        tier_colors = {
+            1: "#888888",   # 灰色
+            2: "#4dabf7",   # 蓝色
+            3: "#f39c12",   # 金色
+            4: "#9b59b6",   # 紫色
+        }
+        tier_cost = {
+            1: {"tokens": 0, "calls": 0, "cost": "$0.00"},
+            2: {"tokens": 2000, "calls": 1, "cost": "$0.0003"},
+            3: {"tokens": 12000, "calls": 5, "cost": "$0.03"},
+            4: {"tokens": 0, "calls": 0, "cost": "N/A"},
+        }
+        return {
+            "tier": self.route_tier,
+            "label": tier_labels.get(self.route_tier, f"Tier {self.route_tier}"),
+            "color": tier_colors.get(self.route_tier, "#888888"),
+            "reason": self.route_reason,
+            "cost": tier_cost.get(self.route_tier, {}),
+        }
+
     def summary(self) -> str:
         """生成简洁的一行摘要"""
         status_label = {"pass": "[PASS]", "review": "[REVIEW]", "reject": "[REJECT]"}.get(self.verdict, "[?]")
+        tier_info = ""
+        if self.route_tier > 0:
+            tier_names = {1: "T1-Quick", 2: "T2-Standard", 3: "T3-Deep", 4: "T4-Formal"}
+            tier_info = f" | {tier_names.get(self.route_tier, f'T{self.route_tier}')}"
         summary = (
             f"{status_label} {self.verdict.upper()} "
             f"| 置信度 {self.confidence:.0f}/100 "
             f"| 发现 {len(self.findings)} 个问题 "
             f"| 风险 {len(self.risks)} 个 "
             f"| 不确定 {len(self.uncertainty)} 项"
+            f"{tier_info}"
         )
         
         # 盲审信息

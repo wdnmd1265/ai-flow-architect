@@ -443,6 +443,15 @@
     {{ trust_analysis.summary_text }}
   </div>
 
+  {% if route_data %}
+  <div style="display:inline-block;background:{{ route_data.color }};color:#0a0a0a;padding:4px 12px;font-weight:700;font-size:0.85rem;margin-bottom:1rem;">
+    {{ route_data.label }}
+  </div>
+  <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:1rem;">
+    {{ route_data.reason }} | Est. tokens: {{ route_data.cost.tokens }} | Est. cost: {{ route_data.cost.cost }}
+  </div>
+  {% endif %}
+
   <div class="dashboard-grid">
     <div class="dashboard-item confident">
       <div class="num">{{ trust_analysis.confident_count }}</div>
@@ -487,6 +496,16 @@
   <div class="dashboard-summary">
     Verdict: <strong>{{ report.verdict.upper() }}</strong> | Confidence: {{ "%.0f"|format(report.confidence) }}/100
   </div>
+
+  {% if route_data %}
+  <div style="display:inline-block;background:{{ route_data.color }};color:#0a0a0a;padding:4px 12px;font-weight:700;font-size:0.85rem;margin-bottom:1rem;">
+    {{ route_data.label }}
+  </div>
+  <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:1rem;">
+    {{ route_data.reason }} | Est. tokens: {{ route_data.cost.tokens }} | Est. cost: {{ route_data.cost.cost }}
+  </div>
+  {% endif %}
+
 </div>
 {% endif %}
 
@@ -716,6 +735,62 @@
       {% endif %}
     </div>
   </div>
+</section>
+{% endif %}
+
+<!-- ====== Model Performance (Mistake Pattern) ====== -->
+{% if model_performance %}
+<section>
+  <h2>Model Performance <span class="count">({{ model_performance.models | length }} models)</span></h2>
+
+  <table class="arbiter-table">
+    <thead>
+      <tr>
+        <th>Model</th>
+        <th>Current Vote</th>
+        <th>Current Score</th>
+        <th>Historical Pass Rate</th>
+        <th>Family</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for mp in model_performance.models %}
+      <tr>
+        <td style="font-family:var(--mono);font-size:0.8rem;">{{ mp.model }}</td>
+        <td>
+          {% if mp.current_passed %}
+          <span class="status-pass" style="font-family:var(--mono);font-size:0.78rem;">[PASS]</span>
+          {% else %}
+          <span class="status-fail" style="font-family:var(--mono);font-size:0.78rem;">[FAIL]</span>
+          {% endif %}
+        </td>
+        <td style="font-family:var(--mono);">{{ "%.0f"|format(mp.current_score) }}</td>
+        <td>
+          {% if mp.historical_pass_rate == 'N/A' %}
+          <span style="color:var(--text-tertiary);">N/A</span>
+          {% else %}
+          <span style="font-family:var(--mono);{% if mp.historical_pass_rate_num >= 0.8 %}color:var(--confidence);{% elif mp.historical_pass_rate_num >= 0.6 %}color:var(--dispute);{% else %}color:var(--uncertain);{% endif %}">
+            {{ "%.0f"|format(mp.historical_pass_rate_num * 100) }}%
+          </span>
+          <span style="color:var(--text-tertiary);font-size:0.7rem;"> ({{ mp.historical_total }} reviews)</span>
+          {% endif %}
+        </td>
+        <td>{{ mp.family }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  {% if model_performance.summary %}
+  <div class="dispute-heatmap" style="margin-top:1rem;">
+    <h4>Summary</h4>
+    <div class="dispute-details">
+      {% for line in model_performance.summary %}
+      <p style="margin-bottom:0.25rem;">{{ line }}</p>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
 </section>
 {% endif %}
 
