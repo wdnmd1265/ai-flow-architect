@@ -219,6 +219,8 @@ class TrustReport(BaseModel):
         self,
         cost: Optional[Dict[str, Any]] = None,
         model_performance: Optional[Dict[str, Any]] = None,
+        cross_examine_result: Optional[Dict[str, Any]] = None,
+        attack_result: Optional[Dict[str, Any]] = None,
     ) -> str:
         """
         导出为自包含的单文件 HTML 报告。
@@ -230,6 +232,15 @@ class TrustReport(BaseModel):
                 - comparison_total: 全部使用顶级模型估算费用
                 - cache_hit_rate: 缓存命中率
                 - cache_saved: 缓存节省金额
+            cross_examine_result: 可选的跨审查结果（Arsenal MVP），包含：
+                - original_output: 原始输出
+                - second_output: 第二模型输出
+                - divergences: [{tag, original_sentence, second_sentence, reason_model_1, reason_model_2}]
+                - models_used: [model_1, model_2]
+                - single_provider: bool
+            attack_result: 可选的攻击执行结果（Arsenal MVP），包含：
+                - strategies: [{strategy_id, input_used, execution_result, triggered, ...}]
+                - total_count, triggered_count
         
         Returns:
             完整的自包含 HTML 字符串
@@ -270,6 +281,8 @@ class TrustReport(BaseModel):
             blind_data=blind_data,
             model_performance=model_performance,
             route_data=self._get_route_data() if self.route_tier > 0 else None,
+            cross_examine_result=cross_examine_result,
+            attack_result=attack_result,
         )
 
     @staticmethod

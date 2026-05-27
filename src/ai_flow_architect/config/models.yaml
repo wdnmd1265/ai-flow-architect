@@ -63,6 +63,22 @@ providers:
     base_url: "${CUSTOM_BASE_URL}"
     timeout: 30
     max_retries: 3
+  
+  # MiMo (小米米模) OpenAI 兼容接口
+  # 官网：https://token-plan-cn.xiaomimimo.com/v1
+  mimo:
+    api_key: "${MIMO_API_KEY}"
+    base_url: "https://token-plan-cn.xiaomimimo.com/v1"
+    timeout: 180
+    max_retries: 3
+  
+  # NVIDIA Nemotron OpenAI 兼容接口
+  # 官网：https://integrate.api.nvidia.com/v1
+  nvidia:
+    api_key: "${NVIDIA_API_KEY}"
+    base_url: "https://integrate.api.nvidia.com/v1"
+    timeout: 180
+    max_retries: 3
 
 # 模型详细配置
 models:
@@ -399,6 +415,72 @@ models:
     cost_per_1k_completion: 0.0
     recommended_for: ["自定义任务"]
 
+  # ====================
+  # MiMo (小米米模) 模型
+  # ====================
+  mimo-v2-omni:
+    provider: "mimo"
+    display_name: "MiMo V2 Omni"
+    description: "小米米模全能模型，支持 OpenAI 兼容接口"
+    context_window: 32768
+    max_output_tokens: 4096
+    supports_functions: false
+    supports_vision: false
+    cost_per_1k_prompt: 0.0
+    cost_per_1k_completion: 0.0
+    recommended_for: ["复杂推理", "代码生成"]
+
+  mimo-v2-pro:
+    provider: "mimo"
+    display_name: "MiMo V2 Pro"
+    description: "小米米模专业版模型"
+    context_window: 32768
+    max_output_tokens: 4096
+    supports_functions: false
+    supports_vision: false
+    cost_per_1k_prompt: 0.0
+    cost_per_1k_completion: 0.0
+    recommended_for: ["专业分析", "长文本处理"]
+
+  mimo-v2.5:
+    provider: "mimo"
+    display_name: "MiMo V2.5"
+    description: "小米米模 V2.5 版本"
+    context_window: 32768
+    max_output_tokens: 4096
+    supports_functions: false
+    supports_vision: false
+    cost_per_1k_prompt: 0.0
+    cost_per_1k_completion: 0.0
+    recommended_for: ["日常任务", "快速响应"]
+
+  mimo-v2.5-pro:
+    provider: "mimo"
+    display_name: "MiMo V2.5 Pro"
+    description: "小米米模 V2.5 专业版"
+    context_window: 32768
+    max_output_tokens: 4096
+    supports_functions: false
+    supports_vision: false
+    cost_per_1k_prompt: 0.0
+    cost_per_1k_completion: 0.0
+    recommended_for: ["专业分析", "复杂推理"]
+
+  # ====================
+  # NVIDIA Nemotron 模型
+  # ====================
+  nvidia/nemotron-3-super-120b-a12b:
+    provider: "nvidia"
+    display_name: "NVIDIA Nemotron 3 Super 120B"
+    description: "NVIDIA Nemotron 超大模型，支持 OpenAI 兼容接口"
+    context_window: 32768
+    max_output_tokens: 4096
+    supports_functions: false
+    supports_vision: false
+    cost_per_1k_prompt: 0.0
+    cost_per_1k_completion: 0.0
+    recommended_for: ["复杂推理", "长文本处理"]
+
 # 模型选择策略
 selection_strategy:
   # 任务类型映射
@@ -523,6 +605,17 @@ fallbacks:
   # 用户可以自己配置多个自定义模型
   custom:
     custom-model: "custom-model"
+
+  # MiMo 降级路径
+  mimo:
+    "mimo-v2-omni": "mimo-v2-pro"
+    "mimo-v2-pro": "mimo-v2.5"
+    "mimo-v2.5": "mimo-v2.5-pro"
+    "mimo-v2.5-pro": "mimo-v2.5"
+
+  # NVIDIA 降级路径
+  nvidia:
+    "nvidia/nemotron-3-super-120b-a12b": "mimo"
 
   # 默认兜底（当模型不在上述任何映射中时使用）
   default_fallback: "gpt-4o-mini"

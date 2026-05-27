@@ -436,9 +436,50 @@
 </head>
 <body>
 
+<!-- ====== 导航目录 ====== -->
+<nav id="report-nav" style="border:2px solid var(--border);background:var(--surface);padding:1rem;margin-bottom:2rem;">
+  <h3 style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:0.75rem;text-transform:uppercase;letter-spacing:0.05em;">Table of Contents</h3>
+  <ol style="list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:0.5rem 1.5rem;">
+    <li><a href="#summary" style="color:var(--accent);text-decoration:none;font-size:0.85rem;">Summary</a></li>
+    {% if report.findings %}
+    <li><a href="#findings" style="color:var(--accent);text-decoration:none;font-size:0.85rem;">Findings</a></li>
+    {% endif %}
+    {% if report.risks %}
+    <li><a href="#risks" style="color:var(--accent);text-decoration:none;font-size:0.85rem;">Risks</a></li>
+    {% endif %}
+    {% if report.arbiters %}
+    <li><a href="#arbiter-votes" style="color:var(--accent);text-decoration:none;font-size:0.85rem;">Arbiter Votes</a></li>
+    {% endif %}
+    {% if report.uncertainty %}
+    <li><a href="#uncertainty" style="color:var(--accent);text-decoration:none;font-size:0.85rem;">Uncertainty</a></li>
+    {% endif %}
+    {% if blind_data %}
+    <li><a href="#blind-review" style="color:var(--accent);text-decoration:none;font-size:0.85rem;">Blind Review</a></li>
+    {% endif %}
+    {% if report.cross_family_validated is defined and report.cross_family_validated is not none %}
+    <li><a href="#cross-family" style="color:var(--accent);text-decoration:none;font-size:0.85rem;">Cross-Family</a></li>
+    {% endif %}
+    {% if model_performance %}
+    <li><a href="#model-performance" style="color:var(--accent);text-decoration:none;font-size:0.85rem;">Model Perf.</a></li>
+    {% endif %}
+    {% if report.evidence %}
+    <li><a href="#evidence" style="color:var(--accent);text-decoration:none;font-size:0.85rem;">Evidence</a></li>
+    {% endif %}
+    {% if cross_examine_result %}
+    <li><a href="#cross-examine" style="color:var(--accent);text-decoration:none;font-size:0.85rem;">Cross-Examine</a></li>
+    {% endif %}
+    {% if attack_result %}
+    <li><a href="#attack-results" style="color:var(--accent);text-decoration:none;font-size:0.85rem;">Attack</a></li>
+    {% endif %}
+    {% if report.audit_log %}
+    <li><a href="#audit-log" style="color:var(--accent);text-decoration:none;font-size:0.85rem;">Audit Log</a></li>
+    {% endif %}
+  </ol>
+</nav>
+
 <!-- ====== 信任仪表盘 ====== -->
 {% if trust_analysis %}
-<div class="trust-dashboard">
+<div class="trust-dashboard" id="summary">
   <div class="dashboard-summary">
     {{ trust_analysis.summary_text }}
   </div>
@@ -492,7 +533,7 @@
 </div>
 {% else %}
 <!-- 兜底：无 trust_analysis 时显示传统头部 -->
-<div class="trust-dashboard">
+<div class="trust-dashboard" id="summary">
   <div class="dashboard-summary">
     Verdict: <strong>{{ report.verdict.upper() }}</strong> | Confidence: {{ "%.0f"|format(report.confidence) }}/100
   </div>
@@ -511,7 +552,7 @@
 
 <!-- ====== Findings (三色标注) ====== -->
 {% if report.findings %}
-<section>
+<section id="findings">
   <h2>Findings <span class="count">({{ report.findings | length }})</span></h2>
   {% for f in report.findings %}
     {% if trust_analysis %}
@@ -570,7 +611,7 @@
 
 <!-- ====== Risks ====== -->
 {% if report.risks %}
-<section>
+<section id="risks">
   <h2>Risks <span class="count">({{ report.risks | length }})</span></h2>
   {% for r in report.risks %}
   <div class="risk-row">
@@ -588,7 +629,7 @@
 
 <!-- ====== Arbiter Votes ====== -->
 {% if report.arbiters %}
-<section>
+<section id="arbiter-votes">
   <h2>Arbiter Votes <span class="count">({{ report.arbiters | length }})</span></h2>
   <table class="arbiter-table">
     <thead>
@@ -633,7 +674,7 @@
 
 <!-- ====== Uncertainty — What We Cannot Confirm ====== -->
 {% if report.uncertainty %}
-<section>
+<section id="uncertainty">
   <h2>Uncertainty — What We Cannot Confirm <span class="count">({{ report.uncertainty | length }})</span></h2>
   {% for u in report.uncertainty %}
   <div class="finding-card uncertain sev-{{ u.severity }}">
@@ -655,7 +696,7 @@
 
 <!-- ====== Blind Review ====== -->
 {% if blind_data %}
-<section>
+<section id="blind-review">
   <h2>Blind Review (No-Context Final Review)</h2>
   
   <div class="finding-card {% if blind_data.agreement %}confident{% else %}disputed{% endif %}">
@@ -711,7 +752,7 @@
 
 <!-- ====== Cross-Family Validation ====== -->
 {% if report.cross_family_validated is defined and report.cross_family_validated is not none %}
-<section>
+<section id="cross-family">
   <h2>Cross-Family Validation</h2>
   <div class="finding-card {% if report.cross_family_validated %}confident{% else %}disputed{% endif %}">
     <div class="finding-header">
@@ -740,7 +781,7 @@
 
 <!-- ====== Model Performance (Mistake Pattern) ====== -->
 {% if model_performance %}
-<section>
+<section id="model-performance">
   <h2>Model Performance <span class="count">({{ model_performance.models | length }} models)</span></h2>
 
   <table class="arbiter-table">
@@ -796,7 +837,7 @@
 
 <!-- ====== Evidence Chain ====== -->
 {% if report.evidence %}
-<section>
+<section id="evidence">
   <h2>Evidence Chain</h2>
   <details class="evidence-section">
     <summary>
@@ -866,12 +907,120 @@
 
 <!-- ====== Audit Log ====== -->
 {% if report.audit_log %}
-<section>
+<section id="audit-log">
   <h2>Audit Log <span class="count">({{ report.audit_log | length }} steps)</span></h2>
   <div class="audit-log">
     {% for entry in report.audit_log %}
     <div class="audit-log-entry">&gt; {{ entry }}</div>
     {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<!-- ====== Cross-Examine (Arsenal MVP) ====== -->
+{% if cross_examine_result %}
+<section id="cross-examine">
+  <h2>Cross-Examine (Arsenal MVP) <span class="count">({{ cross_examine_result.divergences | length }} divergences)</span></h2>
+  
+  <div class="finding-card {% if cross_examine_result.agreement %}confident{% else %}disputed{% endif %}">
+    <div class="finding-header">
+      <div class="finding-meta">
+        <span class="sev-tag {% if cross_examine_result.agreement %}tag-low{% else %}tag-medium{% endif %}">
+          {% if cross_examine_result.agreement %}AGREEMENT{% else %}DIVERGENCE{% endif %}
+        </span>
+        <span class="trust-tag {% if cross_examine_result.agreement %}trust-confident{% else %}trust-disputed{% endif %}">
+          {% if cross_examine_result.agreement %}✓ Models Agree{% else %}⚠ Models Disagree{% endif %}
+        </span>
+      </div>
+      <div class="area">
+        Models: {{ cross_examine_result.models_used[0] }} vs {{ cross_examine_result.models_used[1] }}
+        {% if cross_examine_result.single_provider %}(Same Provider){% endif %}
+      </div>
+    </div>
+    
+    {% if cross_examine_result.single_provider %}
+    <div class="desc" style="color:var(--dispute);">
+      ⚠️ Same provider family — second opinion from same pipeline, not cross-family validation.
+    </div>
+    {% endif %}
+    
+    {% if cross_examine_result.agreement and cross_examine_result.divergences|length == 0 %}
+    <div class="desc">
+      ✅ Two models reached the same conclusion on this issue.
+    </div>
+    {% elif cross_examine_result.divergences %}
+    <div class="desc">
+      ⚠️ Found {{ cross_examine_result.divergences|length }} points of divergence:
+    </div>
+    
+    <div class="dispute-heatmap">
+      <h4>Divergence Details</h4>
+      <div class="dispute-details">
+        {% for d in cross_examine_result.divergences %}
+        <div style="margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px solid var(--border);">
+          <strong style="color:var(--dispute);">{{ d.tag }}</strong><br>
+          <strong>Model 1:</strong> {{ d.original_sentence }}<br>
+          <strong>Model 2:</strong> {{ d.second_sentence }}<br>
+          <em>Reason 1:</em> {{ d.reason_model_1 }}<br>
+          <em>Reason 2:</em> {{ d.reason_model_2 }}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
+<!-- ====== Attack Results (Arsenal MVP) ====== -->
+{% if attack_result %}
+<section id="attack-results">
+  <h2>Attack Results (Arsenal MVP) <span class="count">({{ attack_result.strategies | length }} strategies, {{ attack_result.triggered_count }} triggered)</span></h2>
+  
+  <div class="finding-card {% if attack_result.triggered_count == 0 %}confident{% else %}disputed{% endif %}">
+    <div class="finding-header">
+      <div class="finding-meta">
+        <span class="sev-tag {% if attack_result.triggered_count == 0 %}tag-low{% else %}tag-high{% endif %}">
+          {% if attack_result.triggered_count == 0 %}PASSED{% else %}VULNERABLE{% endif %}
+        </span>
+        <span class="trust-tag {% if attack_result.triggered_count == 0 %}trust-confident{% else %}trust-disputed{% endif %}">
+          {% if attack_result.triggered_count == 0 %}✓ Attack Tests Passed{% else %}⚠ Vulnerabilities Found{% endif %}
+        </span>
+      </div>
+      <div class="area">
+        {{ attack_result.strategies | length }} strategies tested | {{ attack_result.triggered_count }} vulnerabilities triggered
+      </div>
+    </div>
+    
+    {% if attack_result.strategies %}
+    <div class="dispute-heatmap">
+      <h4>Attack Strategy Results</h4>
+      <div class="dispute-details">
+        <table style="width:100%;font-size:0.8rem;border-collapse:collapse;">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border);">
+              <th style="text-align:left;padding:0.25rem;">Strategy</th>
+              <th style="text-align:left;padding:0.25rem;">Input</th>
+              <th style="text-align:left;padding:0.25rem;">Result</th>
+              <th style="text-align:left;padding:0.25rem;">Triggered</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in attack_result.strategies %}
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:0.25rem;font-family:var(--mono);font-size:0.75rem;">{{ s.strategy_id }}</td>
+              <td style="padding:0.25rem;"><code>{{ s.input_used[:60] }}...</code></td>
+              <td style="padding:0.25rem;">{{ s.execution_result[:80] }}...</td>
+              <td style="padding:0.25rem;color:{% if s.triggered %}var(--uncertain){% else %}var(--confidence){% endif %};">
+                {% if s.triggered %}✅ Yes{% else %}❌ No{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
   </div>
 </section>
 {% endif %}

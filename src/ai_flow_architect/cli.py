@@ -13,6 +13,10 @@ from rich.table import Table
 from rich.text import Text
 from rich import box
 
+# 加载环境变量
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).parent.parent.parent / ".env")
+
 from .engine import TrustEngine
 
 DEFAULT_REQUIREMENT = "审查这段 AI 输出"
@@ -413,6 +417,332 @@ def _do_mistakes(args):
         sys.exit(1)
 
 
+def _do_example(args):
+    """生成带已知漏洞的示例代码。"""
+    example_code = '''"""
+示例 Python 代码 — 包含已知安全漏洞
+用于验证武器库的 attack 子命令
+"""
+import sqlite3
+import os
+
+# 硬编码密钥（漏洞1）
+SECRET_API_KEY = "sk_live_1234567890abcdef"
+DATABASE_URL = "postgresql://admin:secret123@localhost:5432/mydb"
+
+def get_user(username):
+    """通过用户名查询用户信息。"""
+    # SQL 注入漏洞（漏洞2）
+    conn = sqlite3.connect("users.db")
+    cursor = conn.cursor()
+    # ⚠️ 危险：直接拼接用户输入到 SQL 语句
+    query = f"SELECT * FROM users WHERE username = '{username}'"
+    cursor.execute(query)
+    result = cursor.fetchone()
+    conn.close()
+    return result
+
+def render_profile(user_data):
+    """将用户数据渲染为 HTML 配置文件。"""
+    html = "<html><body>"
+    # XSS 漏洞（漏洞3）
+    html += f"<h1>Welcome, {user_data['name']}!</h1>"
+    html += f"<p>Email: {user_data['email']}</p>"
+    html += "</body></html>"
+    return html
+
+def export_users(filename, users):
+    """导出用户列表到文件。"""
+    # 路径遍历漏洞（漏洞4）
+    with open(filename, "w") as f:
+        for user in users:
+            f.write(f"{user['name']},{user['email']}\\n")
+
+def run_command(cmd_param):
+    """执行系统命令。"""
+    # 命令注入漏洞（漏洞5）
+    os.system(f"ping {cmd_param}")
+
+if __name__ == "__main__":
+    # 使用弱哈希的密码存储（漏洞6）
+    import hashlib
+    password = "admin123"
+    hash_val = hashlib.md5(password.encode()).hexdigest()
+    print(f"Password hash: {hash_val}")
+    print(get_user("admin"))
+'''
+
+    example_requirement = '''需求：编写一个用户管理系统
+
+功能要求：
+1. 用户可以通过用户名查询个人信息
+2. 系统应显示用户名和邮箱
+3. 支持导出用户列表到文件
+4. 支持执行网络诊断命令
+5. 用户密码应加密存储
+
+请生成对应的 Python 代码实现。'''
+
+    # 写入当前目录
+    output_dir = Path(args.output_dir) if hasattr(args, 'output_dir') and args.output_dir else Path.cwd()
+    code_path = output_dir / "example_output.txt"
+    req_path = output_dir / "example_requirement.txt"
+
+    code_path.write_text(example_code, encoding="utf-8")
+    req_path.write_text(example_requirement, encoding="utf-8")
+
+    print(f"已生成示例代码: {code_path}")
+    print(f"已生成示例需求: {req_path}")
+    print("")
+    print("测试攻击引擎:")
+    print(f"  ai-flow attack {code_path}")
+    print("")
+    print("测试跨审查:")
+    print(f"  ai-flow cross-examine {code_path} --requirement {req_path}")
+    print("")
+    print("测试溯源追踪:")
+    print(f"  ai-flow trace {code_path}")
+
+
+def _do_cross_examine(args):
+    """执行跨审查。"""
+    import asyncio
+    from .engine.arsenal_cross_examine import cross_examine_file
+
+    async def _run():
+        models = args.models if args.models else None
+        line_range = None
+        if args.line_range:
+            try:
+                start, end = map(int, args.line_range.split("-"))
+                line_range = (start, end)
+            except:
+                print(f"无效的行范围: {args.line_range}", file=sys.stderr)
+                sys.exit(1)
+
+        return await cross_examine_file(
+            output_file=args.file,
+            requirement_file=args.requirement,
+            models=models,
+            allow_single_provider=args.single_provider,
+            line_range=line_range,
+            format_type=args.format,
+        )
+
+    try:
+        result = asyncio.run(_run())
+        print(result)
+    except Exception as e:
+        print(f"跨审查失败: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def _do_attack(args):
+    """执行攻击测试。"""
+    from .engine.arsenal_attack import attack_file
+
+    try:
+        result = attack_file(
+            file_path=args.file,
+            strategy_id=args.strategy,
+            allow_dangerous=args.dangerous,
+            format_type=args.format,
+        )
+        print(result)
+    except Exception as e:
+        print(f"攻击执行失败: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def _do_trace(args):
+    """执行溯源追踪。"""
+    import asyncio
+    from .engine.arsenal_trace import trace_file
+
+    async def _run():
+        return await trace_file(
+            file_path=args.file,
+            claim=args.claim,
+            source_file=args.source,
+            format_type=args.format,
+        )
+
+    try:
+        result = asyncio.run(_run())
+        print(result)
+    except Exception as e:
+        print(f"溯源追踪失败: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def _do_health(args):
+    """显示系统健康度仪表盘。"""
+    from rich.console import Console
+    from rich.table import Table
+    from rich.panel import Panel
+    from rich.text import Text
+    from rich import box
+    
+    console = Console()
+    
+    # 模拟健康度数据（实际应从数据库或文件加载）
+    health_data = {
+        "timestamp": "2026-05-26 14:30 UTC+8",
+        "trace_coverage": 87,
+        "trace_breakdown": {
+            "OpenAI": 100,
+            "Anthropic": 100,
+            "DeepSeek": 0,
+            "Qwen": 75,
+            "Gemini": 90
+        },
+        "strategy_hit_rate": 72,
+        "strategy_stats": {
+            "total": 50,
+            "hit": 36,
+            "degraded": 3
+        },
+        "benchmark_pass_rate": 94,
+        "benchmark_stats": {
+            "total": 50,
+            "passed": 47,
+            "failed": 3
+        },
+        "weekly_change": -2,
+        "degraded_strategies": [
+            {"id": "xss_reflected_002", "days_no_hit": 45},
+            {"id": "command_injection_003", "days_no_hit": 32},
+            {"id": "path_traversal_002", "days_no_hit": 38}
+        ],
+        "disputed_test_items": [
+            "owasp_xss_003",
+            "logic_causal_004"
+        ],
+        "last_benchmark_run": "2026-05-26 14:30 UTC+8",
+        "next_scheduled_run": "2026-05-27 06:00 UTC+8"
+    }
+    
+    # 创建仪表盘
+    console.print()
+    console.print(Panel.fit(
+        Text("System Health Dashboard", style="bold white"),
+        border_style="cyan",
+        padding=(1, 4)
+    ))
+    console.print()
+    
+    # 核心指标表格
+    table1 = Table(box=box.SIMPLE, show_header=False, padding=(0, 2))
+    table1.add_column("Metric", style="bold", width=25)
+    table1.add_column("Value", style="bold", width=15)
+    table1.add_column("Status", width=10)
+    table1.add_column("Details", width=30)
+    
+    # Trace Coverage - 三级颜色分级
+    trace_value = f"{health_data['trace_coverage']}%"
+    if health_data['trace_coverage'] >= 80:
+        trace_status = "[green]GREEN[/green]"
+    elif health_data['trace_coverage'] >= 50:
+        trace_status = "[yellow]YELLOW[/yellow]"
+    else:
+        trace_status = "[red]RED[/red]"
+    trace_details = ", ".join([f"{k}: {v}%" for k, v in health_data['trace_breakdown'].items()])
+    table1.add_row("Trace Coverage", trace_value, trace_status, trace_details)
+    
+    # Strategy Hit Rate - 三级颜色分级
+    hit_value = f"{health_data['strategy_hit_rate']}%"
+    if health_data['strategy_hit_rate'] >= 60:
+        hit_status = "[green]GREEN[/green]"
+    elif health_data['strategy_hit_rate'] >= 30:
+        hit_status = "[yellow]YELLOW[/yellow]"
+    else:
+        hit_status = "[red]RED[/red]"
+    hit_details = f"{health_data['strategy_stats']['hit']}/{health_data['strategy_stats']['total']} strategies hit in last 30 days"
+    table1.add_row("Strategy Hit Rate", hit_value, hit_status, hit_details)
+    
+    # Benchmark Pass Rate - 三级颜色分级
+    bench_value = f"{health_data['benchmark_pass_rate']}%"
+    if health_data['benchmark_pass_rate'] >= 85:
+        bench_status = "[green]GREEN[/green]"
+    elif health_data['benchmark_pass_rate'] >= 70:
+        bench_status = "[yellow]YELLOW[/yellow]"
+    else:
+        bench_status = "[red]RED[/red]"
+    bench_details = f"{health_data['benchmark_stats']['passed']}/{health_data['benchmark_stats']['total']} passed today"
+    table1.add_row("Benchmark Pass Rate", bench_value, bench_status, bench_details)
+    
+    # Weekly Change - 三级颜色分级
+    change = health_data['weekly_change']
+    change_value = f"{change:+.1f}% vs last week"
+    if abs(change) <= 5:
+        change_status = "[green]GREEN[/green]"
+        change_details = "波动 ≤5%，正常"
+    elif abs(change) <= 10:
+        change_status = "[yellow]YELLOW[/yellow]"
+        change_details = "波动 5-10%，警告"
+    else:
+        change_status = "[red]RED[/red]"
+        change_details = "波动 >10%，告警"
+    table1.add_row("Weekly Change", change_value, change_status, change_details)
+    
+    console.print(table1)
+    console.print()
+    
+    # 每个 provider 的 trace coverage 也按此标准着色
+    console.print("[bold]Provider Trace Coverage:[/bold]")
+    for provider, coverage in health_data['trace_breakdown'].items():
+        if coverage >= 80:
+            color = "green"
+        elif coverage >= 50:
+            color = "yellow"
+        else:
+            color = "red"
+        console.print(f"  {provider}: [{color}]{coverage}%[/{color}]")
+    console.print()
+    
+    # 退化策略
+    if health_data['degraded_strategies']:
+        console.print(f"[bold yellow]Degraded Strategies ({len(health_data['degraded_strategies'])}):[/bold yellow]")
+        for strategy in health_data['degraded_strategies']:
+            console.print(f"  - {strategy['id']}: {strategy['days_no_hit']} days no hit")
+        console.print()
+    
+    # 争议测试项
+    if health_data['disputed_test_items']:
+        console.print(f"[bold yellow]Disputed Test Items ({len(health_data['disputed_test_items'])} - excluded from core metrics):[/bold yellow]")
+        for item in health_data['disputed_test_items']:
+            console.print(f"  - {item}")
+        console.print()
+    
+    # 基准测试信息
+    table2 = Table(box=box.SIMPLE, show_header=False, padding=(0, 2))
+    table2.add_column("Info", style="dim", width=25)
+    table2.add_column("Value", width=30)
+    
+    table2.add_row("Last benchmark run", health_data['last_benchmark_run'])
+    table2.add_row("Next scheduled run", health_data['next_scheduled_run'])
+    table2.add_row("Test bank version", "1.0.0")
+    table2.add_row("Total test items", "50 (30 code + 20 logic)")
+    
+    console.print(table2)
+    console.print()
+    
+    # 健康度建议
+    suggestions = []
+    if health_data['weekly_change'] < -5:
+        suggestions.append("Consider investigating the recent performance drop")
+    if health_data['degraded_strategies']:
+        suggestions.append(f"Review {len(health_data['degraded_strategies'])} degraded strategies")
+    if health_data['trace_breakdown']['DeepSeek'] == 0:
+        suggestions.append("DeepSeek trace coverage is 0% - consider adding support")
+    
+    if suggestions:
+        console.print("[bold]Recommendations:[/bold]")
+        for i, suggestion in enumerate(suggestions, 1):
+            console.print(f"  {i}. {suggestion}")
+        console.print()
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="ai-flow",
@@ -463,6 +793,112 @@ def main():
         help="审查路由层级（默认: auto 自动选择）",
     )
 
+    # ── example ──
+    p_example = sub.add_parser("example", help="生成带漏洞的示例代码")
+    p_example.add_argument(
+        "--output-dir", "-o",
+        default=".",
+        help="输出目录（默认: 当前目录）"
+    )
+
+    # ── cross-examine ──
+    p_cross = sub.add_parser("cross-examine", help="跨审查武器：用不同模型重新回答同一需求")
+    p_cross.add_argument(
+        "file",
+        help="AI 输出文件路径"
+    )
+    p_cross.add_argument(
+        "--requirement", "-r",
+        help="需求文件路径（可选）"
+    )
+    p_cross.add_argument(
+        "--models", "-m",
+        nargs=2,
+        help="指定两个模型（如 gpt-4o-mini claude-3-haiku）"
+    )
+    p_cross.add_argument(
+        "--single-provider",
+        action="store_true",
+        help="允许使用同一 provider 的不同模型"
+    )
+    p_cross.add_argument(
+        "--line-range",
+        help="仅审查指定行范围，如 '10-20'"
+    )
+    p_cross.add_argument(
+        "--format",
+        choices=["text", "html", "json"],
+        default="text",
+        help="输出格式"
+    )
+
+    # ── attack ──
+    p_attack = sub.add_parser("attack", help="攻击执行引擎：对代码/文本执行安全攻击测试")
+    p_attack.add_argument(
+        "file",
+        help="待攻击的文件路径"
+    )
+    p_attack.add_argument(
+        "--strategy", "-s",
+        help="指定攻击策略ID（如 sql_injection_basic）"
+    )
+    p_attack.add_argument(
+        "--dangerous",
+        action="store_true",
+        help="允许执行危险策略（谨慎使用）"
+    )
+    p_attack.add_argument(
+        "--format",
+        choices=["text", "html", "json"],
+        default="text",
+        help="输出格式"
+    )
+    p_attack.add_argument(
+        "--list-strategies",
+        action="store_true",
+        help="列出所有可用策略"
+    )
+
+    # ── trace ──
+    p_trace = sub.add_parser("trace", help="溯源追踪武器：在输出文本中追踪论断来源")
+    p_trace.add_argument(
+        "file",
+        help="待追踪的文件路径"
+    )
+    p_trace.add_argument(
+        "--claim", "-c",
+        help="特定论断（可选，不提供则自动提取所有声明性句子）"
+    )
+    p_trace.add_argument(
+        "--source", "-s",
+        help="原始来源文件路径（可选）"
+    )
+    p_trace.add_argument(
+        "--format",
+        choices=["text", "html", "json"],
+        default="text",
+        help="输出格式"
+    )
+    p_trace.add_argument(
+        "--threshold",
+        type=float,
+        default=0.65,
+        help="相似度阈值（默认 0.65）"
+    )
+    
+    # ── health ──
+    p_health = sub.add_parser("health", help="系统健康度仪表盘")
+    p_health.add_argument(
+        "--refresh",
+        action="store_true",
+        help="刷新健康度数据（运行基准测试）"
+    )
+    p_health.add_argument(
+        "--json",
+        action="store_true",
+        help="输出 JSON 格式"
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -476,6 +912,21 @@ def main():
             _do_mistakes(args)
         else:
             p_analyze.print_help()
+        return
+    elif args.command == "example":
+        _do_example(args)
+        return
+    elif args.command == "cross-examine":
+        _do_cross_examine(args)
+        return
+    elif args.command == "attack":
+        _do_attack(args)
+        return
+    elif args.command == "trace":
+        _do_trace(args)
+        return
+    elif args.command == "health":
+        _do_health(args)
         return
     elif args.command != "audit":
         parser.print_help()

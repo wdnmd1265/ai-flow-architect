@@ -1,0 +1,14 @@
+# 攻击策略 schema 定义
+# 用于定义验证武器库中的攻击策略
+
+fields:
+  id: string           # 唯一标识，如 sql_injection_basic
+  category: string     # security / logic / factual / compliance
+  severity: string     # critical / high / medium / low
+  description: string  # 一句话描述
+  input_template: string  # 攻击输入模板，{requirement} 占位符
+  expected: string     # 预期防御行为描述
+  applicable_to: [string]  # ["code", "sql", "contract", "medical", ...]
+  verification: string # code_execution / static_analysis / manual
+  sandbox_level: string  # process（默认），container 预留
+  dangerous: boolean   # 是否包含危险操作（rm/format/shutdown 等）

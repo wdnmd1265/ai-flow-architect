@@ -6,7 +6,6 @@
 <title>TrustReport — REJECT</title>
 <style>
   :root {
-    /* Brutalist 深色主题 — 与 Playground 视觉一致 */
     --bg: #0a0a0a;
     --surface: #1a1a1a;
     --surface-alt: #222;
@@ -17,12 +16,10 @@
     --text-tertiary: #777;
     --accent: #4dabf7;
 
-    /* 三色标注系统 */
     --confidence: #2ecc71;
     --dispute: #f39c12;
     --uncertain: #e74c3c;
 
-    /* 严重度颜色 */
     --critical: #e74c3c;
     --high: #e67e22;
     --medium: #f1c40f;
@@ -111,18 +108,62 @@
     font-family: var(--mono);
     margin-bottom: 1rem;
   }
-  .uncertainty-warning {
-    border: 2px solid var(--uncertain);
-    background: rgba(231, 76, 60, 0.08);
-    padding: 1rem;
-    margin-top: 1rem;
+
+  /* === 跨家族状态徽章 === */
+  .cross-family-bar {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: 0.5rem;
   }
-  .uncertainty-warning h3 {
-    color: var(--uncertain);
-    font-size: 0.95rem;
-    margin-bottom: 0.5rem;
+  .family-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.65rem;
+    border: 1px solid var(--border-heavy);
+    background: var(--surface-alt);
+    font-size: 0.75rem;
+    font-family: var(--mono);
+  }
+  .family-badge .family-name { color: var(--text-secondary); }
+  .family-badge .family-status {
+    font-weight: 700;
+    font-size: 0.65rem;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.04em;
+    padding: 0.1rem 0.35rem;
+  }
+  .family-status.pass  { color: var(--confidence); border: 1px solid var(--confidence); }
+  .family-status.warn  { color: var(--dispute);   border: 1px solid var(--dispute); }
+  .family-status.fail  { color: var(--uncertain); border: 1px solid var(--uncertain); }
+
+  /* === 路由层级徽章 === */
+  .routing-tier-bar {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+  }
+  .tier-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.65rem;
+    border: 1px solid;
+    font-size: 0.75rem;
+    font-family: var(--mono);
+  }
+  .tier-badge.tier-primary  { border-color: var(--accent);    color: var(--accent); }
+  .tier-badge.tier-fallback { border-color: var(--dispute);   color: var(--dispute); }
+  .tier-badge.tier-opposition { border-color: var(--text-tertiary); color: var(--text-tertiary); }
+  .tier-badge .tier-label {
+    font-weight: 700;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
   }
 
   /* === 三色标注 finding 卡片 === */
@@ -136,10 +177,6 @@
   .finding-card.confident { border-left-color: var(--confidence); background: rgba(46,204,113,0.04); }
   .finding-card.disputed  { border-left-color: var(--dispute);   background: rgba(243,156,18,0.04); }
   .finding-card.uncertain { border-left-color: var(--uncertain); background: rgba(231,76,60,0.04); }
-  .finding-card.sev-critical { border-left-color: var(--critical); }
-  .finding-card.sev-high     { border-left-color: var(--high); }
-  .finding-card.sev-medium   { border-left-color: var(--medium); }
-  .finding-card.sev-low      { border-left-color: var(--low); }
 
   .finding-header {
     display: flex;
@@ -235,6 +272,17 @@
     margin-bottom: 0.25rem;
   }
 
+  /* === 盲区提示 === */
+  .blindspot-banner {
+    background: rgba(231, 76, 60, 0.1);
+    border: 2px solid var(--uncertain);
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.85rem;
+    color: var(--uncertain);
+  }
+  .blindspot-banner strong { text-transform: uppercase; letter-spacing: 0.04em; }
+
   /* === 通用章节 === */
   section { margin-bottom: 2.5rem; }
   section h2 {
@@ -309,7 +357,28 @@
   }
   .arbiter-issues li { margin-bottom: 0.15rem; }
 
-  /* === 证据链可折叠面板 === */
+  /* === 盲审结果 === */
+  .blind-review-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+  }
+  .blind-review-table th, .blind-review-table td {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .blind-review-table th {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+  }
+  .blind-review-table .review-pass { color: var(--confidence); font-weight: 600; }
+  .blind-review-table .review-fail { color: var(--uncertain); font-weight: 600; }
+
+  /* === 证据链面板 === */
   .evidence-section {
     background: var(--surface);
     border: 2px solid var(--border);
@@ -406,14 +475,6 @@
   .footer a { color: var(--accent); text-decoration: none; }
   .footer a:hover { text-decoration: underline; }
 
-  .empty-state {
-    text-align: center;
-    color: var(--text-tertiary);
-    padding: 2rem;
-    font-size: 0.9rem;
-  }
-
-  /* === 响应式 === */
   @media (max-width: 768px) {
     body { padding: 1rem; }
     .dashboard-grid { grid-template-columns: 1fr 1fr; }
@@ -439,21 +500,21 @@
 <!-- ====== 信任仪表盘 ====== -->
 <div class="trust-dashboard">
   <div class="dashboard-summary">
-    审查完毕。3 个模型参与（claude-3-5-sonnet, gpt-4o, gpt-4o-mini），2 个区域存在争议。以下是我们确认的内容以及我们不确定的内容。最终结论：REJECT，置信度 32/100。
+    审查完毕。3 个模型参与（claude-3-5-sonnet, gpt-4o, gpt-4o-mini），2 个区域存在争议，1 个盲区。最终结论：REJECT，置信度 32/100。
   </div>
 
   <div class="dashboard-grid">
     <div class="dashboard-item confident">
       <div class="num">2</div>
-      <div class="label">Confident Areas</div>
+      <div class="label">Confident (置信)</div>
     </div>
     <div class="dashboard-item disputed">
       <div class="num">2</div>
-      <div class="label">Disputed Areas</div>
+      <div class="label">Disputed (争议)</div>
     </div>
     <div class="dashboard-item uncertain">
-      <div class="num">0</div>
-      <div class="label">Uncertain Areas</div>
+      <div class="num">2</div>
+      <div class="label">Blind Spot (盲区)</div>
     </div>
     <div class="dashboard-item">
       <div class="num">3</div>
@@ -470,51 +531,122 @@
     <span>100</span>
   </div>
 
+  <!-- 跨家族状态徽章 -->
+  <div class="cross-family-bar">
+    <span style="font-size:0.75rem;color:var(--text-secondary);margin-right:0.5rem;line-height:2;">Cross-Family:</span>
+    <div class="family-badge">
+      <span class="family-name">OpenAI</span>
+      <span class="family-status pass">PASS</span>
+    </div>
+    <div class="family-badge">
+      <span class="family-name">Anthropic</span>
+      <span class="family-status warn">WARN</span>
+    </div>
+    <div class="family-badge">
+      <span class="family-name">Google</span>
+      <span class="family-status fail">N/A</span>
+    </div>
+    <div class="family-badge">
+      <span class="family-name">Meta</span>
+      <span class="family-status fail">N/A</span>
+    </div>
+  </div>
+
+  <!-- 路由层级徽章 -->
+  <div class="routing-tier-bar">
+    <span style="font-size:0.75rem;color:var(--text-secondary);margin-right:0.5rem;line-height:2;">Routing:</span>
+    <div class="tier-badge tier-primary">
+      <span class="tier-label">Tier-1 Primary</span>
+      <span>gpt-4o</span>
+    </div>
+    <div class="tier-badge tier-fallback">
+      <span class="tier-label">Tier-2 Fallback</span>
+      <span>claude-3-5-sonnet</span>
+    </div>
+    <div class="tier-badge tier-opposition">
+      <span class="tier-label">Tier-3 Opposition</span>
+      <span>gpt-4o-mini</span>
+    </div>
+  </div>
 </div>
 
 <!-- ====== Findings (三色标注) ====== -->
 <section>
   <h2>Findings <span class="count">(4)</span></h2>
-  
-  <!-- Confident (green) -->
+
+  <!-- Confident (green) — 所有模型一致 -->
   <div class="finding-card sev-critical confident">
     <div class="finding-header">
       <div class="finding-meta">
         <span class="sev-tag tag-critical">CRITICAL</span>
-        <span class="trust-tag trust-confident">✓ Confident</span>
+        <span class="trust-tag trust-confident">✓ Confident (置信)</span>
       </div>
       <div class="area">src/login.py:42 &middot; Source: arbiter_1</div>
     </div>
     <div class="desc">SQL injection vulnerability: user input directly concatenated into query string without parameterization</div>
     <div class="evidence-block">query = "SELECT * FROM users WHERE name = '" + username + "'"</div>
+    <!-- 模型一致投票 -->
+    <div class="dispute-heatmap">
+      <h4>Model Consensus (All Agree)</h4>
+      <div class="model-votes">
+        <div class="model-vote">
+          <span class="vote-symbol vote-agree">✓</span>
+          <span>gpt-4o</span>
+        </div>
+        <div class="model-vote">
+          <span class="vote-symbol vote-agree">✓</span>
+          <span>claude-3-5-sonnet</span>
+        </div>
+        <div class="model-vote">
+          <span class="vote-symbol vote-agree">✓</span>
+          <span>gpt-4o-mini</span>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <!-- Confident (green) -->
+  <!-- Confident (green) — 所有模型一致 -->
   <div class="finding-card sev-high confident">
     <div class="finding-header">
       <div class="finding-meta">
         <span class="sev-tag tag-high">HIGH</span>
-        <span class="trust-tag trust-confident">✓ Confident</span>
+        <span class="trust-tag trust-confident">✓ Confident (置信)</span>
       </div>
       <div class="area">src/login.py:87 &middot; Source: arbiter_2</div>
     </div>
     <div class="desc">Password logged in plaintext to application log</div>
     <div class="evidence-block">logger.info(f"User {username} authenticated with password {password}")</div>
+    <div class="dispute-heatmap">
+      <h4>Model Consensus (All Agree)</h4>
+      <div class="model-votes">
+        <div class="model-vote">
+          <span class="vote-symbol vote-agree">✓</span>
+          <span>gpt-4o</span>
+        </div>
+        <div class="model-vote">
+          <span class="vote-symbol vote-agree">✓</span>
+          <span>claude-3-5-sonnet</span>
+        </div>
+        <div class="model-vote">
+          <span class="vote-symbol vote-agree">✓</span>
+          <span>gpt-4o-mini</span>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <!-- Disputed (yellow) -->
+  <!-- Disputed (yellow) — 模型间分歧 -->
   <div class="finding-card sev-medium disputed">
     <div class="finding-header">
       <div class="finding-meta">
         <span class="sev-tag tag-medium">MEDIUM</span>
-        <span class="trust-tag trust-disputed">⚠ Disputed</span>
+        <span class="trust-tag trust-disputed">⚠ Disputed (争议)</span>
       </div>
       <div class="area">src/session.py:23 &middot; Source: opponent</div>
     </div>
     <div class="desc">Session token lacks HttpOnly flag, vulnerable to XSS-based theft</div>
     <div class="evidence-block">Set-Cookie: session_id=abc123; Path=/</div>
 
-    <!-- 争议热图 -->
     <div class="dispute-heatmap">
       <h4>Model Votes on This Finding</h4>
       <div class="model-votes">
@@ -532,18 +664,18 @@
         </div>
       </div>
       <div class="dispute-details">
-        <h5>分歧点:</h5>
+        <h5>分歧点（模型间投票差异）:</h5>
         <p>gpt-4o (Primary Auditor): Missing input validation on username field; claude-3-5-sonnet (Secondary Auditor): XSS risk in session cookie; gpt-4o-mini (Opposition): considers HttpOnly flag not strictly required for internal APIs</p>
       </div>
     </div>
   </div>
 
-  <!-- Disputed (yellow) -->
+  <!-- Disputed (yellow) — 模型间分歧 -->
   <div class="finding-card sev-low disputed">
     <div class="finding-header">
       <div class="finding-meta">
         <span class="sev-tag tag-low">LOW</span>
-        <span class="trust-tag trust-disputed">⚠ Disputed</span>
+        <span class="trust-tag trust-disputed">⚠ Disputed (争议)</span>
       </div>
       <div class="area">src/login.py:15 &middot; Source: arbiter_1</div>
     </div>
@@ -574,10 +706,81 @@
   </div>
 </section>
 
+<!-- ====== Blind Spot — 红色盲区 ====== -->
+<section>
+  <h2>Blind Spot — 无法验证 (红色盲区) <span class="count">(2)</span></h2>
+
+  <div class="blindspot-banner">
+    <strong>⚠ Blind Spot Detected:</strong> 以下项目所有模型均无法达成一致，且缺乏足够证据进行验证，标记为红色盲区。
+  </div>
+
+  <div class="finding-card uncertain sev-medium">
+    <div class="finding-header">
+      <div class="finding-meta">
+        <span class="sev-tag tag-medium">MEDIUM</span>
+        <span class="trust-tag trust-uncertain">✗ Blind Spot (盲区)</span>
+      </div>
+      <div class="area">Race condition in session renewal</div>
+    </div>
+    <div class="desc">
+      <strong>无法验证原因:</strong> Arbiters disagree — one flags race condition, one considers it mitigated by DB transaction。缺乏实际并发测试数据。<br>
+      <strong>Suggestion:</strong> Manual review of src/session.py:55-72 recommended；建议进行压力测试。
+    </div>
+    <div class="dispute-heatmap">
+      <h4>Model Votes (No Consensus)</h4>
+      <div class="model-votes">
+        <div class="model-vote">
+          <span class="vote-symbol vote-agree">✓</span>
+          <span>gpt-4o</span>
+        </div>
+        <div class="model-vote">
+          <span class="vote-symbol vote-oppose">✗</span>
+          <span>claude-3-5-sonnet</span>
+        </div>
+        <div class="model-vote">
+          <span class="vote-symbol vote-disagree">—</span>
+          <span>gpt-4o-mini</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="finding-card uncertain sev-high">
+    <div class="finding-header">
+      <div class="finding-meta">
+        <span class="sev-tag tag-high">HIGH</span>
+        <span class="trust-tag trust-uncertain">✗ Blind Spot (盲区)</span>
+      </div>
+      <div class="area">CSRF protection completeness</div>
+    </div>
+    <div class="desc">
+      <strong>无法验证原因:</strong> Adversarial test coverage incomplete — only 2 of 5 attack vectors covered。模型输出无法验证 CSRF 防护的完整性。<br>
+      <strong>Suggestion:</strong> Expand adversarial test suite for CSRF scenarios；需要手动渗透测试。
+    </div>
+    <div class="dispute-heatmap">
+      <h4>Model Votes (Split)</h4>
+      <div class="model-votes">
+        <div class="model-vote">
+          <span class="vote-symbol vote-dispute">⚠</span>
+          <span>gpt-4o</span>
+        </div>
+        <div class="model-vote">
+          <span class="vote-symbol vote-oppose">✗</span>
+          <span>claude-3-5-sonnet</span>
+        </div>
+        <div class="model-vote">
+          <span class="vote-symbol vote-disagree">—</span>
+          <span>gpt-4o-mini</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ====== Risks ====== -->
 <section>
   <h2>Risks <span class="count">(4)</span></h2>
-  
+
   <div class="risk-row">
     <span class="risk-tag tag-critical">CRITICAL</span>
     <div class="risk-detail">
@@ -585,7 +788,7 @@
       <div class="risk-mitigation">Mitigation: Use parameterized queries</div>
     </div>
   </div>
-  
+
   <div class="risk-row">
     <span class="risk-tag tag-high">HIGH</span>
     <div class="risk-detail">
@@ -593,7 +796,7 @@
       <div class="risk-mitigation">Mitigation: Remove sensitive data from log statements</div>
     </div>
   </div>
-  
+
   <div class="risk-row">
     <span class="risk-tag tag-medium">MEDIUM</span>
     <div class="risk-detail">
@@ -601,7 +804,7 @@
       <div class="risk-mitigation">Mitigation: Set HttpOnly=True</div>
     </div>
   </div>
-  
+
   <div class="risk-row">
     <span class="risk-tag tag-low">LOW</span>
     <div class="risk-detail">
@@ -609,6 +812,53 @@
       <div class="risk-mitigation">Mitigation: Make timeout configurable via env var</div>
     </div>
   </div>
+</section>
+
+<!-- ====== Blind Review 盲审结果 ====== -->
+<section>
+  <h2>Blind Review 盲审结果 <span class="count">(5 checks)</span></h2>
+  <table class="blind-review-table">
+    <thead>
+      <tr>
+        <th>Check ID</th>
+        <th>Description</th>
+        <th>Result</th>
+        <th>Reviewer</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="font-family:var(--mono);">BR-001</td>
+        <td>OWASP Top 10: Injection</td>
+        <td><span class="review-fail">[FAIL]</span></td>
+        <td style="font-family:var(--mono);">gpt-4o</td>
+      </tr>
+      <tr>
+        <td style="font-family:var(--mono);">BR-002</td>
+        <td>OWASP Top 10: Broken Auth</td>
+        <td><span class="review-pass">[PASS]</span></td>
+        <td style="font-family:var(--mono);">claude-3-5-sonnet</td>
+      </tr>
+      <tr>
+        <td style="font-family:var(--mono);">BR-003</td>
+        <td>OWASP Top 10: Sensitive Data</td>
+        <td><span class="review-fail">[FAIL]</span></td>
+        <td style="font-family:var(--mono);">gpt-4o</td>
+      </tr>
+      <tr>
+        <td style="font-family:var(--mono);">BR-004</td>
+        <td>CSRF Token Validation</td>
+        <td><span class="review-fail">[FAIL]</span></td>
+        <td style="font-family:var(--mono);">gpt-4o-mini</td>
+      </tr>
+      <tr>
+        <td style="font-family:var(--mono);">BR-005</td>
+        <td>Session Management</td>
+        <td><span class="review-pass">[PASS]</span></td>
+        <td style="font-family:var(--mono);">claude-3-5-sonnet</td>
+      </tr>
+    </tbody>
+  </table>
 </section>
 
 <!-- ====== Arbiter Votes ====== -->
@@ -663,43 +913,10 @@
   </table>
 </section>
 
-<!-- ====== Uncertainty — What We Cannot Confirm ====== -->
+<!-- ====== Evidence Chain 证据链面板 ====== -->
 <section>
-  <h2>Uncertainty — What We Cannot Confirm <span class="count">(2)</span></h2>
-  
-  <div class="finding-card uncertain sev-medium">
-    <div class="finding-header">
-      <div class="finding-meta">
-        <span class="sev-tag tag-medium">MEDIUM</span>
-        <span class="trust-tag trust-uncertain">✗ Uncertain</span>
-      </div>
-      <div class="area">Race condition in session renewal</div>
-    </div>
-    <div class="desc">
-      <strong>Reason:</strong> Arbiters disagree: one flags it, one considers it mitigated by DB transaction<br>
-      <strong>Suggestion:</strong> Manual review of src/session.py:55-72 recommended
-    </div>
-  </div>
-  
-  <div class="finding-card uncertain sev-high">
-    <div class="finding-header">
-      <div class="finding-meta">
-        <span class="sev-tag tag-high">HIGH</span>
-        <span class="trust-tag trust-uncertain">✗ Uncertain</span>
-      </div>
-      <div class="area">CSRF protection completeness</div>
-    </div>
-    <div class="desc">
-      <strong>Reason:</strong> Adversarial test coverage incomplete — only 2 of 5 attack vectors covered<br>
-      <strong>Suggestion:</strong> Expand adversarial test suite for CSRF scenarios
-    </div>
-  </div>
-</section>
-
-<!-- ====== Evidence Chain ====== -->
-<section>
-  <h2>Evidence Chain</h2>
-  <details class="evidence-section">
+  <h2>Evidence Chain 证据链</h2>
+  <details class="evidence-section" open>
     <summary>
       <span>SHA-256: a1b2c3d4e5f6a7b8c9d0e1f2...</span>
       <span>Full Audit Trail</span>
@@ -714,17 +931,19 @@
         <dd>2026-05-23T14:30:00.000000+00:00</dd>
         <dt>Isolation Level</dt>
         <dd>full</dd>
-        <dt>requirement_length</dt>
+        <dt>Requirement Length</dt>
         <dd>156</dd>
-        <dt>output_length</dt>
+        <dt>Output Length</dt>
         <dd>2048</dd>
-        <dt>arbiter_count</dt>
+        <dt>Arbiter Count</dt>
         <dd>3</dd>
+        <dt>Blind Review Rounds</dt>
+        <dd>2</dd>
       </dl>
     </div>
   </details>
 
-  <details class="cost-section">
+  <details class="cost-section" open>
     <summary>Audit Cost Details</summary>
     <div class="cost-body">
       <table class="cost-table">
@@ -765,6 +984,7 @@
         Total: $0.0170
         &emsp;Full audit estimate (all top-tier): $0.0420
         &emsp;Cache hit rate: 23%, saved ~$0.0030
+        &emsp;Cross-family routing saved: ~35% (vs single-family)
       </p>
     </div>
   </details>
@@ -779,9 +999,9 @@
     <div class="audit-log-entry">&gt; → 反例攻防测试...</div>
     <div class="audit-log-entry">&gt;   生成 5 个反例</div>
     <div class="audit-log-entry">&gt; → 不确定性计算...</div>
-    <div class="audit-log-entry">&gt;   不确定性: 2 项</div>
+    <div class="audit-log-entry">&gt;   不确定性: 2 项 | 盲区: 2 项</div>
     <div class="audit-log-entry">&gt;   结论: reject | 置信度: 32.5</div>
-    <div class="audit-log-entry">&gt; → 证据链打包</div>
+    <div class="audit-log-entry">&gt; → 证据链打包 (盲审 2 轮)</div>
     <div class="audit-log-entry">&gt;   证据链: a1b2c3d4e5f6a7b8...</div>
   </div>
 </section>

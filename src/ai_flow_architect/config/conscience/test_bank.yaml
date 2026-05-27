@@ -1,0 +1,883 @@
+# Conscience 自我挑战测试题库
+# 版本：1.0.0
+# 创建时间：2026-05-26
+# 总题数：50（30道代码类 + 20道逻辑类）
+
+# ================= 代码类题目（30道）=================
+
+# 1. SQL 注入漏洞（5道）
+- id: owasp_sqli_001
+  type: code
+  category: security
+  input: |
+    # 带 SQL 注入漏洞的 Python 代码
+    def get_user(user_id):
+        query = f"SELECT * FROM users WHERE id = {user_id}"
+        # 执行查询...
+        return execute_query(query)
+  expected_verdict: REJECT
+  expected_findings:
+    - "SQL 注入漏洞"
+    - "未使用参数化查询"
+    - "直接拼接用户输入到 SQL 语句"
+  severity: critical
+  source: owasp_benchmark
+  answer_confidence: high
+
+- id: owasp_sqli_002
+  type: code
+  category: security
+  input: |
+    # 带 SQL 注入的 PHP 代码
+    $username = $_GET['username'];
+    $query = "SELECT * FROM users WHERE username = '$username'";
+    mysql_query($query);
+  expected_verdict: REJECT
+  expected_findings:
+    - "SQL 注入漏洞"
+    - "未对用户输入进行转义"
+    - "使用已弃用的 mysql_query 函数"
+  severity: critical
+  source: owasp_benchmark
+  answer_confidence: high
+
+- id: owasp_sqli_003
+  type: code
+  category: security
+  input: |
+    # 使用参数化查询的安全代码
+    import sqlite3
+    conn = sqlite3.connect('database.db')
+    user_id = input("Enter user ID: ")
+    cursor = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+    return cursor.fetchall()
+  expected_verdict: ACCEPT
+  expected_findings:
+    - "使用参数化查询"
+    - "SQL 注入防护"
+  severity: none
+  source: owasp_benchmark
+  answer_confidence: high
+
+- id: owasp_sqli_004
+  type: code
+  category: security
+  input: |
+    # 带 OR 1=1 注入的代码
+    def search_users(keyword):
+        query = f"SELECT * FROM users WHERE name LIKE '%{keyword}%' OR 1=1"
+        # 这将返回所有用户
+        return execute_query(query)
+  expected_verdict: REJECT
+  expected_findings:
+    - "SQL 注入漏洞"
+    - "可能绕过认证"
+    - "查询逻辑被注入修改"
+  severity: critical
+  source: owasp_benchmark
+  answer_confidence: high
+
+- id: owasp_sqli_005
+  type: code
+  category: security
+  input: |
+    # 使用存储过程的安全代码
+    import pyodbc
+    conn = pyodbc.connect(connection_string)
+    user_id = request.args.get('id')
+    cursor = conn.cursor()
+    cursor.execute("{CALL GetUserById(?)}", user_id)
+    return cursor.fetchall()
+  expected_verdict: ACCEPT
+  expected_findings:
+    - "使用存储过程"
+    - "参数化查询"
+  severity: none
+  source: owasp_benchmark
+  answer_confidence: high
+
+# 2. XSS 跨站脚本（5道）
+- id: owasp_xss_001
+  type: code
+  category: security
+  input: |
+    # 反射型 XSS 漏洞
+    from flask import request, make_response
+    @app.route('/search')
+    def search():
+        query = request.args.get('q', '')
+        return f"<h1>Search results for: {query}</h1>"
+  expected_verdict: REJECT
+  expected_findings:
+    - "XSS 跨站脚本漏洞"
+    - "未对用户输入进行 HTML 转义"
+    - "反射型 XSS"
+  severity: high
+  source: owasp_benchmark
+  answer_confidence: high
+
+- id: owasp_xss_002
+  type: code
+  category: security
+  input: |
+    # 存储型 XSS 漏洞
+    def save_comment(comment):
+        # 直接存储未转义的评论
+        db.execute("INSERT INTO comments (content) VALUES (?)", comment)
+        return "Comment saved"
+  expected_verdict: REJECT
+  expected_findings:
+    - "XSS 跨站脚本漏洞"
+    - "存储型 XSS"
+    - "未对存储的数据进行转义"
+  severity: high
+  source: owasp_benchmark
+  answer_confidence: high
+
+- id: owasp_xss_003
+  type: code
+  category: security
+  input: |
+    # 使用 HTML 转义的安全代码
+    import html
+    def render_comment(comment):
+        escaped = html.escape(comment)
+        return f"<div class='comment'>{escaped}</div>"
+  expected_verdict: ACCEPT
+  expected_findings:
+    - "使用 HTML 转义"
+    - "XSS 防护"
+  severity: none
+  source: owasp_benchmark
+  answer_confidence: high
+
+- id: owasp_xss_004
+  type: code
+  category: security
+  input: |
+    # DOM 型 XSS 漏洞
+    <script>
+    function showResult() {
+        var query = window.location.hash.substring(1);
+        document.getElementById("result").innerHTML = query;
+    }
+    </script>
+  expected_verdict: REJECT
+  expected_findings:
+    - "XSS 跨站脚本漏洞"
+    - "DOM 型 XSS"
+    - "直接操作 innerHTML 未转义"
+  severity: high
+  source: owasp_benchmark
+  answer_confidence: high
+
+- id: owasp_xss_005
+  type: code
+  category: security
+  input: |
+    # 使用 Content Security Policy 的安全代码
+    from flask import Flask, Response
+    app = Flask(__name__)
+    @app.after_request
+    def add_csp(response):
+        response.headers['Content-Security-Policy'] = "default-src 'self'"
+        return response
+  expected_verdict: ACCEPT
+  expected_findings:
+    - "使用 Content Security Policy"
+    - "XSS 防护增强"
+  severity: none
+  source: owasp_benchmark
+  answer_confidence: high
+
+# 3. 命令注入（5道）
+- id: owasp_cmd_001
+  type: code
+  category: security
+  input: |
+    # 命令注入漏洞
+    import os
+    def ping_host(host):
+        os.system(f"ping -c 4 {host}")
+  expected_verdict: REJECT
+  expected_findings:
+    - "命令注入漏洞"
+    - "使用 os.system 执行用户输入"
+    - "未对输入进行验证"
+  severity: critical
+  source: owasp_benchmark
+  answer_confidence: high
+
+- id: owasp_cmd_002
+  type: code
+  category: security
+  input: |
+    # 使用 subprocess 但未转义
+    import subprocess
+    filename = input("Enter filename: ")
+    subprocess.run(["cat", filename])
+  expected_verdict: REJECT
+  expected_findings:
+    - "命令注入漏洞"
+    - "用户输入直接传递给命令"
+    - "可能通过参数注入执行任意命令"
+  severity: critical
+  source: owasp_benchmark
+  answer_confidence: high
+
+- id: owasp_cmd_003
+  type: code
+  category: security
+  input: |
+    # 使用 shlex.quote 的安全代码
+    import subprocess
+    import shlex
+    filename = input("Enter filename: ")
+    safe_filename = shlex.quote(filename)
+    subprocess.run(f"cat {safe_filename}", shell=True)
+  expected_verdict: ACCEPT
+  expected_findings:
+    - "使用 shlex.quote 转义参数"
+    - "命令注入防护"
+  severity: none
+  source: owasp_benchmark
+  answer_confidence: high
+
+- id: owasp_cmd_004
+  type: code
+  category: security
+  input: |
+    # 使用 subprocess 列表的安全代码
+    import subprocess
+    filename = input("Enter filename: ")
+    subprocess.run(["cat", "--", filename])
+  expected_verdict: ACCEPT
+  expected_findings:
+    - "使用 subprocess 列表参数"
+    - "使用 -- 分隔符防止参数注入"
+  severity: none
+  source: owasp_benchmark
+  answer_confidence: high
+
+- id: owasp_cmd_005
+  type: code
+  category: security
+  input: |
+    # 使用白名单验证
+    import subprocess
+    allowed_hosts = ["example.com", "localhost"]
+    host = input("Enter host: ")
+    if host not in allowed_hosts:
+        raise ValueError("Host not allowed")
+    subprocess.run(["ping", "-c", "4", host])
+  expected_verdict: ACCEPT
+  expected_findings:
+    - "使用白名单验证"
+    - "命令注入防护"
+  severity: none
+  source: owasp_benchmark
+  answer_confidence: high
+
+# 4. 路径遍历（5道）
+- id: owasp_path_001
+  type: code
+  category: security
+  input: |
+    # 路径遍历漏洞
+    def read_file(filename):
+        with open(f"/var/www/uploads/{filename}", "r") as f:
+            return f.read()
+  expected_verdict: REJECT
+  expected_findings:
+    - "路径遍历漏洞"
+    - "未对文件名进行规范化"
+    - "可能读取系统文件"
+  severity: high
+  source: owasp_benchmark
+  answer_confidence: high
+
+- id: owasp_path_002
+  type: code
+  category: security
+  input: |
+    # 使用 os.path.join 但仍可能遍历
+    import os
+    base_dir = "/var/www/uploads"
+    filename = request.args.get('file')
+    filepath = os.path.join(base_dir, filename)
+    with open(filepath, "r") as f:
+        return f.read()
+  expected_verdict: REJECT
+  expected_findings:
+    - "路径遍历漏洞"
+    - "使用 ../ 可能跳出基目录"
+    - "未检查规范化后的路径"
+  severity: high
+  source: owasp_benchmark
+  answer_confidence: high
+
+- id: owasp_path_003
+  type: code
+  category: security
+  input: |
+    # 使用 os.path.realpath 的安全代码
+    import os
+    base_dir = "/var/www/uploads"
+    filename = request.args.get('file')
+    filepath = os.path.join(base_dir, filename)
+    realpath = os.path.realpath(filepath)
+    if not realpath.startswith(os.path.realpath(base_dir)):
+        raise ValueError("Invalid file path")
+    with open(realpath, "r") as f:
+        return f.read()
+  expected_verdict: ACCEPT
+  expected_findings:
+    - "使用 os.path.realpath 规范化路径"
+    - "检查路径是否在基目录内"
+  severity: none
+  source: owasp_benchmark
+  answer_confidence: high
+
+- id: owasp_path_004
+  type: code
+  category: security
+  input: |
+    # 使用 pathlib 的安全代码
+    from pathlib import Path
+    base_dir = Path("/var/www/uploads")
+    filename = request.args.get('file')
+    filepath = (base_dir / filename).resolve()
+    if not filepath.is_relative_to(base_dir.resolve()):
+        raise ValueError("Invalid file path")
+    return filepath.read_text()
+  expected_verdict: ACCEPT
+  expected_findings:
+    - "使用 pathlib 处理路径"
+    - "使用 resolve() 和 is_relative_to() 检查"
+  severity: none
+  source: owasp_benchmark
+  answer_confidence: high
+
+- id: owasp_path_005
+  type: code
+  category: security
+  input: |
+    # 使用白名单的安全代码
+    allowed_files = ["report.pdf", "data.csv", "config.yaml"]
+    filename = request.args.get('file')
+    if filename not in allowed_files:
+        raise ValueError("File not allowed")
+    with open(f"/var/www/uploads/{filename}", "r") as f:
+        return f.read()
+  expected_verdict: ACCEPT
+  expected_findings:
+    - "使用白名单验证文件名"
+    - "路径遍历防护"
+  severity: none
+  source: owasp_benchmark
+  answer_confidence: high
+
+# 5. 手动标注的代码漏洞（10道）
+- id: manual_hardcoded_001
+  type: code
+  category: security
+  input: |
+    # 硬编码密钥
+    API_KEY = "sk-live-1234567890abcdef"
+    DATABASE_PASSWORD = "admin123"
+    
+    def connect_to_db():
+        conn = psycopg2.connect(
+            host="localhost",
+            database="production",
+            user="admin",
+            password=DATABASE_PASSWORD
+        )
+        return conn
+  expected_verdict: REJECT
+  expected_findings:
+    - "硬编码密钥"
+    - "硬编码数据库密码"
+    - "敏感信息泄露风险"
+  severity: critical
+  source: manual
+  answer_confidence: high
+
+- id: manual_weak_crypto_001
+  type: code
+  category: security
+  input: |
+    # 弱加密算法
+    import hashlib
+    import base64
+    
+    def hash_password(password):
+        # 使用 MD5，已不安全
+        return hashlib.md5(password.encode()).hexdigest()
+  expected_verdict: REJECT
+  expected_findings:
+    - "使用弱加密算法（MD5）"
+    - "密码哈希不安全"
+    - "应使用 bcrypt 或 Argon2"
+  severity: high
+  source: manual
+  answer_confidence: high
+
+- id: manual_weak_crypto_002
+  type: code
+  category: security
+  input: |
+    # 使用强加密算法
+    import bcrypt
+    
+    def hash_password(password):
+        salt = bcrypt.gensalt()
+        return bcrypt.hashpw(password.encode(), salt)
+  expected_verdict: ACCEPT
+  expected_findings:
+    - "使用 bcrypt 强加密算法"
+    - "密码哈希安全"
+  severity: none
+  source: manual
+  answer_confidence: high
+
+- id: manual_resource_leak_001
+  type: code
+  category: security
+  input: |
+    # 资源泄露
+    def process_file(filename):
+        f = open(filename, 'r')
+        data = f.read()
+        # 忘记关闭文件
+        return data
+  expected_verdict: REJECT
+  expected_findings:
+    - "资源泄露（文件未关闭）"
+    - "应使用 with 语句"
+  severity: medium
+  source: manual
+  answer_confidence: high
+
+- id: manual_resource_leak_002
+  type: code
+  category: security
+  input: |
+    # 使用 with 语句的安全代码
+    def process_file(filename):
+        with open(filename, 'r') as f:
+            data = f.read()
+        return data
+  expected_verdict: ACCEPT
+  expected_findings:
+    - "使用 with 语句自动管理资源"
+    - "无资源泄露风险"
+  severity: none
+  source: manual
+  answer_confidence: high
+
+- id: manual_race_condition_001
+  type: code
+  category: security
+  input: |
+    # 竞态条件（TOCTOU）
+    import os
+    
+    def read_file_if_exists(filename):
+        if os.path.exists(filename):
+            # 在此处文件可能被删除或修改
+            with open(filename, 'r') as f:
+                return f.read()
+        return None
+  expected_verdict: REJECT
+  expected_findings:
+    - "竞态条件（TOCTOU）"
+    - "检查与使用之间存在时间窗口"
+    - "应使用异常处理代替检查"
+  severity: medium
+  source: manual
+  answer_confidence: high
+
+- id: manual_race_condition_002
+  type: code
+  category: security
+  input: |
+    # 使用异常处理避免竞态条件
+    def read_file_safely(filename):
+        try:
+            with open(filename, 'r') as f:
+                return f.read()
+        except FileNotFoundError:
+            return None
+  expected_verdict: ACCEPT
+  expected_findings:
+    - "使用异常处理代替存在检查"
+    - "避免竞态条件"
+  severity: none
+  source: manual
+  answer_confidence: high
+
+- id: manual_insecure_deserialization_001
+  type: code
+  category: security
+  input: |
+    # 不安全的反序列化
+    import pickle
+    
+    def load_user_data(data):
+        # pickle 可能执行任意代码
+        return pickle.loads(data)
+  expected_verdict: REJECT
+  expected_findings:
+    - "不安全的反序列化"
+    - "pickle 可能执行任意代码"
+    - "应使用 JSON 等安全格式"
+  severity: critical
+  source: manual
+  answer_confidence: high
+
+- id: manual_insecure_deserialization_002
+  type: code
+  category: security
+  input: |
+    # 使用 JSON 的安全反序列化
+    import json
+    
+    def load_user_data(data):
+        return json.loads(data)
+  expected_verdict: ACCEPT
+  expected_findings:
+    - "使用 JSON 安全反序列化"
+    - "无代码执行风险"
+  severity: none
+  source: manual
+  answer_confidence: high
+
+- id: manual_ssrf_001
+  type: code
+  category: security
+  input: |
+    # SSRF 服务器端请求伪造
+    import requests
+    
+    def fetch_url(url):
+        # 可能访问内部服务
+        return requests.get(url).text
+  expected_verdict: REJECT
+  expected_findings:
+    - "SSRF 服务器端请求伪造"
+    - "可能访问内部网络服务"
+    - "应对 URL 进行验证和限制"
+  severity: high
+  source: manual
+  answer_confidence: high
+
+# ================= 逻辑类题目（20道）=================
+
+# 1. 因果倒置（4道）
+- id: logic_causal_001
+  type: logic
+  category: fallacy
+  input: |
+    最近犯罪率上升了，同时冰淇淋销量也上升了。所以吃冰淇淋导致犯罪。
+  expected_verdict: REJECT
+  expected_findings:
+    - "因果倒置或相关不等于因果"
+    - "可能是夏季高温同时导致两者上升"
+    - "忽略共同原因（confounding variable）"
+  severity: high
+  source: manual
+  answer_confidence: pending
+  disputed: false
+
+- id: logic_causal_002
+  type: logic
+  category: fallacy
+  input: |
+    研究发现喝咖啡的人寿命更长。所以喝咖啡能延长寿命。
+  expected_verdict: REJECT
+  expected_findings:
+    - "相关不等于因果"
+    - "可能喝咖啡的人更有钱、教育程度更高、医疗条件更好"
+    - "忽略选择偏差"
+  severity: medium
+  source: manual
+  answer_confidence: pending
+  disputed: false
+
+- id: logic_causal_003
+  type: logic
+  category: fallacy
+  input: |
+    使用这款软件的公司利润都增长了30%。所以我们的软件能提升利润。
+  expected_verdict: REJECT
+  expected_findings:
+    - "因果倒置"
+    - "可能利润高的公司才买得起这款软件"
+    - "忽略反向因果关系"
+  severity: medium
+  source: manual
+  answer_confidence: pending
+  disputed: false
+
+- id: logic_causal_004
+  type: logic
+  category: fallacy
+  input: |
+    下雨前蚂蚁会搬家。所以蚂蚁搬家导致下雨。
+  expected_verdict: REJECT
+  expected_findings:
+    - "因果倒置"
+    - "蚂蚁能感知湿度气压变化，搬家是结果不是原因"
+    - "混淆因果关系"
+  severity: low
+  source: manual
+  answer_confidence: pending
+  disputed: true  # 争议题：有些人认为这是民间智慧
+
+# 2. 循环论证（4道）
+- id: logic_circular_001
+  type: logic
+  category: fallacy
+  input: |
+    圣经是真实的，因为它是上帝的话语。我们知道它是上帝的话语，因为圣经这么说。
+  expected_verdict: REJECT
+  expected_findings:
+    - "循环论证"
+    - "用结论证明前提"
+    - "逻辑无效"
+  severity: high
+  source: manual
+  answer_confidence: pending
+  disputed: false
+
+- id: logic_circular_002
+  type: logic
+  category: fallacy
+  input: |
+    这个理论是正确的，因为它来自权威专家。我们知道这位专家是权威，因为他的理论总是正确的。
+  expected_verdict: REJECT
+  expected_findings:
+    - "循环论证"
+    - "用理论正确性证明专家权威性，又用专家权威性证明理论正确性"
+  severity: medium
+  source: manual
+  answer_confidence: pending
+  disputed: false
+
+- id: logic_circular_003
+  type: logic
+  category: fallacy
+  input: |
+    自由市场是最有效率的，因为在自由市场中资源会自动配置到最优用途。我们知道资源会配置到最优用途，因为自由市场是有效率的。
+  expected_verdict: REJECT
+  expected_findings:
+    - "循环论证"
+    - "用效率证明最优配置，又用最优配置证明效率"
+  severity: medium
+  source: manual
+  answer_confidence: pending
+  disputed: false
+
+- id: logic_circular_004
+  type: logic
+  category: fallacy
+  input: |
+    这个算法是安全的，因为它使用了加密。我们知道加密是安全的，因为这个算法证明了它。
+  expected_verdict: REJECT
+  expected_findings:
+    - "循环论证"
+    - "用算法证明加密安全，又用加密安全证明算法安全"
+  severity: high
+  source: manual
+  answer_confidence: pending
+  disputed: false
+
+# 3. 统计误用（4道）
+- id: logic_stats_001
+  type: logic
+  category: fallacy
+  input: |
+    我们的产品满意度从70%提升到了80%，增长了10%。所以我们的改进非常有效。
+  expected_verdict: REJECT
+  expected_findings:
+    - "统计误用（百分比增长误导）"
+    - "实际是从70%到80%，相对增长14.3%，绝对增长10个百分点"
+    - "可能样本量小、统计不显著"
+  severity: medium
+  source: manual
+  answer_confidence: pending
+  disputed: false
+
+- id: logic_stats_002
+  type: logic
+  category: fallacy
+  input: |
+    吃这种药的人康复率是90%，不吃药的人康复率是10%。所以这种药非常有效。
+  expected_verdict: REJECT
+  expected_findings:
+    - "统计误用（忽略自愈率）"
+    - "可能疾病本身就有90%的自愈率"
+    - "需要对照组实验"
+  severity: high
+  source: manual
+  answer_confidence: pending
+  disputed: false
+
+- id: logic_stats_003
+  type: logic
+  category: fallacy
+  input: |
+    调查显示80%的人支持这个政策。所以这个政策是好的。
+  expected_verdict: REJECT
+  expected_findings:
+    - "统计误用（诉诸多数）"
+    - "多数人支持不等于正确"
+    - "可能调查样本有偏差"
+  severity: medium
+  source: manual
+  answer_confidence: pending
+  disputed: false
+
+- id: logic_stats_004
+  type: logic
+  category: fallacy
+  input: |
+    这个城市平均工资是10万元。所以大部分人都能挣10万。
+  expected_verdict: REJECT
+  expected_findings:
+    - "统计误用（平均数 vs 中位数）"
+    - "可能少数高收入拉高了平均数"
+    - "应使用中位数或众数"
+  severity: medium
+  source: manual
+  answer_confidence: pending
+  disputed: false
+
+# 4. 虚假二分（3道）
+- id: logic_false_dichotomy_001
+  type: logic
+  category: fallacy
+  input: |
+    你要么支持自由贸易，要么就是保护主义者。
+  expected_verdict: REJECT
+  expected_findings:
+    - "虚假二分"
+    - "存在中间立场或混合政策"
+    - "非此即彼的谬误"
+  severity: medium
+  source: manual
+  answer_confidence: pending
+  disputed: false
+
+- id: logic_false_dichotomy_002
+  type: logic
+  category: fallacy
+  input: |
+    如果你不是我们的人，就是我们的敌人。
+  expected_verdict: REJECT
+  expected_findings:
+    - "虚假二分"
+    - "存在中立、旁观、合作等多种关系"
+    - "过度简化复杂关系"
+  severity: high
+  source: manual
+  answer_confidence: pending
+  disputed: false
+
+- id: logic_false_dichotomy_003
+  type: logic
+  category: fallacy
+  input: |
+    要么完全相信科学，要么就是反智主义。
+  expected_verdict: REJECT
+  expected_findings:
+    - "虚假二分"
+    - "可以相信科学方法但质疑具体结论"
+    - "科学本身包含质疑和修正"
+  severity: medium
+  source: manual
+  answer_confidence: pending
+  disputed: false
+
+# 5. 滑坡谬误（3道）
+- id: logic_slippery_slope_001
+  type: logic
+  category: fallacy
+  input: |
+    如果我们允许同性婚姻，接下来就会有人要和动物结婚，然后要和物体结婚，社会就崩溃了。
+  expected_verdict: REJECT
+  expected_findings:
+    - "滑坡谬误"
+    - "没有证据表明A必然导致B、C、D"
+    - "夸大了连锁反应的必然性"
+  severity: medium
+  source: manual
+  answer_confidence: pending
+  disputed: false
+
+- id: logic_slippery_slope_002
+  type: logic
+  category: fallacy
+  input: |
+    如果今天允许政府监控恐怖分子，明天就会监控所有人，最后变成极权国家。
+  expected_verdict: REJECT
+  expected_findings:
+    - "滑坡谬误"
+    - "监控恐怖分子不必然导致全面监控"
+    - "存在法律和制度约束"
+  severity: medium
+  source: manual
+  answer_confidence: pending
+  disputed: false
+
+- id: logic_slippery_slope_003
+  type: logic
+  category: fallacy
+  input: |
+    如果学生可以质疑老师，接下来就会不尊重老师，然后课堂秩序崩溃，最后教育系统瓦解。
+  expected_verdict: REJECT
+  expected_findings:
+    - "滑坡谬误"
+    - "质疑不必然导致不尊重"
+    - "教育包含批判性思维"
+  severity: low
+  source: manual
+  answer_confidence: pending
+  disputed: false
+
+# 6. 诉诸权威（2道）
+- id: logic_appeal_authority_001
+  type: logic
+  category: fallacy
+  input: |
+    爱因斯坦说上帝存在，所以上帝一定存在。
+  expected_verdict: REJECT
+  expected_findings:
+    - "诉诸权威"
+    - "爱因斯坦是物理学家不是神学家"
+    - "权威在非专业领域可能错误"
+  severity: medium
+  source: manual
+  answer_confidence: pending
+  disputed: false
+
+- id: logic_appeal_authority_002
+  type: logic
+  category: fallacy
+  input: |
+    这位诺贝尔经济学奖得主说这个经济政策好，所以它一定好。
+  expected_verdict: REJECT
+  expected_findings:
+    - "诉诸权威"
+    - "经济学有不同学派，专家可能偏见"
+    - "应基于证据和逻辑而非权威"
+  severity: medium
+  source: manual
+  answer_confidence: pending
+  disputed: false
+
+# 争议题标注
+# 以下题目标注为争议题，不参与核心健康度指标计算
+# - logic_causal_004 (蚂蚁搬家)
+# 可根据需要添加更多争议题

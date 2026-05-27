@@ -328,6 +328,43 @@ ai-flow-architect/
 
 ---
 
+## Reproducibility / Benchmark
+
+The Conscience self-challenge framework allows you to reproduce system health reports with a single command:
+
+```bash
+# Run all 50 benchmark questions
+python scripts/benchmark.py
+
+# Random subset of 10 questions (with fixed seed)
+python scripts/benchmark.py --subset 10 --seed 42
+
+# Export JSON report
+python scripts/benchmark.py --output report.json
+
+# List disputed test items (excluded from core metrics)
+python scripts/benchmark.py --list-disputed
+```
+
+**What it tests:**
+- **30 code-level challenges**: SQL injection, XSS, command injection, path traversal, hardcoded keys, weak crypto, resource leaks, race conditions, insecure deserialization, SSRF
+- **20 logic-level challenges**: Causal fallacy, circular reasoning, statistical misuse, false dichotomy, slippery slope, appeal to authority
+
+**Output metrics:**
+- Accuracy (verdict match rate)
+- Recall (finding coverage rate)
+- F1 score
+- Category breakdown (security, fallacy)
+- Per-item results with execution time
+
+**Key principles:**
+- Zero LLM participation in judgment — pure field comparison against golden answers
+- Honest labeling: all metrics annotated with confidence, data source, and volatility range
+- Disputed items flagged and excluded from core health calculations
+- Historical baseline comparison with 5% drift alert threshold
+
+---
+
 ## Contributing
 
 Contributions welcome. If you've tested the engine with a provider not yet in our compatibility list, that alone is a valuable PR.
