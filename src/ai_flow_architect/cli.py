@@ -2,6 +2,7 @@
 
 import argparse
 import asyncio
+import getpass
 import os
 import sys
 from pathlib import Path
@@ -18,6 +19,7 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
 from .engine import TrustEngine
+from .utils.api_pool import APIPoolManager
 
 DEFAULT_REQUIREMENT = "审查这段 AI 输出"
 
@@ -211,6 +213,28 @@ def _get_required_env_var(model: str) -> str:
         if model.startswith(prefix):
             return env_var
     return "OPENAI_API_KEY"
+
+
+def _check_api_key_available(model: str) -> bool:
+    """检查模型的 API Key 是否可用（apis.yaml 或环境变量）。"""
+    # 1. 尝试 apis.yaml
+    try:
+        mgr = APIPoolManager()
+        mgr.load()
+        models = mgr.models.get("models", {})
+        model_cfg = models.get(model, {})
+        provider = model_cfg.get("provider", "")
+        if provider == "local":
+            return True
+        available = mgr.get_available_providers()
+        if provider in available:
+            return True
+    except Exception:
+        pass
+
+    # 2. 环境变量
+    required_env = _get_required_env_var(model)
+    return bool(os.getenv(required_env))
 
 
 def _do_init():
@@ -743,6 +767,173 @@ def _do_health(args):
         console.print()
 
 
+def _do_config_apis_list(args):
+    """列出所有已配置的 API Key"""
+    console = Console()
+    mgr = APIPoolManager()
+    mgr.load()
+
+    available = mgr.get_available_providers()
+    orphan = mgr.get_orphan_keys()
+    models_providers = set(mgr.models.get("providers", {}).keys())
+
+    if not mgr.apis.get("providers"):
+        console.print("[yellow]未配置任何 API Key。[/yellow]")
+        console.print(f"配置文件: {mgr.apis_path}")
+        console.print()
+        console.print("使用以下命令添加 API Key:")
+        console.print("  ai-flow config apis add <provider-id>")
+        console.print("  ai-flow config apis add-from-code")
+        return
+
+    table = Table(title="API Key 配置", box=box.SIMPLE)
+    table.add_column("Provider", style="bold cyan")
+    table.add_column("状态", style="bold")
+    table.add_column("Key", style="dim")
+    table.add_column("Base URL", style="dim")
+
+    for provider_id, entry in mgr.apis.get("providers", {}).items():
+        in_models = provider_id in models_providers
+        status = "[green]可用[/green]" if in_models else "[yellow]孤立[/yellow]"
+        masked = entry.get("api_key", "")
+        if masked:
+            if len(masked) > 4:
+                masked = "*" * (len(masked) - 4) + masked[-4:]
+            else:
+                masked = "****"
+        else:
+            masked = "(空)"
+        base_url = entry.get("base_url", "(使用 models.yaml 默认值)")
+        table.add_row(provider_id, status, masked, base_url)
+
+    console.print(table)
+    console.print()
+
+    if orphan:
+        console.print(f"[yellow]孤立 Key ({len(orphan)}): {', '.join(orphan)}[/yellow]")
+        console.print("这些 Key 在 models.yaml 中没有对应 provider，不会被使用。")
+        console.print()
+
+    console.print(f"配置文件: {mgr.apis_path}")
+    console.print(f"可用 provider: {len(available)} | 总数: {len(mgr.apis.get('providers', {}))}")
+
+
+def _do_config_apis_add(args):
+    """交互式添加 API Key"""
+    console = Console()
+    mgr = APIPoolManager()
+    mgr.load()
+
+    provider_id = args.provider_id
+
+    # 检查 models.yaml 中是否存在
+    models_providers = mgr.models.get("providers", {})
+    if provider_id not in models_providers:
+        console.print(f"[yellow]警告: '{provider_id}' 在 models.yaml 中未定义[/yellow]")
+        console.print("该 Key 将被标记为孤立，不会被使用。")
+        console.print(f"已定义的 provider: {', '.join(sorted(models_providers.keys()))}")
+        if not args.force:
+            return
+
+    # 交互式输入
+    console.print(f"\n为 [bold cyan]{provider_id}[/bold cyan] 配置 API Key")
+    api_key = getpass.getpass("API Key (输入不可见): ").strip()
+    if not api_key:
+        console.print("[red]API Key 不能为空[/red]")
+        return
+
+    base_url = input("Base URL (回车使用 models.yaml 默认值): ").strip()
+
+    mgr.add_api_key(provider_id, api_key, base_url or None)
+    console.print(f"[green]已添加 {provider_id} 的 API Key[/green]")
+    console.print(f"配置文件: {mgr.apis_path}")
+
+
+def _do_config_apis_add_from_code(args):
+    """从代码片段识别并添加 API Key"""
+    console = Console()
+    mgr = APIPoolManager()
+    mgr.load()
+
+    console.print("请粘贴包含 API Key 的代码片段（输入空行结束）:")
+    lines = []
+    while True:
+        try:
+            line = input()
+            if line == "":
+                break
+            lines.append(line)
+        except EOFError:
+            break
+
+    code = "\n".join(lines)
+    if not code.strip():
+        console.print("[red]未输入任何代码[/red]")
+        return
+
+    result = mgr.detect_from_code(code)
+    if not result:
+        console.print("[yellow]未能从代码中识别 API Key[/yellow]")
+        console.print("支持的模式: OpenAI SDK, Anthropic SDK, 环境变量 OPENAI_API_KEY / ANTHROPIC_API_KEY / OLLAMA_HOST")
+        console.print("请使用 'ai-flow config apis add <provider-id>' 手动添加。")
+        return
+
+    console.print()
+    console.print(f"[bold]识别结果:[/bold]")
+    console.print(f"  Provider: [cyan]{result['provider_id']}[/cyan]")
+    console.print(f"  API Key:  [dim]{result['api_key'][:8]}...[/dim]")
+    if result.get("base_url"):
+        console.print(f"  Base URL: {result['base_url']}")
+    if result.get("model"):
+        console.print(f"  Model:    {result['model']}")
+
+    confirm = input("\n确认添加? [Y/n]: ").strip().lower()
+    if confirm and confirm != "y":
+        console.print("已取消。")
+        return
+
+    mgr.add_api_key(
+        result["provider_id"],
+        result["api_key"],
+        result.get("base_url") or None,
+    )
+    console.print(f"[green]已添加 {result['provider_id']} 的 API Key[/green]")
+
+
+def _do_config_apis_test(args):
+    """测试 provider 连通性"""
+    console = Console()
+    mgr = APIPoolManager()
+    mgr.load()
+
+    provider_id = args.provider_id
+    console.print(f"测试 [bold cyan]{provider_id}[/bold cyan] 连通性...")
+
+    result = mgr.test_connection(provider_id, timeout=args.timeout)
+
+    if result["status"] == "ok":
+        console.print(
+            f"[green]OK[/green] {provider_id}: 连通 (延迟 {result['latency_ms']}ms)"
+        )
+    else:
+        console.print(
+            f"[red]FAILED[/red] {provider_id}: {result['error']}"
+        )
+
+
+def _do_config_apis_remove(args):
+    """移除 API Key"""
+    console = Console()
+    mgr = APIPoolManager()
+    mgr.load()
+
+    provider_id = args.provider_id
+    if mgr.remove_api_key(provider_id):
+        console.print(f"[green]已移除 {provider_id} 的 API Key[/green]")
+    else:
+        console.print(f"[yellow]{provider_id} 不在 apis.yaml 中[/yellow]")
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="ai-flow",
@@ -886,6 +1077,33 @@ def main():
         help="相似度阈值（默认 0.65）"
     )
     
+    # ── config apis ──
+    p_config = sub.add_parser("config", help="配置管理")
+    p_config_sub = p_config.add_subparsers(dest="config_command")
+    
+    p_apis = p_config_sub.add_parser("apis", help="API Key 池管理")
+    p_apis_sub = p_apis.add_subparsers(dest="apis_command")
+    
+    p_apis_list = p_apis_sub.add_parser("list", help="列出所有已配置的 API Key")
+    p_apis_list.set_defaults(func=_do_config_apis_list)
+    
+    p_apis_add = p_apis_sub.add_parser("add", help="添加 API Key")
+    p_apis_add.add_argument("provider_id", help="Provider ID（如 openai、anthropic）")
+    p_apis_add.add_argument("--force", action="store_true", help="强制添加（即使 models.yaml 中未定义）")
+    p_apis_add.set_defaults(func=_do_config_apis_add)
+    
+    p_apis_add_from_code = p_apis_sub.add_parser("add-from-code", help="从代码片段识别并添加 API Key")
+    p_apis_add_from_code.set_defaults(func=_do_config_apis_add_from_code)
+    
+    p_apis_test = p_apis_sub.add_parser("test", help="测试 provider 连通性")
+    p_apis_test.add_argument("provider_id", help="要测试的 provider ID")
+    p_apis_test.add_argument("--timeout", type=int, default=10, help="超时秒数（默认：10）")
+    p_apis_test.set_defaults(func=_do_config_apis_test)
+    
+    p_apis_remove = p_apis_sub.add_parser("remove", help="移除 API Key")
+    p_apis_remove.add_argument("provider_id", help="要移除的 provider ID")
+    p_apis_remove.set_defaults(func=_do_config_apis_remove)
+    
     # ── health ──
     p_health = sub.add_parser("health", help="系统健康度仪表盘")
     p_health.add_argument(
@@ -928,13 +1146,19 @@ def main():
     elif args.command == "health":
         _do_health(args)
         return
+    elif args.command == "config":
+        if args.config_command == "apis" and hasattr(args, 'func'):
+            args.func(args)
+        else:
+            p_config.print_help()
+        return
     elif args.command != "audit":
         parser.print_help()
         sys.exit(0)
 
     # 动态检查 API key
-    required_env = _get_required_env_var(args.brain1)
-    if not os.getenv(required_env):
+    if not _check_api_key_available(args.brain1):
+        required_env = _get_required_env_var(args.brain1)
         env_examples = {
             "OPENAI_API_KEY": "sk-...",
             "ANTHROPIC_API_KEY": "sk-ant-...",
@@ -951,6 +1175,9 @@ def main():
             f"  export {required_env}={example}        # Linux/macOS\n"
             f"  set {required_env}={example}            # Windows CMD\n"
             f"  $env:{required_env}='{example}'         # PowerShell\n"
+            f"\n或使用 API Key 池管理:\n"
+            f"  ai-flow config apis add <provider-id>\n"
+            f"  ai-flow config apis add-from-code\n"
             f"\n使用 'ai-flow models' 查看支持的模型。",
             file=sys.stderr,
         )

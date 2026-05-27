@@ -3,21 +3,26 @@ Conscience 自我挑战框架 - 构建系统的免疫系统和健康度仪表盘
 
 核心原则：
 1. Conscience 不审查用户输出，只审查系统自身的健康状态
-2. 纯统计判断，零 LLM 参与决策——自我挑战对比标准答案
+2. 健康度测量使用真实审查流程（需要 API Key），可信度判断（compare_with_answer）保持零 LLM 决策
 3. 诚实标注：所有指标标注置信度、数据来源、波动范围
 """
 
+import asyncio
 import json
 import random
+import time as _time_module
 import yaml
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple, Any, TYPE_CHECKING
 from loguru import logger
 
 from .evidence_db import EvidenceDB
+
+if TYPE_CHECKING:
+    from .trust_engine import TrustEngine
 
 
 class Verdict(str, Enum):
@@ -51,6 +56,8 @@ class ChallengeResult:
     execution_time: float
     timestamp: datetime = field(default_factory=datetime.now)
     error: Optional[str] = None
+    status: str = "completed"  # "completed" / "skipped" / "error"
+    reason: str = ""  # 跳过的原因说明（仅在 status != "completed" 时使用）
 
 
 @dataclass
@@ -104,20 +111,23 @@ class ConsciencePipeline:
     5. 检测波动并告警
     """
     
-    def __init__(self, test_bank_path: Path, db: EvidenceDB = None):
+    def __init__(self, test_bank_path: Path, db: EvidenceDB = None, engine: "TrustEngine" = None):
         """
         初始化 Conscience 管道
         
         Args:
             test_bank_path: 测试题库 YAML 文件路径
             db: 证据数据库实例（可选）
+            engine: TrustEngine 实例（可选）。为 None 时降级为诚实跳过模式
         """
         self.test_bank_path = Path(test_bank_path)
         self.db = db
+        self.engine = engine
         self.test_bank: List[Challenge] = []
         self._load_test_bank()
         
-        logger.info(f"Conscience 管道初始化完成 | 题库大小: {len(self.test_bank)}")
+        engine_status = "已配置" if engine else "未配置（降级模式）"
+        logger.info(f"Conscience 管道初始化完成 | 题库大小: {len(self.test_bank)} | TrustEngine: {engine_status}")
     
     def _load_test_bank(self) -> None:
         """加载测试题库"""
@@ -182,8 +192,8 @@ class ConsciencePipeline:
         """
         对一道题运行完整审查流程，记录结果
         
-        注意：这里需要调用现有的 TrustEngine 进行审查
-        为简化实现，这里模拟审查过程
+        - 有 engine 时调用 TrustEngine.audit() 进行真实审查
+        - 无 engine 时诚实降级，返回 skipped 状态
         
         Args:
             challenge: 挑战题
@@ -191,24 +201,44 @@ class ConsciencePipeline:
         Returns:
             审查结果
         """
-        import time
-        start_time = time.time()
+        start_time = _time_module.time()
+        
+        # 无引擎时诚实降级
+        if self.engine is None:
+            return ChallengeResult(
+                challenge_id=challenge.id,
+                system_verdict=Verdict.UNCERTAIN,
+                system_findings=[],
+                execution_time=0.0,
+                status="skipped",
+                reason="需要配置 API Key 才能运行健康度检查。请运行 ai-flow config apis add 添加至少一个 provider。"
+            )
         
         try:
-            # TODO: 这里应该调用实际的 TrustEngine 进行审查
-            # 暂时模拟审查逻辑
+            # 构造审查参数
+            requirement = f"Conscience健康检查 - 类别: {challenge.category}, 类型: {challenge.type}"
+            ai_output = challenge.input
             
-            # 模拟审查过程
-            system_verdict = self._simulate_review(challenge)
-            system_findings = self._simulate_findings(challenge)
+            # 调用 TrustEngine.audit()（异步 → 同步转换）
+            report = self._run_async(self.engine.audit(requirement=requirement, ai_output=ai_output))
             
-            execution_time = time.time() - start_time
+            execution_time = _time_module.time() - start_time
+            
+            # 映射 TrustReport → ChallengeResult
+            verdict_map = {
+                "pass": Verdict.ACCEPT,
+                "review": Verdict.UNCERTAIN,
+                "reject": Verdict.REJECT,
+            }
+            system_verdict = verdict_map.get(report.verdict, Verdict.UNCERTAIN)
+            system_findings = [f.description for f in report.findings]
             
             return ChallengeResult(
                 challenge_id=challenge.id,
                 system_verdict=system_verdict,
                 system_findings=system_findings,
-                execution_time=execution_time
+                execution_time=execution_time,
+                status="completed"
             )
             
         except Exception as e:
@@ -217,33 +247,23 @@ class ConsciencePipeline:
                 challenge_id=challenge.id,
                 system_verdict=Verdict.UNCERTAIN,
                 system_findings=[],
-                execution_time=time.time() - start_time,
-                error=str(e)
+                execution_time=_time_module.time() - start_time,
+                error=str(e),
+                status="error",
+                reason=str(e)
             )
     
-    def _simulate_review(self, challenge: Challenge) -> Verdict:
-        """模拟审查逻辑（待替换为真实 TrustEngine 调用）"""
-        # 简单模拟：80% 正确率
-        if random.random() < 0.8:
-            return challenge.expected_verdict
+    @staticmethod
+    def _run_async(coro):
+        """在同步上下文中安全运行异步协程"""
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(coro)
         else:
-            # 错误情况：随机返回其他判决
-            other_verdicts = [v for v in Verdict if v != challenge.expected_verdict]
-            return random.choice(other_verdicts) if other_verdicts else Verdict.UNCERTAIN
-    
-    def _simulate_findings(self, challenge: Challenge) -> List[str]:
-        """模拟发现列表（待替换为真实 TrustEngine 调用）"""
-        # 模拟：返回部分预期发现
-        if not challenge.expected_findings:
-            return []
-        
-        # 70% 概率返回部分发现
-        if random.random() < 0.7:
-            # 随机返回 1-3 个发现
-            count = random.randint(1, min(3, len(challenge.expected_findings)))
-            return random.sample(challenge.expected_findings, count)
-        else:
-            return []
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                return pool.submit(asyncio.run, coro).result()
     
     def compare_with_answer(self, result: ChallengeResult) -> VerdictComparison:
         """
@@ -471,6 +491,9 @@ class ConsciencePipeline:
         """
         运行完整管道：注入 -> 运行 -> 对比 -> 计算健康度
         
+        部分失败保护：如果管道跑了 N 题后 API 挂了，前面已完成的题目结果不丢失。
+        只有 status="completed" 的题目参与健康度计算，skipped/error 的跳过。
+        
         Args:
             challenge_count: 挑战题数量
             
@@ -482,23 +505,49 @@ class ConsciencePipeline:
         # 1. 注入挑战题
         challenges = self.inject_challenges(challenge_count)
         
-        # 2. 运行挑战
+        # 2. 运行挑战（每道题独立 try/except，保证部分失败不丢失已完成结果）
         results = []
         comparisons = []
+        skipped_count = 0
+        error_count = 0
         
         for challenge in challenges:
-            result = self.run_challenge(challenge)
+            try:
+                result = self.run_challenge(challenge)
+            except Exception as e:
+                logger.error(f"管道级别异常 {challenge.id}: {e}")
+                result = ChallengeResult(
+                    challenge_id=challenge.id,
+                    system_verdict=Verdict.UNCERTAIN,
+                    system_findings=[],
+                    execution_time=0.0,
+                    error=str(e),
+                    status="error",
+                    reason=str(e)
+                )
+            
             results.append(result)
             
-            comparison = self.compare_with_answer(result)
-            comparisons.append(comparison)
-            
-            logger.debug(f"挑战 {challenge.id}: 预期={challenge.expected_verdict}, "
-                        f"实际={result.system_verdict}, 匹配={comparison.verdict_match}, "
-                        f"覆盖率={comparison.findings_coverage:.1%}")
+            if result.status == "completed":
+                comparison = self.compare_with_answer(result)
+                comparisons.append(comparison)
+                logger.debug(f"挑战 {challenge.id}: 预期={challenge.expected_verdict}, "
+                            f"实际={result.system_verdict}, 匹配={comparison.verdict_match}, "
+                            f"覆盖率={comparison.findings_coverage:.1%}")
+            elif result.status == "skipped":
+                skipped_count += 1
+                logger.warning(f"挑战 {challenge.id}: 跳过 - {result.reason}")
+            else:
+                error_count += 1
+                logger.error(f"挑战 {challenge.id}: 错误 - {result.error}")
         
-        # 3. 计算健康度
+        # 3. 计算健康度（仅 status="completed" 的题目）
         health_report = self.compute_health(comparisons)
+        
+        # 将 skipped/error 信息写入执行摘要
+        health_report.execution_summary["skipped_count"] = skipped_count
+        health_report.execution_summary["error_count"] = error_count
+        health_report.execution_summary["completed_count"] = len(comparisons)
         
         # 4. 检测告警（这里需要基线数据，暂时返回空告警）
         # TODO: 从数据库或文件加载基线健康度报告
@@ -519,6 +568,7 @@ class ConsciencePipeline:
         
         logger.info(f"Conscience 管道运行完成 | 准确率: {health_report.accuracy:.1%} | "
                    f"召回率: {health_report.recall:.1%} | F1: {health_report.f1_score:.3f} | "
+                   f"完成: {len(comparisons)} | 跳过: {skipped_count} | 错误: {error_count} | "
                    f"告警: {len(alerts)} 个")
         
         return health_report, alerts

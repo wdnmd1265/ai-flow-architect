@@ -8,6 +8,7 @@
 - 告警触发：波动 > 5% 和 < 5% 两种情况
 - 策略退化检测：找退化策略
 - 争议题排除：disputed 题目不计入核心指标
+- TrustEngine 集成：无 engine 降级、mock engine 正常流程、部分失败保护
 """
 
 import pytest
@@ -15,7 +16,7 @@ import tempfile
 import yaml
 from pathlib import Path
 from datetime import datetime, timedelta
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock, PropertyMock
 
 from ai_flow_architect.engine.conscience import (
     ConsciencePipeline,
@@ -27,6 +28,7 @@ from ai_flow_architect.engine.conscience import (
     HealthAlert
 )
 from ai_flow_architect.engine.arsenal_attack import StrategyMonitor
+from ai_flow_architect.engine.trust_report import TrustReport, Finding
 
 
 @pytest.fixture
@@ -148,34 +150,107 @@ class TestTestBankLoading:
 class TestChallengeExecution:
     """挑战执行测试"""
     
-    def test_run_challenge(self, conscience_pipeline):
-        """测试运行单道挑战题"""
+    def test_run_challenge_without_engine(self, conscience_pipeline):
+        """测试无 engine 时返回 skipped 状态（诚实降级）"""
         challenge = conscience_pipeline.test_bank[0]  # test_001
         
-        with patch.object(conscience_pipeline, '_simulate_review') as mock_review, \
-             patch.object(conscience_pipeline, '_simulate_findings') as mock_findings:
-            mock_review.return_value = Verdict.ACCEPT
-            mock_findings.return_value = ["安全代码"]
-            
-            result = conscience_pipeline.run_challenge(challenge)
-            
-            assert result.challenge_id == "test_001"
-            assert result.system_verdict == Verdict.ACCEPT
-            assert result.system_findings == ["安全代码"]
-            assert result.execution_time >= 0
-            assert result.error is None
+        result = conscience_pipeline.run_challenge(challenge)
+        
+        assert result.challenge_id == "test_001"
+        assert result.status == "skipped"
+        assert result.system_verdict == Verdict.UNCERTAIN
+        assert result.system_findings == []
+        assert result.execution_time == 0.0
+        assert "API Key" in result.reason
+        assert "ai-flow config apis add" in result.reason
     
-    def test_run_challenge_error(self, conscience_pipeline):
-        """测试挑战题运行错误"""
+    def test_run_challenge_with_mock_engine(self, conscience_pipeline):
+        """测试 mock TrustEngine 正常审查流程"""
+        # 构造 mock TrustReport
+        mock_report = TrustReport(
+            verdict="reject",
+            confidence=85.0,
+            findings=[
+                Finding(area="安全", severity="high", description="命令注入漏洞", source="arbiter_0"),
+                Finding(area="安全", severity="high", description="危险操作", source="arbiter_1"),
+            ]
+        )
+        
+        # 构造 mock engine
+        mock_engine = MagicMock()
+        mock_engine.audit = MagicMock()
+        mock_engine.audit.return_value = mock_report
+        
+        # 注入 engine
+        conscience_pipeline.engine = mock_engine
+        
+        challenge = conscience_pipeline.test_bank[1]  # test_002: REJECT
+        
+        with patch.object(conscience_pipeline, '_run_async', return_value=mock_report):
+            result = conscience_pipeline.run_challenge(challenge)
+        
+        assert result.challenge_id == "test_002"
+        assert result.status == "completed"
+        assert result.system_verdict == Verdict.REJECT
+        assert len(result.system_findings) == 2
+        assert "命令注入漏洞" in result.system_findings
+        assert "危险操作" in result.system_findings
+        assert result.execution_time >= 0
+        assert result.error is None
+    
+    def test_partial_failure_protection(self, conscience_pipeline):
+        """测试部分失败保护：前面题目结果不丢失"""
+        # 构造 mock 结果序列：成功、成功、异常、成功
+        mock_report_pass = TrustReport(
+            verdict="pass",
+            confidence=90.0,
+            findings=[]
+        )
+        mock_report_reject = TrustReport(
+            verdict="reject",
+            confidence=95.0,
+            findings=[Finding(area="安全", severity="high", description="注入风险", source="arbiter_0")]
+        )
+        
+        mock_engine = MagicMock()
+        mock_engine.audit = MagicMock()
+        
+        conscience_pipeline.engine = mock_engine
+        
+        # patch _run_async 直接用独立 side_effect（避免与 mock_engine.audit 的双重消费）
+        with patch.object(conscience_pipeline, '_run_async', side_effect=[
+            mock_report_pass,      # 第 1 题成功
+            mock_report_pass,      # 第 2 题成功
+            RuntimeError("API 挂了"),  # 第 3 题失败
+            mock_report_reject,    # 第 4 题成功
+        ]):
+            health_report, alerts = conscience_pipeline.run_full_pipeline(challenge_count=4)
+        
+        # 验证统计信息
+        assert health_report.execution_summary["completed_count"] == 3  # 3 题成功
+        assert health_report.execution_summary["error_count"] == 1  # 1 题失败
+        assert health_report.execution_summary["skipped_count"] == 0  # 0 题跳过
+        assert "total_challenges" in health_report.execution_summary
+        assert "valid_challenges" in health_report.execution_summary
+    
+    def test_run_challenge_engine_error(self, conscience_pipeline):
+        """测试 TrustEngine 调用异常时返回 error 状态"""
+        mock_engine = MagicMock()
+        mock_engine.audit = MagicMock()
+        mock_engine.audit.side_effect = RuntimeError("API 调用超时")
+        
+        conscience_pipeline.engine = mock_engine
+        
         challenge = conscience_pipeline.test_bank[0]
         
-        with patch.object(conscience_pipeline, '_simulate_review', side_effect=Exception("模拟错误")):
+        with patch.object(conscience_pipeline, '_run_async', side_effect=RuntimeError("API 调用超时")):
             result = conscience_pipeline.run_challenge(challenge)
-            
-            assert result.challenge_id == "test_001"
-            assert result.system_verdict == Verdict.UNCERTAIN
-            assert result.system_findings == []
-            assert result.error == "模拟错误"
+        
+        assert result.challenge_id == "test_001"
+        assert result.status == "error"
+        assert result.system_verdict == Verdict.UNCERTAIN
+        assert result.system_findings == []
+        assert "API 调用超时" in result.error
 
 
 class TestVerdictComparison:

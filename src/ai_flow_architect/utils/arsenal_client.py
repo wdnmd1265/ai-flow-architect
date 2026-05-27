@@ -178,13 +178,24 @@ class ArsenalClient:
 
     @classmethod
     def get_available_providers(cls) -> List[str]:
-        """获取已配置 API key 的 provider 列表"""
+        """获取已配置 API key 的 provider 列表（apis.yaml 优先）"""
+        # 优先使用 APIPoolManager 交叉校验
+        try:
+            from .api_pool import APIPoolManager
+            mgr = APIPoolManager()
+            mgr.load()
+            available = mgr.get_available_providers()
+            if available:
+                return available
+        except Exception:
+            pass
+
+        # 回退：从环境变量检查
         config = cls._load_config()
         providers = config.get("providers", {})
         available = []
         for name, cfg in providers.items():
             if name in ("local", "custom"):
-                # local 和 custom 不需要 API key
                 available.append(name)
                 continue
             api_key_env = cfg.get("api_key", "")

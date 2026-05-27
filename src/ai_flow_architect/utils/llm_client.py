@@ -86,6 +86,74 @@ class LLMClient:
         
         return provider_config
     
+    def _resolve_api_key(self) -> str:
+        """
+        解析 API Key：优先 apis.yaml > 环境变量 > models.yaml 字面量
+        
+        Returns:
+            API Key 字符串
+        """
+        provider_name = self.provider_config.get("name", "openai")
+        api_key_template = self.provider_config.get("api_key", "")
+
+        # 1. 尝试从 apis.yaml 读取
+        try:
+            from .api_pool import APIPoolManager
+            mgr = APIPoolManager()
+            mgr.load()
+            apis_providers = mgr.apis.get("providers", {})
+            if provider_name in apis_providers:
+                key = apis_providers[provider_name].get("api_key", "")
+                if key and key.strip():
+                    return key
+        except Exception:
+            pass
+
+        # 2. 尝试从环境变量读取
+        if api_key_template.startswith("${") and api_key_template.endswith("}"):
+            env_var = api_key_template[2:-1]
+            key = os.getenv(env_var, "")
+            if key:
+                return key
+            return ""
+
+        # 3. 字面量（直接写在 models.yaml 中）
+        return api_key_template
+
+    def _resolve_base_url(self) -> str:
+        """
+        解析 Base URL：优先 apis.yaml > 环境变量 > models.yaml 默认值
+
+        Returns:
+            Base URL 字符串
+        """
+        provider_name = self.provider_config.get("name", "openai")
+        models_base_url = self.provider_config.get("base_url", "https://api.openai.com/v1")
+        default_url = "https://api.openai.com/v1"
+
+        # 1. 尝试从 apis.yaml 读取
+        try:
+            from .api_pool import APIPoolManager
+            mgr = APIPoolManager()
+            mgr.load()
+            apis_providers = mgr.apis.get("providers", {})
+            if provider_name in apis_providers:
+                url = apis_providers[provider_name].get("base_url", "")
+                if url and url.strip():
+                    return url
+        except Exception:
+            pass
+
+        # 2. 环境变量
+        if models_base_url.startswith("${") and models_base_url.endswith("}"):
+            env_var = models_base_url[2:-1]
+            url = os.getenv(env_var, "")
+            if url:
+                return url
+            return default_url
+
+        return models_base_url or default_url
+
     def _create_client(self):
         """
         创建客户端（支持 OpenAI 和 Anthropic）
@@ -95,23 +163,11 @@ class LLMClient:
         """
         provider_name = self.provider_config.get("name", "openai")
         
-        # 获取 API key
-        api_key_env = self.provider_config.get("api_key", "")
-        if api_key_env.startswith("${") and api_key_env.endswith("}"):
-            # 从环境变量读取
-            env_var = api_key_env[2:-1]
-            api_key = os.getenv(env_var, "")
-        else:
-            api_key = api_key_env
+        # 获取 API key（apis.yaml 优先）
+        api_key = self._resolve_api_key()
         
-        # 获取 base_url
-        base_url_env = self.provider_config.get("base_url", "https://api.openai.com/v1")
-        if base_url_env.startswith("${") and base_url_env.endswith("}"):
-            # 从环境变量读取
-            env_var = base_url_env[2:-1]
-            base_url = os.getenv(env_var, "https://api.openai.com/v1")
-        else:
-            base_url = base_url_env
+        # 获取 base_url（apis.yaml 优先）
+        base_url = self._resolve_base_url()
         
         # 获取超时和重试配置
         timeout = self.provider_config.get("timeout", 120)
