@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ai-flow-architect"
-version = "0.1.1"
+version = "0.2.1"
 description = "AI proposes. You decide. — Adversarial AI workflow engine with built-in quality arbitration"
 readme = "README.md"
 license = "Apache-2.0"
