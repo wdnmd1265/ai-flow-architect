@@ -6,6 +6,20 @@
   <strong>Two AIs review. A third attacks. You get the truth.</strong>
 </p>
 
+---
+
+## Why I built this
+
+I started using AI-generated code. The reviews it gave me were confident, but wrong — not obviously wrong. A SQL injection here, a race condition there. Things that looked right at a glance.
+
+A single model cannot discover its own blind spots. It reads its output with the same training data, the same biases, the same weak points. It's one person grading their own homework.
+
+So I asked: what if two models review independently, and a third actively tries to break the output? Not a vote — an adversarial process. Red team vs. blue team, with a neutral arbiter.
+
+That's the idea. Everything else — the 8 providers, the fallback network, the evidence chain — is engineering.
+
+---
+
 <p align="center">
   <a href="https://wdnmd1265.github.io/ai-flow-architect/playground.html"><strong>🎮 Try it live →</strong></a>
 </p>
@@ -19,18 +33,14 @@
 </p>
 
 <p align="center">
+  <a href="#why-i-built-this">Why</a> &middot;
   <a href="#before--after">Before/After</a> &middot;
-  <a href="#what-makes-this-different">Why Different</a> &middot;
+  <a href="#design-notes">Design Notes</a> &middot;
   <a href="#quick-start">Quick Start</a> &middot;
   <a href="#how-it-works">Pipeline</a> &middot;
-  <a href="#why-not">Why Not X</a> &middot;
   <a href="#trustengine">TrustEngine</a> &middot;
   <a href="README_CN.md">中文</a>
 </p>
-
----
-
-![OG Image](docs/og-image.png)
 
 ---
 
@@ -97,6 +107,16 @@
 ```
 
 > **[Try the interactive Playground](https://wdnmd1265.github.io/ai-flow-architect/playground.html)** — see real audits of real AI outputs. No installation. No API key.
+
+---
+
+## Design Notes
+
+**Decision 1: From voting to adversarial.** My first design was three models, majority vote. But three LLMs trained on overlapping data share blind spots — you're paying for the illusion of consensus. I abandoned voting. Brain One audits. Opponent Brain attacks from 5 adversary perspectives. Brain Two cross-validates. Consensus comes from surviving attack, not from agreeing to agree.
+
+**Decision 2: Why Anthropic got its own code path.** Originally I wrapped all 8 providers behind one uniform interface. Anthropic's tool-calling format is incompatible with OpenAI's — force-unifying them lost information. In the end, Anthropic got its own native SDK path, everything else uses the compatibility layer. Added ~40% more code. Tool-calling went from "sometimes crashes" to zero failures. Engineering is knowing which abstractions to break.
+
+**Decision 3: What this project won't pretend to solve.** Tier 4 formal verification is a placeholder — natural-language-to-Lean-4 conversion is an unsolved research problem, and I'm not going to fake it. Blind review is off by default because I don't have enough cross-model data to prove it helps in all scenarios. I'd rather leave a lever labeled "experimental" than ship a default I can't defend.
 
 ---
 
@@ -187,20 +207,6 @@ The core insight: a single model cannot discover its own blind spots. Two models
 
 ---
 
-## Why Not PR-Agent / CodeRabbit / Copilot
-
-| | PR-Agent / CodeRabbit / Copilot | ai-flow-architect |
-|---|---|---|
-| **Review model** | Single model reviews in one pass | Two models + adversarial opponent cross-verify |
-| **False positives** | Reported as-is. You triage manually. | Opponent Brain challenges and filters unconfirmed claims |
-| **Disagreement** | Not applicable (single model, no dissent) | Flagged UNCERTAIN with both positions quoted — you decide |
-| **Evidence** | A review comment in a PR thread | SHA-256 hashed, timestamped evidence chain. Tamper-proof. |
-| **Auditability** | "Trust the bot said so" | Verifiable cryptographic proof of what was found and when |
-
-The difference isn't "we're better." It's that single-model review has a fundamental ceiling: one model cannot reliably challenge its own conclusions. Adding an opponent changes the game.
-
----
-
 ## HTML Reports
 
 Export self-contained HTML reports with `--html`. Send them to your team. Post them in issues. Every share is an audit your AI didn't get away with.
@@ -255,6 +261,20 @@ report.evidence_chain # SHA-256 hash + timestamp, fully verifiable
 | Uncertainty Transparency | ✅ | ❌ | ❌ |
 | Verifiable Evidence Chain | ✅ | ❌ | ❌ |
 | Cost | Free software; you pay for your own API keys | $X/month subscription | Free (trust at your own risk) |
+
+---
+
+## Why Not PR-Agent / CodeRabbit / Copilot
+
+| | PR-Agent / CodeRabbit / Copilot | ai-flow-architect |
+|---|---|---|
+| **Review model** | Single model reviews in one pass | Two models + adversarial opponent cross-verify |
+| **False positives** | Reported as-is. You triage manually. | Opponent Brain challenges and filters unconfirmed claims |
+| **Disagreement** | Not applicable (single model, no dissent) | Flagged UNCERTAIN with both positions quoted — you decide |
+| **Evidence** | A review comment in a PR thread | SHA-256 hashed, timestamped evidence chain. Tamper-proof. |
+| **Auditability** | "Trust the bot said so" | Verifiable cryptographic proof of what was found and when |
+
+The difference isn't "better." Single-model review has a fundamental ceiling: one model cannot reliably challenge its own conclusions. Adding an opponent changes the game.
 
 ---
 
@@ -378,6 +398,10 @@ pytest tests/unit/ -v    # 186 tests
 
 ---
 
+![OG Image](docs/og-image.png)
+
+---
+
 ## License
 
 [Apache License 2.0](LICENSE) — Copyright 2026 盛鑫
@@ -385,7 +409,7 @@ pytest tests/unit/ -v    # 186 tests
 ---
 
 <p align="center">
-  <em>AI generates. AI challenges. You decide. This is how we solve hallucination.</em>
+  <em>AI proposes. AI challenges. You decide.</em>
 </p>
 
 <p align="center">
