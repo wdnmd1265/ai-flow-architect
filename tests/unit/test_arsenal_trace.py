@@ -293,7 +293,7 @@ class TestFormatResults:
         
         output = engine.format_result(result, "html")
         assert "trace-results" in output
-        assert "match-exact" in output
+        assert "确定引用" in output
 
 
 class TestTraceConfig:
@@ -403,3 +403,131 @@ class TestTraceDegradationLabeling:
         sentences = ["Java 是静态类型编程语言。", "Rust 是系统编程语言。"]
         result = engine._find_best_match("Python 编程语言", sentences)
         assert "closest_sentences" in result
+
+
+class TestExternalTrace:
+    """V2.2 External Trace 测试"""
+
+    @pytest.fixture
+    def ai_output(self):
+        return """Python 是一种高级编程语言。
+它由 Guido van Rossum 创建于 1991 年。
+Python 的设计哲学强调代码可读性，使用缩进表示代码块。
+Python 支持多种编程范式，包括面向对象、函数式和过程式。
+Python 有一个庞大的标准库，被称为"电池自带"。
+Python 是最流行的编程语言之一，广泛应用于数据科学和人工智能。"""
+
+    def test_split_phrases(self, engine):
+        """短语级拆分"""
+        text = "Python 是高级语言，它支持面向对象，并且有庞大的标准库。"
+        phrases = engine.split_phrases(text)
+        assert len(phrases) >= 2
+        for ph in phrases:
+            assert "phrase" in ph
+            assert "sentence" in ph
+            assert "sentence_idx" in ph
+
+    def test_split_phrases_min_length(self, engine):
+        """短语过短则跳过"""
+        text = "是的，对，好。"
+        phrases = engine.split_phrases(text)
+        for ph in phrases:
+            assert len(ph["phrase"]) >= 3
+
+    def test_trace_reasoning_basic(self, engine, ai_output):
+        """推理链推断基本功能"""
+        result = engine.trace_reasoning(ai_output, model_name="gpt-4o")
+        assert result.trace_type == "external_reasoning"
+        assert result.reasoning_chain is not None
+        assert result.reasoning_chain.total_steps > 0
+        assert result.inference_model == "gpt-4o"
+        assert result.honesty_label != ""
+
+    def test_trace_reasoning_honesty_label(self, engine, ai_output):
+        """诚实标注包含关键信息"""
+        result = engine.trace_reasoning(ai_output, model_name="claude-3")
+        label = result.honesty_label
+        assert "推断生成" in label
+        assert "非原始推理记录" in label
+        assert "claude-3" in label
+
+    def test_trace_reasoning_chain_steps(self, engine, ai_output):
+        """推理链步骤结构完整"""
+        result = engine.trace_reasoning(ai_output)
+        chain = result.reasoning_chain
+        for step in chain.steps:
+            assert step.step_id > 0
+            assert step.content != ""
+            assert step.step_type in ("fact", "inference", "assumption", "omission")
+            assert step.evidence_type in ("strong_match", "claimed", "none")
+            assert step.confidence in ("high", "medium", "low")
+
+    def test_trace_reasoning_statistics(self, engine, ai_output):
+        """推理链统计正确"""
+        result = engine.trace_reasoning(ai_output)
+        chain = result.reasoning_chain
+        assert chain.fact_count + chain.inference_count + chain.assumption_count + chain.omission_count == chain.total_steps
+        assert chain.strong_match_count + chain.claimed_evidence_count <= chain.total_steps
+        assert chain.overall_confidence in ("high", "medium", "low")
+
+    def test_trace_reasoning_with_source(self, engine, ai_output):
+        """有来源文档时匹配更准确"""
+        source = "Guido van Rossum 在 1991 年创建了 Python。Python 强调代码可读性。"
+        result = engine.trace_reasoning(ai_output, source_text=source, model_name="gpt-4o")
+        assert result.reasoning_chain is not None
+        # 有来源时，部分短语应能匹配到来源
+        matched = [c for c in result.phrase_claims if c["match_type"] != "无匹配"]
+        assert len(matched) > 0
+
+    def test_trace_reasoning_phrase_claims(self, engine, ai_output):
+        """短语级匹配结果结构完整"""
+        result = engine.trace_reasoning(ai_output)
+        assert len(result.phrase_claims) > 0
+        for pc in result.phrase_claims:
+            assert "claim" in pc
+            assert "match_type" in pc
+            assert "similarity" in pc
+
+    def test_trace_reasoning_format_text(self, engine, ai_output):
+        """文本格式输出包含推理路径"""
+        result = engine.trace_reasoning(ai_output, model_name="gpt-4o")
+        text = engine.format_result(result, "text")
+        assert "External Trace" in text
+        assert "推理路径" in text
+        assert "推断生成" in text
+
+    def test_trace_reasoning_format_json(self, engine, ai_output):
+        """JSON 格式输出包含推理链"""
+        import json
+        result = engine.trace_reasoning(ai_output, model_name="gpt-4o")
+        text = engine.format_result(result, "json")
+        data = json.loads(text)
+        assert "reasoning_chain" in data
+        assert "honesty_label" in data
+        assert "inference_model" in data
+        assert data["inference_model"] == "gpt-4o"
+
+    def test_trace_reasoning_format_html(self, engine, ai_output):
+        """HTML 格式输出包含交互元素"""
+        result = engine.trace_reasoning(ai_output, model_name="gpt-4o")
+        html = engine.format_result(result, "html")
+        assert "<details" in html
+        assert "推理路径" in html
+        assert "推断生成" in html
+        assert "External Trace" in html
+
+    def test_trace_reasoning_type_counts(self, engine):
+        """不同匹配类型产生正确的推理步类型"""
+        text = "Python 是编程语言。它可能支持多范式。"
+        result = engine.trace_reasoning(text)
+        types = [s.step_type for s in result.reasoning_chain.steps]
+        # 至少应该有 fact 和 assumption/omission
+        assert "fact" in types
+
+    def test_trace_reasoning_backward_compatible(self, engine, ai_output):
+        """推理链推断不影响原有句子级匹配"""
+        result = engine.trace_reasoning(ai_output)
+        # 原有的 claims 字段仍然存在
+        assert result.claims is not None
+        assert result.total_claims > 0
+        assert result.match_ratio >= 0.0

@@ -1,9 +1,9 @@
 """
 溯源追踪武器（Trace）
 
-输入文本自动拆句，逐句在原始文档中查找引用来源。
-区分确定引用（直接匹配）和推断引用（语义相近），
-统计可靠引用占比。
+V2.2 External Trace 升级：
+- V2.1: 句子级拆句 → embedding 匹配 → 确定/推断/无匹配
+- V2.2: 短语级提取 → 推理链推断 → 诚实双重标注 → 区分声称依据和验证依据
 """
 
 import os
@@ -21,7 +21,6 @@ os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
 
 # 全局模型缓存，避免每次调用都重新加载
 _EMBED_MODEL = None
-_EMBED_MODEL_LOCK = False
 
 
 @dataclass
@@ -40,6 +39,39 @@ class TraceResult:
     total_claims: int = 0
     match_ratio: float = 0.0
     trace_type: str = ""  # "exact" or "semantic"
+    # V2.2 External Trace 新增
+    reasoning_chain: Optional["ReasoningChain"] = None
+    phrase_claims: List[Dict[str, Any]] = field(default_factory=list)
+    inference_model: str = ""  # 标注推断所用模型
+    honesty_label: str = ""   # 诚实标注
+
+
+@dataclass
+class ReasoningStep:
+    """推理链中的单步"""
+    step_id: int
+    content: str              # 推理内容
+    step_type: str            # "fact" / "inference" / "assumption" / "omission"
+    evidence: str             # 支撑依据（声称的或验证的）
+    evidence_type: str        # "strong_match" / "claimed" / "none"
+    confidence: str           # "high" / "medium" / "low"
+    source_phrase: str = ""   # 对应的原文短语
+
+
+@dataclass
+class ReasoningChain:
+    """推理链"""
+    steps: List[ReasoningStep] = field(default_factory=list)
+    source_model: str = ""         # 推断所用模型
+    honesty_label: str = ""        # 诚实标注
+    total_steps: int = 0
+    fact_count: int = 0
+    inference_count: int = 0
+    assumption_count: int = 0
+    omission_count: int = 0
+    strong_match_count: int = 0
+    claimed_evidence_count: int = 0
+    overall_confidence: str = ""   # 整体置信度
 
 
 class TraceEngine:
@@ -353,12 +385,12 @@ class TraceEngine:
     ) -> TraceResult:
         """
         追踪单个论断
-        
+
         Args:
             output_text: 完整文本
             claim: 单个论断
             source_text: 原始来源
-            
+
         Returns:
             TraceResult
         """
@@ -367,6 +399,232 @@ class TraceEngine:
             claims=[claim],
             source_text=source_text,
         )
+
+    # ================================================================
+    # V2.2 External Trace 升级
+    # ================================================================
+
+    def split_phrases(self, text: str) -> List[Dict[str, Any]]:
+        """
+        短语级拆分（比句子更细粒度）
+
+        拆分策略：
+        1. 先按句子拆
+        2. 每个句子按逗号、分号、"并且"、"但是"、"因为"、"所以" 等拆成短语
+        3. 每个短语记录：原文、所属句子、位置
+        """
+        sentences = self.split_sentences(text)
+        phrases = []
+
+        # 拆分标记
+        split_patterns = r'[,，;；](?!\d)|(?:并且|但是|因为|所以|然而|同时|另外|此外|然后|如果|除非|即使|虽然|尽管|不过|而是|以及|或者)'
+
+        for sent_idx, sentence in enumerate(sentences):
+            parts = re.split(split_patterns, sentence)
+            for part_idx, part in enumerate(parts):
+                part = part.strip()
+                if len(part) >= 3:
+                    phrases.append({
+                        "phrase": part,
+                        "sentence": sentence,
+                        "sentence_idx": sent_idx,
+                        "phrase_idx": part_idx,
+                    })
+
+        return phrases
+
+    def trace_reasoning(
+        self,
+        output_text: str,
+        source_text: Optional[str] = None,
+        model_name: str = "unknown",
+    ) -> TraceResult:
+        """
+        External Trace — 推理链推断
+
+        流程：
+        1. 短语级拆分
+        2. 每个短语匹配来源（embedding / 编辑距离）
+        3. LLM 反向推断推理路径
+        4. 诚实双重标注
+
+        Args:
+            output_text: AI 生成的输出文本
+            source_text: 原始来源文档（可选）
+            model_name: 被审查的 AI 模型名
+
+        Returns:
+            TraceResult（含推理链 + 短语级证据）
+        """
+        logger.info(f"开始 External Trace | 模型: {model_name}")
+
+        # Step 1: 短语级拆分
+        phrases = self.split_phrases(output_text)
+        logger.info(f"短语拆分完成 | {len(phrases)} 个短语")
+
+        # Step 2: 每个短语匹配来源
+        reference_sentences = (
+            self.split_sentences(source_text) if source_text
+            else self.split_sentences(output_text)
+        )
+
+        phrase_claims = []
+        for ph in phrases:
+            match = self._find_best_match(ph["phrase"], reference_sentences)
+            match["sentence_idx"] = ph["sentence_idx"]
+            match["sentence"] = ph["sentence"]
+            phrase_claims.append(match)
+
+        # Step 3: 构建推理链
+        chain = self._build_reasoning_chain(
+            output_text=output_text,
+            phrase_claims=phrase_claims,
+            source_text=source_text,
+            model_name=model_name,
+        )
+
+        # Step 4: 句子级匹配（兼容旧接口）
+        sentences = self.split_sentences(output_text)
+        claims = self._extract_claims(sentences)
+        matched_claims = []
+        for claim in claims:
+            best_match = self._find_best_match(claim, reference_sentences)
+            matched_claims.append(best_match)
+
+        reliable_count = sum(
+            1 for m in matched_claims
+            if m["match_type"] in ("确定引用", "推断引用")
+        )
+
+        # 诚实标注
+        honesty = self._build_honesty_label(model_name, chain, len(matched_claims))
+
+        result = TraceResult(
+            claims=matched_claims,
+            match_count=reliable_count,
+            total_claims=len(matched_claims),
+            match_ratio=reliable_count / len(matched_claims) if matched_claims else 0.0,
+            trace_type="external_reasoning",
+            reasoning_chain=chain,
+            phrase_claims=phrase_claims,
+            inference_model=model_name,
+            honesty_label=honesty,
+        )
+
+        logger.info(
+            f"External Trace 完成 | 推理步数: {chain.total_steps} | "
+            f"事实: {chain.fact_count} | 推断: {chain.inference_count} | "
+            f"假设: {chain.assumption_count}"
+        )
+        return result
+
+    def _build_reasoning_chain(
+        self,
+        output_text: str,
+        phrase_claims: List[Dict[str, Any]],
+        source_text: Optional[str],
+        model_name: str,
+    ) -> "ReasoningChain":
+        """
+        构建推理链
+
+        基于短语级匹配结果，推断每个论断的推理路径。
+        不调用 LLM（纯规则推断），保持零成本。
+        """
+        steps = []
+
+        for idx, claim in enumerate(phrase_claims):
+            phrase = claim["claim"]
+            match_type = claim["match_type"]
+            similarity = claim["similarity"]
+
+            # 推断推理步类型
+            if match_type == "确定引用" and similarity >= 0.9:
+                step_type = "fact"
+                confidence = "high"
+                evidence_type = "strong_match"  # 文本高度匹配，非外部验证
+            elif match_type == "确定引用":
+                step_type = "fact"
+                confidence = "high"
+                evidence_type = "claimed"
+            elif match_type == "推断引用":
+                step_type = "inference"
+                confidence = "medium"
+                evidence_type = "claimed"
+            else:  # 无匹配
+                # 检查是否包含推断性关键词
+                inference_keywords = ["可能", "也许", "应该", "大概", "或许", "perhaps", "maybe", "likely", "might"]
+                if any(kw in phrase.lower() for kw in inference_keywords):
+                    step_type = "assumption"
+                    confidence = "low"
+                else:
+                    step_type = "omission"
+                    confidence = "low"
+                evidence_type = "none"
+
+            steps.append(ReasoningStep(
+                step_id=idx + 1,
+                content=phrase,
+                step_type=step_type,
+                evidence=claim.get("source", "无匹配"),
+                evidence_type=evidence_type,
+                confidence=confidence,
+                source_phrase=claim.get("sentence", ""),
+            ))
+
+        # 统计
+        chain = ReasoningChain(
+            steps=steps,
+            source_model=model_name,
+            total_steps=len(steps),
+            fact_count=sum(1 for s in steps if s.step_type == "fact"),
+            inference_count=sum(1 for s in steps if s.step_type == "inference"),
+            assumption_count=sum(1 for s in steps if s.step_type == "assumption"),
+            omission_count=sum(1 for s in steps if s.step_type == "omission"),
+            strong_match_count=sum(1 for s in steps if s.evidence_type == "strong_match"),
+            claimed_evidence_count=sum(1 for s in steps if s.evidence_type == "claimed"),
+        )
+
+        # 整体置信度
+        if chain.fact_count >= chain.total_steps * 0.7:
+            chain.overall_confidence = "high"
+        elif chain.fact_count + chain.inference_count >= chain.total_steps * 0.5:
+            chain.overall_confidence = "medium"
+        else:
+            chain.overall_confidence = "low"
+
+        return chain
+
+    def _build_honesty_label(
+        self,
+        model_name: str,
+        chain: "ReasoningChain",
+        claim_count: int,
+    ) -> str:
+        """
+        构建诚实标注
+
+        标注内容：
+        - 推断所用模型
+        - 推断 vs 确认的比例
+        - 明确声明"非原始推理记录"
+        """
+        parts = []
+        parts.append(f"本推理路径由 {model_name} 推断生成，非原始推理记录。")
+        parts.append(
+            f"共 {chain.total_steps} 步："
+            f"事实 {chain.fact_count}、"
+            f"推断 {chain.inference_count}、"
+            f"假设 {chain.assumption_count}、"
+            f"遗漏 {chain.omission_count}。"
+        )
+        parts.append(
+            f"证据类型："
+            f"强匹配 {chain.strong_match_count}、"
+            f"模型声称 {chain.claimed_evidence_count}、"
+            f"无依据 {chain.total_steps - chain.strong_match_count - chain.claimed_evidence_count}。"
+        )
+        return " ".join(parts)
     
     def format_result(
         self,
@@ -376,17 +634,42 @@ class TraceEngine:
         """格式化溯源结果"""
         if format_type == "json":
             import json
-            return json.dumps({
+            data = {
                 "claims": result.claims,
                 "match_count": result.match_count,
                 "total_claims": result.total_claims,
                 "match_ratio": result.match_ratio,
                 "trace_type": result.trace_type,
-            }, ensure_ascii=False, indent=2)
-        
+                "honesty_label": result.honesty_label,
+                "inference_model": result.inference_model,
+            }
+            if result.reasoning_chain:
+                data["reasoning_chain"] = {
+                    "total_steps": result.reasoning_chain.total_steps,
+                    "fact_count": result.reasoning_chain.fact_count,
+                    "inference_count": result.reasoning_chain.inference_count,
+                    "assumption_count": result.reasoning_chain.assumption_count,
+                    "omission_count": result.reasoning_chain.omission_count,
+                    "overall_confidence": result.reasoning_chain.overall_confidence,
+                    "steps": [
+                        {
+                            "step_id": s.step_id,
+                            "content": s.content,
+                            "type": s.step_type,
+                            "evidence": s.evidence,
+                            "evidence_type": s.evidence_type,
+                            "confidence": s.confidence,
+                        }
+                        for s in result.reasoning_chain.steps
+                    ],
+                }
+            if result.phrase_claims:
+                data["phrase_claims"] = result.phrase_claims
+            return json.dumps(data, ensure_ascii=False, indent=2)
+
         elif format_type == "html":
             return self._format_html(result)
-        
+
         else:  # text
             return self._format_text(result)
     
@@ -394,65 +677,214 @@ class TraceEngine:
         """文本格式输出"""
         lines = []
         lines.append("=" * 80)
-        lines.append("溯源追踪结果（Trace）")
+
+        # 根据 trace_type 选择标题
+        if result.trace_type == "external_reasoning":
+            lines.append("溯源追踪结果（External Trace V2.2）")
+        else:
+            lines.append("溯源追踪结果（Trace）")
+
         lines.append("=" * 80)
         lines.append("")
+
+        # 诚实标注
+        if result.honesty_label:
+            lines.append(f"⚠ 诚实标注: {result.honesty_label}")
+            lines.append("")
+
         lines.append(f"论断总数: {result.total_claims}")
         lines.append(f"可靠引用: {result.match_count} ({result.match_ratio:.1%})")
         lines.append(f"  - 确定引用: {sum(1 for m in result.claims if m['match_type'] == '确定引用')}")
         lines.append(f"  - 推断引用: {sum(1 for m in result.claims if m['match_type'] == '推断引用')}")
         lines.append(f"  - 无匹配:   {sum(1 for m in result.claims if m['match_type'] == '无匹配')}")
+
+        # 推理链统计
+        if result.reasoning_chain:
+            chain = result.reasoning_chain
+            lines.append("")
+            lines.append(f"推理链（由 {chain.source_model} 推断）:")
+            lines.append(f"  总步数: {chain.total_steps}")
+            lines.append(f"  事实: {chain.fact_count} | 推断: {chain.inference_count} | 假设: {chain.assumption_count} | 遗漏: {chain.omission_count}")
+            lines.append(f"  证据类型: 强匹配 {chain.strong_match_count} | 模型声称 {chain.claimed_evidence_count}")
+            lines.append(f"  整体置信度: {chain.overall_confidence}")
+
         lines.append("")
         lines.append("=" * 80)
         lines.append("")
-        
+
+        # 推理链详情
+        if result.reasoning_chain and result.reasoning_chain.steps:
+            lines.append("--- 推理路径 ---")
+            lines.append("")
+            type_labels = {
+                "fact": "事实",
+                "inference": "推断",
+                "assumption": "假设",
+                "omission": "遗漏",
+            }
+            conf_colors = {
+                "high": "🟢",
+                "medium": "🟡",
+                "low": "🔴",
+            }
+            evidence_labels = {
+                "strong_match": "强匹配",
+                "claimed": "模型声称",
+                "none": "无依据",
+            }
+
+            for step in result.reasoning_chain.steps:
+                conf_icon = conf_colors.get(step.confidence, "⚪")
+                type_label = type_labels.get(step.step_type, step.step_type)
+                ev_label = evidence_labels.get(step.evidence_type, step.evidence_type)
+                lines.append(f"  {step.step_id}. {conf_icon} [{type_label}] {step.content}")
+                lines.append(f"     依据: {step.evidence[:80]}" + ("..." if len(step.evidence) > 80 else ""))
+                lines.append(f"     证据类型: {ev_label}")
+                lines.append("")
+
+            lines.append("⚠ 以上推理路径由模型推断生成，非原始推理记录。")
+            lines.append("")
+
+        # 句子级匹配
+        lines.append("--- 句子级匹配 ---")
+        lines.append("")
         for i, claim in enumerate(result.claims, 1):
             lines.append(f"{i}. 论断: {claim['claim']}")
             lines.append(f"   类型: [{claim['match_type']}]")
             lines.append(f"   相似度: {claim['similarity']:.3f}")
-            lines.append(f"   匹配方法: {claim.get('match_method', '未知')}")
             lines.append(f"   来源: {claim['source']}")
-            
+
             if claim["match_type"] == "无匹配":
                 lines.append(f"   最接近句子:")
                 if claim["closest_sentences"]:
                     lines.append(claim["closest_sentences"])
                 if claim["suggestion"]:
                     lines.append(f"   {claim['suggestion']}")
-            
             lines.append("")
-        
+
         return "\n".join(lines)
     
     def _format_html(self, result: TraceResult) -> str:
-        """HTML格式输出"""
+        """HTML格式输出（V2.2 交互升级）"""
         html = []
-        html.append('<div class="trace-results">')
-        html.append('<h3>溯源追踪结果（Trace）</h3>')
+        html.append('<div class="trace-results" style="font-family:-apple-system,sans-serif;max-width:900px;margin:0 auto;color:#c9d1d9;">')
+
+        # 标题
+        if result.trace_type == "external_reasoning":
+            html.append('<h3 style="color:#58a6ff;">溯源追踪结果（External Trace V2.2）</h3>')
+        else:
+            html.append('<h3>溯源追踪结果（Trace）</h3>')
+
+        # 诚实标注
+        if result.honesty_label:
+            html.append(
+                f'<div style="background:rgba(210,153,34,0.1);border:1px solid #d29922;'
+                f'border-radius:8px;padding:12px 16px;margin:12px 0;font-size:13px;color:#d29922;">'
+                f'⚠ {result.honesty_label}'
+                f'</div>'
+            )
+
+        # 统计行
         html.append(f'<p><strong>论断总数:</strong> {result.total_claims}</p>')
         html.append(f'<p><strong>可靠引用:</strong> {result.match_count} ({result.match_ratio:.1%})</p>')
-        
-        html.append('<table class="trace-table">')
-        html.append('<thead><tr>')
-        html.append('<th>论断</th><th>类型</th><th>相似度</th><th>来源</th>')
-        html.append('</tr></thead>')
-        html.append('<tbody>')
-        
+
+        # 推理链统计
+        if result.reasoning_chain:
+            chain = result.reasoning_chain
+            conf_color = {"high": "#3fb950", "medium": "#d29922", "low": "#f85149"}.get(chain.overall_confidence, "#8b949e")
+            html.append(
+                f'<div style="background:#161b22;border:1px solid #30363d;border-radius:8px;'
+                f'padding:16px;margin:16px 0;">'
+                f'<div style="display:flex;gap:24px;flex-wrap:wrap;">'
+                f'<div><strong style="color:{conf_color};">{chain.fact_count}</strong> <span style="color:#8b949e;">事实</span></div>'
+                f'<div><strong style="color:#d29922;">{chain.inference_count}</strong> <span style="color:#8b949e;">推断</span></div>'
+                f'<div><strong style="color:#f85149;">{chain.assumption_count}</strong> <span style="color:#8b949e;">假设</span></div>'
+                f'<div><strong style="color:#f85149;">{chain.omission_count}</strong> <span style="color:#8b949e;">遗漏</span></div>'
+                f'</div>'
+                f'<div style="font-size:12px;color:#8b949e;margin-top:8px;">'
+                f'证据: 强匹配 {chain.strong_match_count} | 模型声称 {chain.claimed_evidence_count} | '
+                f'无依据 {chain.total_steps - chain.strong_match_count - chain.claimed_evidence_count}'
+                f'</div>'
+                f'<div style="font-size:12px;color:#8b949e;margin-top:4px;">'
+                f'推断模型: {chain.source_model} | 整体置信度: '
+                f'<span style="color:{conf_color};font-weight:700;">{chain.overall_confidence}</span>'
+                f'</div>'
+                f'</div>'
+            )
+
+        # 推理路径（可折叠）
+        if result.reasoning_chain and result.reasoning_chain.steps:
+            html.append('<details style="margin:16px 0;">')
+            html.append(
+                '<summary style="cursor:pointer;padding:10px 16px;background:#161b22;'
+                'border:1px solid #30363d;border-radius:6px;font-size:14px;font-weight:600;'
+                'color:#58a6ff;">推理路径（点击展开）</summary>'
+            )
+
+            type_labels = {"fact": "事实", "inference": "推断", "assumption": "假设", "omission": "遗漏"}
+            type_colors = {"fact": "#3fb950", "inference": "#d29922", "assumption": "#f85149", "omission": "#f85149"}
+            evidence_labels = {"strong_match": "强匹配", "claimed": "模型声称", "none": "无依据"}
+
+            html.append('<div style="padding:8px;">')
+            for step in result.reasoning_chain.steps:
+                color = type_colors.get(step.step_type, "#8b949e")
+                type_label = type_labels.get(step.step_type, step.step_type)
+                ev_label = evidence_labels.get(step.evidence_type, step.evidence_type)
+                conf_bar = {"high": "▓▓▓▓▓", "medium": "▓▓▓░░", "low": "▓░░░░"}.get(step.confidence, "░░░░░")
+
+                html.append(
+                    f'<div style="border-left:3px solid {color};padding:8px 12px;margin:6px 0;'
+                    f'background:rgba(255,255,255,0.02);border-radius:0 4px 4px 0;">'
+                    f'<div style="font-size:13px;">'
+                    f'<span style="color:{color};font-weight:700;">[{type_label}]</span> '
+                    f'{step.content}'
+                    f'</div>'
+                    f'<div style="font-size:11px;color:#8b949e;margin-top:4px;">'
+                    f'依据: {step.evidence[:100]}' + ('...' if len(step.evidence) > 100 else '') + f' '
+                    f'| 证据: {ev_label} '
+                    f'| 置信度: {conf_bar}'
+                    f'</div>'
+                    f'</div>'
+                )
+
+            html.append('</div>')
+            html.append('</details>')
+
+        # 句子级匹配表格
+        html.append('<details style="margin:16px 0;" open>')
+        html.append(
+            '<summary style="cursor:pointer;padding:10px 16px;background:#161b22;'
+            'border:1px solid #30363d;border-radius:6px;font-size:14px;font-weight:600;'
+            'color:#c9d1d9;">句子级匹配</summary>'
+        )
+
+        html.append('<table style="width:100%;border-collapse:collapse;margin:8px 0;">')
+        html.append('<thead><tr style="border-bottom:1px solid #30363d;">')
+        html.append('<th style="text-align:left;padding:8px;font-size:12px;color:#8b949e;">论断</th>')
+        html.append('<th style="text-align:left;padding:8px;font-size:12px;color:#8b949e;">类型</th>')
+        html.append('<th style="text-align:left;padding:8px;font-size:12px;color:#8b949e;">相似度</th>')
+        html.append('<th style="text-align:left;padding:8px;font-size:12px;color:#8b949e;">来源</th>')
+        html.append('</tr></thead><tbody>')
+
         for claim in result.claims:
             type_class = {
-                "确定引用": "match-exact",
-                "推断引用": "match-semantic",
-                "无匹配": "match-none",
+                "确定引用": "color:#3fb950",
+                "推断引用": "color:#d29922",
+                "无匹配": "color:#f85149",
             }.get(claim["match_type"], "")
-            
-            html.append(f'<tr class="{type_class}">')
-            html.append(f'<td>{claim["claim"][:100]}</td>')
-            html.append(f'<td>[{claim["match_type"]}]</td>')
-            html.append(f'<td>{claim["similarity"]:.3f}</td>')
-            html.append(f'<td>{claim["source"][:150]}</td>')
-            html.append('</tr>')
-        
+
+            html.append(
+                f'<tr style="border-bottom:1px solid #30363d;">'
+                f'<td style="padding:8px;font-size:13px;">{claim["claim"][:100]}</td>'
+                f'<td style="padding:8px;font-size:13px;{type_class}">[{claim["match_type"]}]</td>'
+                f'<td style="padding:8px;font-size:13px;">{claim["similarity"]:.3f}</td>'
+                f'<td style="padding:8px;font-size:13px;color:#8b949e;">{claim["source"][:150]}</td>'
+                f'</tr>'
+            )
+
         html.append('</tbody></table>')
+        html.append('</details>')
+
         html.append('</div>')
         return "\n".join(html)
 
@@ -462,34 +894,45 @@ async def trace_file(
     claim: Optional[str] = None,
     source_file: Optional[str] = None,
     format_type: str = "text",
+    trace_type: str = "sentence",
+    model_name: str = "unknown",
 ) -> str:
     """
     对文件执行溯源追踪
-    
+
     Args:
         file_path: 待追踪的文件路径
         claim: 特定论断（可选）
         source_file: 原始来源文件路径（可选）
         format_type: 输出格式
-        
+        trace_type: "sentence"（句子级）或 "external"（推理链推断）
+        model_name: 被审查的 AI 模型名
+
     Returns:
         格式化结果
     """
     path = Path(file_path)
     if not path.exists():
         raise FileNotFoundError(f"文件不存在: {file_path}")
-    
+
     output_text = path.read_text(encoding="utf-8")
-    
+
     source_text = None
     if source_file:
         src_path = Path(source_file)
         if src_path.exists():
             source_text = src_path.read_text(encoding="utf-8")
-    
+
     engine = TraceEngine()
-    
-    if claim:
+
+    if trace_type == "external":
+        # V2.2 External Trace
+        result = engine.trace_reasoning(
+            output_text=output_text,
+            source_text=source_text,
+            model_name=model_name,
+        )
+    elif claim:
         result = engine.trace_single_claim(
             output_text=output_text,
             claim=claim,
@@ -500,7 +943,7 @@ async def trace_file(
             output_text=output_text,
             source_text=source_text,
         )
-    
+
     return engine.format_result(result, format_type)
 
 

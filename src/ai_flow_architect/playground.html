@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Flow Architect — Audit Playground</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0d1117; --surface: #161b22; --border: #30363d;
+    --text: #c9d1d9; --text2: #8b949e; --accent: #58a6ff;
+    --red: #f85149; --yellow: #d29922; --green: #3fb950;
+    --purple: #bc8cff;
+  }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 24px 20px; }
+
+  header { border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 24px; }
+  header h1 { font-size: 22px; font-weight: 700; }
+  header p { color: var(--text2); font-size: 14px; margin-top: 6px; }
+
+  /* 编辑器 */
+  .editor-section { margin-bottom: 16px; }
+  .editor-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .editor-header label { font-size: 13px; font-weight: 600; color: var(--text2); }
+  .editor-actions { display: flex; gap: 8px; }
+  .editor-actions button {
+    background: var(--surface); border: 1px solid var(--border); color: var(--text2);
+    padding: 4px 12px; border-radius: 6px; font-size: 12px; cursor: pointer;
+  }
+  .editor-actions button:hover { border-color: var(--accent); color: var(--text); }
+
+  textarea {
+    width: 100%; height: 300px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px; font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+    font-size: 13px; line-height: 1.6; color: var(--text); resize: vertical; tab-size: 4;
+  }
+  textarea:focus { outline: none; border-color: var(--accent); }
+
+  /* API Key 输入 */
+  .key-section {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 12px;
+  }
+  .key-section label { font-size: 13px; font-weight: 600; color: var(--text2); white-space: nowrap; }
+  .key-section input {
+    flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 12px; font-family: monospace; font-size: 13px; color: var(--text);
+  }
+  .key-section input:focus { outline: none; border-color: var(--accent); }
+  .key-hint { font-size: 11px; color: var(--text2); }
+  .key-hint a { color: var(--accent); text-decoration: none; }
+
+  /* 按钮 */
+  .run-btn {
+    width: 100%; padding: 14px; background: var(--accent); color: #fff; border: none;
+    border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .run-btn:hover { opacity: 0.9; }
+  .run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .run-btn.running { background: var(--yellow); }
+
+  /* 模式选择 */
+  .mode-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .mode-tab {
+    flex: 1; padding: 10px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; text-align: center; cursor: pointer; font-size: 13px; font-weight: 600;
+    transition: border-color 0.15s;
+  }
+  .mode-tab:hover { border-color: var(--accent); }
+  .mode-tab.active { border-color: var(--accent); background: rgba(88,166,255,0.1); }
+  .mode-tab .mode-name { display: block; }
+  .mode-tab .mode-desc { font-size: 11px; color: var(--text2); margin-top: 2px; font-weight: 400; }
+
+  /* 结果 */
+  .results { margin-top: 24px; display: none; }
+  .results.show { display: block; }
+
+  .result-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: 12px; border-bottom: 1px solid var(--border); margin-bottom: 16px;
+  }
+  .result-header h2 { font-size: 16px; }
+  .result-stats { display: flex; gap: 16px; }
+  .stat { text-align: center; }
+  .stat-num { font-size: 28px; font-weight: 900; font-family: monospace; }
+  .stat-label { font-size: 11px; color: var(--text2); }
+
+  /* 统计卡片 */
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 16px; text-align: center;
+  }
+  .stat-card .num { font-size: 32px; font-weight: 900; font-family: monospace; }
+  .stat-card .label { font-size: 12px; color: var(--text2); margin-top: 4px; }
+
+  /* 发现列表 */
+  .finding {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 16px; margin-bottom: 12px; border-left: 4px solid var(--red);
+  }
+  .finding.high { border-left-color: var(--yellow); }
+  .finding.medium { border-left-color: var(--green); }
+  .finding-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .finding-title { font-weight: 700; font-size: 14px; }
+  .finding-badge {
+    display: inline-block; padding: 2px 10px; border-radius: 12px;
+    font-size: 11px; font-weight: 700;
+  }
+  .badge-critical { background: rgba(248,81,73,0.15); color: var(--red); }
+  .badge-high { background: rgba(210,153,34,0.15); color: var(--yellow); }
+  .badge-medium { background: rgba(63,185,80,0.15); color: var(--green); }
+  .finding-detail { font-size: 13px; color: var(--text2); line-height: 1.6; }
+  .finding-detail code {
+    background: var(--bg); padding: 1px 6px; border-radius: 4px;
+    font-family: monospace; font-size: 12px; color: var(--accent);
+  }
+
+  /* Cross-examine 结果 */
+  .xresult { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+  .xresult-header { font-weight: 700; margin-bottom: 8px; }
+  .xresult-line { font-size: 13px; color: var(--text2); padding: 4px 0; border-bottom: 1px solid var(--border); }
+  .xresult-line:last-child { border-bottom: none; }
+  .label-confirmed { color: var(--green); }
+  .label-disputed { color: var(--yellow); }
+  .label-blind { color: var(--red); }
+
+  /* 加载动画 */
+  .loading { text-align: center; padding: 40px; display: none; }
+  .loading.show { display: block; }
+  .spinner {
+    width: 36px; height: 36px; border: 3px solid var(--border);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin 0.8s linear infinite; margin: 0 auto 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-size: 14px; color: var(--text2); }
+
+  footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text2); text-align: center; }
+  footer a { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>AI Flow Architect — Audit Playground</h1>
+    <p>粘贴代码，选择模式，点击运行。本地执行，代码不上传。</p>
+  </header>
+
+  <!-- 模式选择 -->
+  <div class="mode-tabs">
+    <div class="mode-tab active" data-mode="attack" onclick="selectMode('attack')">
+      <span class="mode-name">⚔️ Attack</span>
+      <span class="mode-desc">50条策略本地攻击 · 不需要API Key</span>
+    </div>
+    <div class="mode-tab" data-mode="cross-examine" onclick="selectMode('cross-examine')">
+      <span class="mode-name">🔍 Cross-Examine</span>
+      <span class="mode-desc">两个AI交叉审查 · 需要API Key</span>
+    </div>
+  </div>
+
+  <!-- API Key（仅 cross-examine 模式显示） -->
+  <div class="key-section" id="keySection" style="display:none;">
+    <label>API Key</label>
+    <input type="password" id="apiKey" placeholder="sk-xxx（OpenAI / Anthropic / MiMo / NVIDIA）">
+    <span class="key-hint">本地使用，不上传</span>
+  </div>
+
+  <!-- 代码编辑器 -->
+  <div class="editor-section">
+    <div class="editor-header">
+      <label>目标代码</label>
+      <div class="editor-actions">
+        <button onclick="loadExample()">加载示例</button>
+        <button onclick="clearEditor()">清空</button>
+      </div>
+    </div>
+    <textarea id="codeInput" placeholder="粘贴你的代码到这里...&#10;&#10;支持 Python、JavaScript、PHP、Java、SQL 等语言。&#10;点击「加载示例」查看带漏洞的示例代码。"></textarea>
+  </div>
+
+  <!-- 运行按钮 -->
+  <button class="run-btn" id="runBtn" onclick="runAudit()">▶ 运行审查</button>
+
+  <!-- 加载动画 -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loadingText">正在分析...</div>
+  </div>
+
+  <!-- 结果 -->
+  <div class="results" id="results"></div>
+
+  <footer>
+    AI Flow Architect · 开源在 <a href="https://github.com/wdnmd1265/ai-flow-architect" target="_blank">GitHub</a>
+    · 本地运行，代码不离开你的电脑
+  </footer>
+</div>
+
+<script>
+var currentMode = 'attack';
+
+function selectMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-tab').forEach(function(t) {
+    t.classList.toggle('active', t.dataset.mode === mode);
+  });
+  document.getElementById('keySection').style.display = mode === 'cross-examine' ? 'flex' : 'none';
+}
+
+function loadExample() {
+  document.getElementById('codeInput').value =
+    'def login(username, password):\n' +
+    '    query = "SELECT * FROM users WHERE name=\'" + username + "\'"\n' +
+    '    query += " AND password=\'" + password + "\'"\n' +
+    '    return db.execute(query)\n' +
+    '\n' +
+    'def render_comment(text):\n' +
+    '    return f"<div>{text}</div>"\n' +
+    '\n' +
+    'API_KEY = "sk-proj-abc123def456"\n' +
+    'SECRET = "hardcoded_password_123"\n' +
+    '\n' +
+    'import hashlib\n' +
+    'def hash_password(pwd):\n' +
+    '    return hashlib.md5(pwd.encode()).hexdigest()\n' +
+    '\n' +
+    'import os\n' +
+    'def run_cmd(user_input):\n' +
+    '    os.system("ls " + user_input)\n';
+}
+
+function clearEditor() {
+  document.getElementById('codeInput').value = '';
+  document.getElementById('results').classList.remove('show');
+  document.getElementById('results').innerHTML = '';
+}
+
+async function runAudit() {
+  var code = document.getElementById('codeInput').value.trim();
+  if (!code) { alert('请先粘贴代码'); return; }
+
+  var btn = document.getElementById('runBtn');
+  var loading = document.getElementById('loading');
+  var results = document.getElementById('results');
+
+  btn.disabled = true;
+  btn.textContent = '分析中...';
+  btn.classList.add('running');
+  loading.classList.add('show');
+  results.classList.remove('show');
+
+  try {
+    var body = { code: code, mode: currentMode };
+    if (currentMode === 'cross-examine') {
+      body.api_key = document.getElementById('apiKey').value.trim();
+      if (!body.api_key) { throw new Error('Cross-Examine 模式需要 API Key'); }
+    }
+
+    var resp = await fetch('/api/audit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (!resp.ok) {
+      var err = await resp.json();
+      throw new Error(err.detail || '请求失败');
+    }
+
+    var data = await resp.json();
+    renderResults(data);
+  } catch (e) {
+    results.innerHTML = '<div style="color:var(--red);padding:20px;text-align:center;">错误：' + e.message + '</div>';
+    results.classList.add('show');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '▶ 运行审查';
+    btn.classList.remove('running');
+    loading.classList.remove('show');
+  }
+}
+
+function renderResults(data) {
+  var results = document.getElementById('results');
+
+  if (data.mode === 'attack') {
+    renderAttackResults(data, results);
+  } else {
+    renderCrossResults(data, results);
+  }
+
+  results.classList.add('show');
+}
+
+function renderAttackResults(data, el) {
+  var html = '';
+
+  // 统计卡片
+  html += '<div class="stats-row">';
+  html += '<div class="stat-card"><div class="num" style="color:var(--red)">' + data.triggered + '</div><div class="label">命中</div></div>';
+  html += '<div class="stat-card"><div class="num" style="color:var(--text2)">' + data.missed + '</div><div class="label">未触发</div></div>';
+  html += '<div class="stat-card"><div class="num" style="color:var(--yellow)">' + data.dangerous_blocked + '</div><div class="label">危险拒绝</div></div>';
+  html += '<div class="stat-card"><div class="num" style="color:var(--accent)">' + data.total + '</div><div class="label">总策略</div></div>';
+  html += '</div>';
+
+  // 命中列表
+  if (data.findings && data.findings.length > 0) {
+    html += '<h3 style="font-size:14px;margin-bottom:12px;color:var(--text2);">触发的攻击策略</h3>';
+    data.findings.forEach(function(f) {
+      var sevClass = f.severity === 'critical' ? 'critical' : (f.severity === 'high' ? 'high' : 'medium');
+      html += '<div class="finding ' + sevClass + '">';
+      html += '<div class="finding-header">';
+      html += '<span class="finding-title">' + f.strategy_id + '</span>';
+      html += '<span class="finding-badge badge-' + sevClass + '">' + f.severity.toUpperCase() + '</span>';
+      html += '</div>';
+      html += '<div class="finding-detail">';
+      html += '类别：' + f.category + '<br>';
+      html += '载荷：<code>' + escapeHtml(f.payload) + '</code><br>';
+      html += '检测：' + escapeHtml(f.detected);
+      html += '</div></div>';
+    });
+  }
+
+  // 诚实标注
+  if (data.missed_details && data.missed_details.length > 0) {
+    html += '<h3 style="font-size:14px;margin:20px 0 12px;color:var(--text2);">未触发的策略（诚实标注）</h3>';
+    data.missed_details.forEach(function(m) {
+      html += '<div style="font-size:13px;color:var(--text2);padding:6px 0;border-bottom:1px solid var(--border);">';
+      html += '✗ ' + m.strategy_id + ' <span style="color:var(--text2);font-size:11px;">(' + m.category + ')</span>';
+      html += '</div>';
+    });
+  }
+
+  el.innerHTML = html;
+}
+
+function renderCrossResults(data, el) {
+  var html = '';
+
+  // 统计
+  html += '<div class="stats-row">';
+  html += '<div class="stat-card"><div class="num" style="color:var(--green)">' + data.confirmed + '</div><div class="label">一致</div></div>';
+  html += '<div class="stat-card"><div class="num" style="color:var(--yellow)">' + data.disputed + '</div><div class="label">分歧</div></div>';
+  html += '<div class="stat-card"><div class="num" style="color:var(--red)">' + data.blind_spots + '</div><div class="label">盲区</div></div>';
+  html += '<div class="stat-card"><div class="num" style="color:var(--accent)">' + data.confidence + '</div><div class="label">置信度</div></div>';
+  html += '</div>';
+
+  // 差异列表
+  if (data.diffs && data.diffs.length > 0) {
+    html += '<h3 style="font-size:14px;margin-bottom:12px;color:var(--text2);">句子级差异分析</h3>';
+    data.diffs.forEach(function(d) {
+      var labelClass = d.label === 'CONFIRMED' ? 'label-confirmed' : (d.label === 'DISPUTED' ? 'label-disputed' : 'label-blind');
+      html += '<div class="xresult">';
+      html += '<div class="xresult-header"><span class="' + labelClass + '">[' + d.label + ']</span> ' + escapeHtml(d.sentence) + '</div>';
+      html += '<div class="xresult-line">BrainOne: ' + escapeHtml(d.brain1_opinion || '-') + '</div>';
+      html += '<div class="xresult-line">BrainTwo: ' + escapeHtml(d.brain2_opinion || '-') + '</div>';
+      html += '</div>';
+    });
+  }
+
+  el.innerHTML = html;
+}
+
+function escapeHtml(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

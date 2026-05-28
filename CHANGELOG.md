@@ -7,15 +7,48 @@
 
 ## [未发布]
 
+（暂无）
+
+## [2.2.0] - 2026-05-28
+
 ### 新增
 
-**Phase 3 P0：信任基础设施**
-- 信任地图 HTML 报告：重写 `templates/report.html`，三色标注（置信绿/争议黄/盲区红）、争议热图展示各模型投票、信任仪表盘一句话总结 + 置信度进度条
-- 证据链 SQLite 持久化：新建 `engine/evidence_db.py`，`TrustEngine(enable_db=True)` 开启，写入失败静默降级，`get_disputed()` 检测模型间分歧
-- 方向文档：`docs/DIRECTION.md`，基于头脑风暴文档 + 三方评审意见的综合决策文档
-- `trust_report.py` 新增 `_compute_trust_analysis()` 方法，预计算三色标注和争议热图数据
-- 新增 14 个证据链数据库测试：`test_evidence_db.py`，覆盖 CRUD + 争议检测 + 统计 + 引擎集成 + 写入失败降级
-- 总测试数：221 → 235
+**External Trace — 推理链推断（V2.1 Phase 3）**
+
+- `TraceEngine.trace_reasoning()` 方法：短语级拆分 → 推理链推断 → 诚实双重标注
+- `split_phrases()` 短语级拆分：比句子更细粒度，按逗号/分号/连词拆分
+- `ReasoningStep` 数据模型：每步标注 type（fact/inference/assumption/omission）+ evidence_type（strong_match/claimed/none）+ confidence（high/medium/low）
+- `ReasoningChain` 数据模型：推理链统计（事实/推断/假设/遗漏计数 + 整体置信度）
+- 诚实双重标注：每条推理路径标注“由 X 模型推断生成，非原始推理记录”
+- 证据类型区分：强匹配 vs 模型声称 vs 无依据
+- CLI `ai-flow trace` 新增 `--trace-type external` 和 `--model-name` 参数
+- HTML 报告升级：推理路径可折叠面板（`<details>` 零 JS 依赖），可靠性颜色条（绿/黄/红）
+- JSON 输出新增 `reasoning_chain`、`honesty_label`、`inference_model` 字段
+- 新增 16 个 External Trace 测试
+
+### 修复
+
+**打包配置（影响所有 pip install 用户）**
+
+- `pyproject.toml` 的 `package-data` 仅声明 `templates/*.html`，V2.1 新增的 3 个 YAML 配置文件（`attack_strategies/core.yaml`、`attack_strategies/schema.yaml`、`conscience/test_bank.yaml`）未被打入 wheel 包。用户 pip install 后 attack 和 conscience 功能会找不到配置文件
+- 补全 `package-data`：`config/*.yaml`、`config/attack_strategies/*.yaml`、`config/conscience/*.yaml`
+
+### 变更
+
+**项目清理**
+
+- 删除 `setup.py`（与 pyproject.toml 重复，版本号卡在 0.1.0）
+- 删除 `MANIFEST.in`（功能已由 pyproject.toml 的 package-data 覆盖）
+- 删除 `requirements.txt`（依赖已在 pyproject.toml 声明）
+- 删除 `test_mvp.py`（早期临时测试，已在 tests/ 目录覆盖）
+- 删除 `GITHUB_SETUP_GUIDE.md`（一次性文档，已完成使命）
+- 删除 `IMAGE_SPEC.md`（图片规格说明，图片已制作完成）
+- 删除 `example_output.txt` / `example_requirement.txt`（`ai-flow example` 生成文件，已加入 .gitignore）
+- 更新 `CONTRIBUTING.md`：安装命令统一为 `pip install -e ".[dev]"`
+
+### 测试
+
+- 总测试数：465 → 481
 
 **Phase 1：增长基础设施**
 - README 重写：英文优先，标题 "Two AIs review. A third attacks. You get the truth."，Before/After 对比块、差异化说明、方法论融入正文

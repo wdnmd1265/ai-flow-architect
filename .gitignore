@@ -181,3 +181,5 @@ results/
 .env.local
 .env.production
 .env.staging
+example_output.txt
+example_requirement.txt

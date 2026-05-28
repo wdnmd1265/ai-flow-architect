@@ -115,10 +115,7 @@ Closes #123
 ### 依赖安装
 
 ```bash
-# 安装主依赖
-pip install -r requirements.txt
-
-# 安装开发依赖
+# 安装（含开发依赖）
 pip install -e ".[dev]"
 ```
 

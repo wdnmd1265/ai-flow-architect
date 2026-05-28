@@ -18,6 +18,7 @@ from .trust_engine import TrustEngine
 from .evidence_db import EvidenceDB, MistakeAnalyzer
 from .complexity_router import ComplexityRouter, RouteDecision
 from .local_checker import LocalChecker, LocalCheckResult, LocalFinding
+from .arsenal_trace import TraceEngine, TraceConfig, TraceResult, ReasoningStep, ReasoningChain
 
 __all__ = [
     "TrustEngine",
@@ -35,4 +36,9 @@ __all__ = [
     "LocalChecker",
     "LocalCheckResult",
     "LocalFinding",
+    "TraceEngine",
+    "TraceConfig",
+    "TraceResult",
+    "ReasoningStep",
+    "ReasoningChain",
 ]

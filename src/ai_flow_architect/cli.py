@@ -581,7 +581,8 @@ def _do_attack(args):
 def _do_trace(args):
     """执行溯源追踪。"""
     import asyncio
-    from .engine.arsenal_trace import trace_file
+    from .engine.arsenal_trace import trace_file, TraceEngine
+    from pathlib import Path
 
     async def _run():
         return await trace_file(
@@ -589,6 +590,8 @@ def _do_trace(args):
             claim=args.claim,
             source_file=args.source,
             format_type=args.format,
+            trace_type=args.trace_type,
+            model_name=args.model_name,
         )
 
     try:
@@ -1063,6 +1066,17 @@ def main():
     p_trace.add_argument(
         "--source", "-s",
         help="原始来源文件路径（可选）"
+    )
+    p_trace.add_argument(
+        "--trace-type",
+        choices=["sentence", "external"],
+        default="sentence",
+        help="追踪模式：sentence=句子级匹配（默认），external=推理链推断（V2.2）"
+    )
+    p_trace.add_argument(
+        "--model-name",
+        default="unknown",
+        help="被审查的 AI 模型名（用于诚实标注）"
     )
     p_trace.add_argument(
         "--format",
