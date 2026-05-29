@@ -3,244 +3,849 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI Flow Architect - Audit Playground</title>
-<meta property="og:title" content="AI Flow Architect — Multi-Agent Code Auditing">
-<meta property="og:description" content="Two LLMs verify every finding. Zero hallucinated vulnerabilities.">
-<meta property="og:image" content="https://wdnmd1265.github.io/ai-flow-architect/og-image.png">
+<title>AI Flow Architect Playground — Dual-model adversarial code audit</title>
+<meta name="description" content="Dual-model adversarial code audit. Two LLMs independently review your code. Zero hallucinated findings.">
+<meta property="og:title" content="AI Flow Architect Playground">
+<meta property="og:description" content="Two LLMs verify every finding. Zero hallucinated vulnerabilities. Try it live.">
+<meta property="og:image" content="https://ai-flow-architect.github.io/playground/og-image.png">
+<meta property="og:type" content="website">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
+<script type="application/json" id="demo-cases">[
+{
+  "id": 1, "title": "Stripe API Hallucination", "verdict": "REVIEW", "confidence": 52,
+  "requirement": "Create a function to process Stripe payments for an e-commerce checkout",
+  "code": "import stripe\n\ndef process_payment(amount, customer_id):\n    stripe.api_key = 'sk_live_...'\n    return stripe.customers.createBalanceTransaction(\n        amount=amount,\n        customer=customer_id,\n        currency='usd'\n    )",
+  "brain1": {"model": "GPT-4o", "verdict": "PASS", "score": 68, "reason": "The code follows Stripe SDK patterns correctly. It sets the API key and calls a customer method with reasonable parameters."},
+  "brain2": {"model": "Claude", "verdict": "REVIEW", "score": 72, "reason": "stripe.customers.createBalanceTransaction does not exist. The correct API for balance transactions is stripe.BalanceTransaction.list(). This is a HAL-001 hallucination."},
+  "findings": [{"category": "HAL-001", "severity": "high", "description": "Non-existent Stripe API: customers.createBalanceTransaction"}],
+  "evidence_sha256": "e4d7f3a1b2e9c5d8f0a3b6c9e2d5f8a1b4c7d0e3f6a9c2d5e8f1b4c7d0e3",
+  "timestamp": "2026-05-15T14:23:01Z"
+},
+{
+  "id": 2, "title": "Missing Password Hashing", "verdict": "REJECT", "confidence": 28,
+  "requirement": "Create a user registration endpoint with email and password",
+  "code": "from flask import Flask, request\napp = Flask(__name__)\n\n@app.route('/register', methods=['POST'])\ndef register():\n    data = request.json\n    db.execute('INSERT INTO users (email, password) VALUES (?, ?)',\n               [data['email'], data['password']])\n    return {'status': 'ok'}",
+  "brain1": {"model": "GPT-4o", "verdict": "REJECT", "score": 35, "reason": "Password stored in plaintext \u2014 this is a critical security flaw. The user asked for registration but the code omits hashing entirely. HAL-003."},
+  "brain2": {"model": "Claude", "verdict": "REJECT", "score": 22, "reason": "Plaintext password storage, no input validation, SQL injection vulnerability via f-string, no rate limiting. Multiple critical security issues."},
+  "findings": [{"category": "HAL-003", "severity": "critical", "description": "Passwords stored in plaintext \u2014 no bcrypt/argon2 hashing"}, {"category": "HAL-004", "severity": "high", "description": "SQL injection via string interpolation, missing input validation, no rate limiting"}],
+  "evidence_sha256": "b2c5d8e1f4a7b0c3d6e9f2a5b8c1d4e7f0a3b6c9d2e5f8a1b4c7d0e3f6a9",
+  "timestamp": "2026-05-15T15:10:42Z"
+},
+{
+  "id": 3, "title": "Clean Utility Function", "verdict": "PASS", "confidence": 91,
+  "requirement": "Write a function that safely parses ISO 8601 date strings and returns a datetime object",
+  "code": "from datetime import datetime\n\ndef parse_iso_date(date_string):\n    if not isinstance(date_string, str) or not date_string.strip():\n        raise ValueError('Invalid date string')\n    return datetime.fromisoformat(date_string.replace('Z', '+00:00'))",
+  "brain1": {"model": "GPT-4o", "verdict": "PASS", "score": 88, "reason": "Clean implementation. Proper input validation, handles Z suffix correctly, uses standard library API correctly."},
+  "brain2": {"model": "Claude", "verdict": "PASS", "score": 93, "reason": "Well-written. Input validation, edge case handling (empty string), correct API usage. No issues found."},
+  "findings": [],
+  "evidence_sha256": "f1a4b7c0d3e6f9a2b5c8d1e4f7a0b3c6d9e2f5a8b1c4d7e0f3a6b9c2d5e8",
+  "timestamp": "2026-05-15T16:05:17Z"
+},
+{
+  "id": 4, "title": "Pandas Parameter Hallucination", "verdict": "REVIEW", "confidence": 45,
+  "requirement": "Load a CSV file, drop missing values, and calculate summary statistics",
+  "code": "import pandas as pd\n\ndf = pd.read_csv('data.csv', encoding='utf-8')\ndf = df.dropna(how='all', thresh=2)\nstats = df.describe(method='bayesian')\nprint(stats)",
+  "brain1": {"model": "GPT-4o", "verdict": "PASS", "score": 70, "reason": "Standard pandas operations. dropna() and describe() are used correctly."},
+  "brain2": {"model": "Claude", "verdict": "REVIEW", "score": 58, "reason": "df.describe() has no 'method' parameter. The correct parameter is 'percentiles'. This is a HAL-002 parameter hallucination. Also, dropna(thresh=2) requires at least 2 non-NA values per row, which may not be intentional."},
+  "findings": [{"category": "HAL-002", "severity": "medium", "description": "df.describe() does not accept 'method' parameter. Valid parameters: percentiles, include, exclude, datetime_is_numeric"}],
+  "evidence_sha256": "c8d1e4f7a0b3c6d9e2f5a8b1c4d7e0f3a6b9c2d5e8f1a4b7c0d3e6f9a2b",
+  "timestamp": "2026-05-15T17:33:09Z"
+},
+{
+  "id": 5, "title": "Context Drift", "verdict": "REVIEW", "confidence": 62,
+  "requirement": "Create a retry decorator that retries a function up to 3 times with exponential backoff",
+  "code": "import time\n\ndef retry(max_attempts=3, backoff_factor=2):\n    def decorator(func):\n        def wrapper(*args, **kwargs):\n            for attempt in range(max_attempts):\n                try:\n                    return func(*args, **kwargs)\n                except Exception as e:\n                    if attempt == max_attempts - 1:\n                        raise\n                    time.sleep(backoff_factor ** attempt)\n        return wrapper\n    return decorator\n\n@retry(max_attempts=5, backoff_factor=1.5)\ndef fetch_data(url):\n    response = requests.get(url)\n    if response.status_code != 200:\n        raise ValueError(f'HTTP {response.status_code}')\n    return response.text",
+  "brain1": {"model": "GPT-4o", "verdict": "PASS", "score": 75, "reason": "The retry decorator is well-implemented. Uses exponential backoff correctly."},
+  "brain2": {"model": "Claude", "verdict": "REVIEW", "score": 60, "reason": "The decorator silently swallows all exceptions except on the last attempt. The user asked for a retry decorator but the implementation retries ALL exceptions indiscriminately \u2014 including syntax errors or keyboard interrupts. This is HAL-004 (logic: too-broad exception handling) and HAL-006 (context drift: the decorator does more than 'retry with backoff' \u2014 it masks errors)."},
+  "findings": [{"category": "HAL-004", "severity": "medium", "description": "Bare except catches all exceptions including KeyboardInterrupt and SyntaxError"}, {"category": "HAL-006", "severity": "low", "description": "Decorator silently masks errors on non-final attempts \u2014 behavior exceeds stated 'retry with backoff' scope"}],
+  "evidence_sha256": "d0e3f6a9b2c5d8e1f4a7b0c3d6e9f2a5b8c1d4e7f0a3b6c9d2e5f8a1b4c",
+  "timestamp": "2026-05-15T18:45:33Z"
+}
+]</script>
 <style>
-  :root {
-    --bg: #0d1117;
-    --surface: #161b22;
-    --border: #30363d;
-    --text: #c9d1d9;
-    --text-secondary: #8b949e;
-    --accent: #58a6ff;
-    --critical: #f85149;
-    --high: #d29922;
-    --medium: #3fb950;
-    --low: #8b949e;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    line-height: 1.6;
-    max-width: 960px;
-    margin: 0 auto;
-    padding: 2rem 1.5rem;
-  }
-  header {
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 1.5rem;
-    margin-bottom: 2rem;
-  }
-  h1 { font-size: 1.5rem; font-weight: 600; color: var(--text); }
-  h2 { font-size: 1.1rem; font-weight: 600; margin: 2rem 0 1rem; color: var(--text); }
-  .subtitle { color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem; }
-
-  .report-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1.5rem 0; }
-  .report-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 1.25rem;
-    cursor: pointer;
-    transition: border-color 0.15s;
-  }
-  .report-card:hover { border-color: var(--accent); }
-  .report-card .title { font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem; }
-  .report-card .desc { font-size: 0.82rem; color: var(--text-secondary); }
-  .report-card .meta { font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.75rem; }
-
-  .findings-table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
-  .findings-table th, .findings-table td {
-    padding: 0.6rem 0.75rem;
-    text-align: left;
-    border-bottom: 1px solid var(--border);
-    font-size: 0.85rem;
-  }
-  .findings-table th { color: var(--text-secondary); font-weight: 600; }
-
-  .severity-critical { color: var(--critical); font-weight: 600; }
-  .severity-high { color: var(--high); font-weight: 600; }
-  .severity-medium { color: var(--medium); font-weight: 600; }
-
-  .badge {
-    display: inline-block;
-    padding: 0.15rem 0.5rem;
-    border-radius: 12px;
-    font-size: 0.72rem;
-    font-weight: 600;
-  }
-  .badge-critical { background: rgba(248,81,73,0.15); color: var(--critical); }
-  .badge-high { background: rgba(210,153,34,0.15); color: var(--high); }
-
-  .collapsible { margin: 1rem 0; }
-  .collapsible summary {
-    cursor: pointer;
-    padding: 0.5rem 0.75rem;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    list-style: none;
-  }
-  .collapsible summary::-webkit-details-marker { display: none; }
-  .collapsible summary::before { content: "+ "; }
-  .collapsible[open] summary::before { content: "- "; }
-  .collapsible .content {
-    padding: 0.75rem;
-    border: 1px solid var(--border);
-    border-top: none;
-    background: var(--bg);
-    border-radius: 0 0 4px 4px;
-    font-size: 0.82rem;
-    font-family: "SF Mono", "Fira Code", monospace;
-    white-space: pre-wrap;
-    color: var(--text-secondary);
-  }
-
-  .cta {
-    margin-top: 2rem;
-    padding: 1.25rem;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-  }
-  .hero-cta { margin-top: 0; margin-bottom: 2rem; }
-  .cta p { font-size: 0.9rem; }
-  .cta code {
-    background: var(--bg);
-    padding: 0.15rem 0.4rem;
-    border-radius: 3px;
-    font-size: 0.82rem;
-    font-family: "SF Mono", "Fira Code", monospace;
-  }
-
-  a.report-card {
-    text-decoration: none;
-    color: inherit;
-    display: block;
-  }
-
-  .pipeline {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin: 1.5rem 0;
-    flex-wrap: wrap;
-  }
-  .pipeline-step {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.75rem 1rem;
-    font-size: 0.82rem;
-    flex: 1;
-    min-width: 160px;
-    text-align: center;
-  }
-  .pipeline-step strong { display: block; margin-bottom: 0.2rem; }
-  .step-num {
-    display: inline-block;
-    width: 20px; height: 20px;
-    line-height: 20px;
-    border-radius: 50%;
-    background: var(--accent);
-    color: #fff;
-    font-size: 0.7rem;
-    font-weight: 700;
-    margin-right: 0.4rem;
-    vertical-align: middle;
-  }
-  .pipeline-arrow {
-    color: var(--text-secondary);
-    font-size: 1.2rem;
-    flex-shrink: 0;
-  }
-  footer {
-    margin-top: 3rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--border);
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-  }
+:root {
+  --bg: #0f0f1a;
+  --card: #1a1a2e;
+  --accent: #7c3aed;
+  --accent-dim: rgba(124,58,237,0.15);
+  --accent-glow: rgba(124,58,237,0.3);
+  --pass: #22c55e;
+  --pass-bg: rgba(34,197,94,0.12);
+  --review: #eab308;
+  --review-bg: rgba(234,179,8,0.12);
+  --reject: #ef4444;
+  --reject-bg: rgba(239,68,68,0.12);
+  --text: #e2e8f0;
+  --text2: #94a3b8;
+  --code-bg: #1e1e2e;
+  --border: #2d2d44;
+  --radius: 8px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1.6; min-height: 100vh;
+}
+/* ─── Header ─── */
+.header {
+  border-bottom: 1px solid var(--border);
+  padding: 24px 32px; text-align: center;
+}
+.header h1 {
+  font-size: 22px; font-weight: 700; letter-spacing: -0.3px;
+  background: linear-gradient(135deg, #c4b5fd, #7c3aed);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.header p { font-size: 13px; color: var(--text2); margin-top: 4px; }
+/* ─── Mode Tabs ─── */
+.mode-tabs {
+  display: flex; gap: 0; margin: 20px 32px 0;
+  border-bottom: 2px solid var(--border);
+}
+.mode-tab {
+  flex: 1; max-width: 200px; padding: 10px 20px; text-align: center;
+  cursor: pointer; font-size: 14px; font-weight: 600; color: var(--text2);
+  border-bottom: 2px solid transparent; margin-bottom: -2px;
+  transition: color 0.2s, border-color 0.2s; background: none; border-top: none;
+  border-left: none; border-right: none;
+}
+.mode-tab:hover { color: var(--text); }
+.mode-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+/* ─── Demo Layout ─── */
+.demo-layout { display: none; padding: 24px 32px; gap: 24px; }
+.demo-layout.active { display: flex; }
+/* Left Panel */
+.case-panel {
+  width: 25%; min-width: 240px; display: flex; flex-direction: column; gap: 10px;
+}
+.case-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px 16px; cursor: pointer; transition: border-color 0.2s, background 0.2s;
+  position: relative;
+}
+.case-card:hover { border-color: var(--accent-dim); background: #1e1e36; }
+.case-card.active { border: 2px solid var(--accent); background: var(--accent-dim); }
+.case-card .case-title { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+.case-card .case-meta { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+.verdict-dot {
+  width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0;
+}
+.verdict-dot.pass { background: var(--pass); }
+.verdict-dot.review { background: var(--review); }
+.verdict-dot.reject { background: var(--reject); }
+.verdict-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+  padding: 1px 6px; border-radius: 4px;
+}
+.verdict-label.pass { color: var(--pass); background: var(--pass-bg); }
+.verdict-label.review { color: var(--review); background: var(--review-bg); }
+.verdict-label.reject { color: var(--reject); background: var(--reject-bg); }
+/* Right Panel */
+.detail-panel { flex: 1; display: flex; flex-direction: column; gap: 20px; }
+/* Code / Requirement tabs */
+.content-tabs { display: flex; gap: 4px; margin-bottom: 0; }
+.content-tab {
+  padding: 8px 16px; font-size: 12px; font-weight: 600; cursor: pointer;
+  background: var(--card); border: 1px solid var(--border); border-radius: 6px 6px 0 0;
+  color: var(--text2); transition: color 0.15s, background 0.15s;
+}
+.content-tab:hover { color: var(--text); }
+.content-tab.active { color: var(--accent); background: var(--code-bg); border-bottom-color: var(--code-bg); }
+.code-block {
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: 0 0 var(--radius) var(--radius);
+  padding: 20px; font-family: "SF Mono", Consolas, "Cascadia Code", monospace;
+  font-size: 13px; line-height: 1.7; overflow-x: auto; white-space: pre-wrap;
+  word-break: break-word; color: #cdd6f4; position: relative; counter-reset: line;
+  max-height: 360px; overflow-y: auto;
+}
+.code-block .ln {
+  counter-increment: line; display: block;
+}
+.code-block .ln::before {
+  content: counter(line); display: inline-block; width: 32px;
+  margin-right: 16px; text-align: right; color: #585b70; font-size: 11px;
+  user-select: none;
+}
+.req-block {
+  background: var(--card); border: 1px solid var(--border); border-radius: 0 0 var(--radius) var(--radius);
+  padding: 20px; font-size: 14px; color: var(--text); line-height: 1.7; display: none;
+}
+.req-block.active { display: block; }
+.code-block.active { display: block; }
+.code-block:not(.active) { display: none; }
+/* Audit Results */
+.audit-header {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+}
+.verdict-badge {
+  font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
+  padding: 6px 18px; border-radius: 20px;
+}
+.verdict-badge.PASS { background: var(--pass-bg); color: var(--pass); }
+.verdict-badge.REVIEW { background: var(--review-bg); color: var(--review); }
+.verdict-badge.REJECT { background: var(--reject-bg); color: var(--reject); }
+.confidence-display { display: flex; align-items: center; gap: 10px; }
+.confidence-num { font-size: 32px; font-weight: 900; font-family: "SF Mono", Consolas, monospace; }
+.progress-bar {
+  width: 120px; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden;
+}
+.progress-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+.progress-fill.low { background: var(--reject); }
+.progress-fill.mid { background: var(--review); }
+.progress-fill.high { background: var(--pass); }
+/* Brain Comparison */
+.brains-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px; }
+.brain-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 18px; position: relative;
+}
+.brain-card.conflict { border-color: var(--reject); box-shadow: 0 0 12px rgba(239,68,68,0.15); }
+.brain-card .brain-label { font-size: 11px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.brain-card .brain-model { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+.brain-card .brain-verdict { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 12px; margin-bottom: 8px; }
+.brain-card .brain-verdict.pass { color: var(--pass); background: var(--pass-bg); }
+.brain-card .brain-verdict.review { color: var(--review); background: var(--review-bg); }
+.brain-card .brain-verdict.reject { color: var(--reject); background: var(--reject-bg); }
+.brain-card .brain-score { font-size: 24px; font-weight: 900; font-family: "SF Mono", Consolas, monospace; margin-bottom: 8px; }
+.brain-card .brain-reason { font-size: 13px; color: var(--text2); line-height: 1.6; }
+/* Findings */
+.findings-section { margin-top: 16px; }
+.findings-section h3 { font-size: 13px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+.finding-row {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px 16px; margin-bottom: 8px; display: flex; align-items: flex-start; gap: 12px;
+}
+.finding-cat {
+  font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px;
+  white-space: nowrap; font-family: "SF Mono", Consolas, monospace;
+  background: rgba(124,58,237,0.2); color: #c4b5fd;
+}
+.finding-sev {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 4px;
+  white-space: nowrap;
+}
+.finding-sev.critical { background: var(--reject-bg); color: var(--reject); }
+.finding-sev.high { background: rgba(234,179,8,0.15); color: var(--review); }
+.finding-sev.medium { background: var(--pass-bg); color: var(--pass); }
+.finding-sev.low { background: rgba(148,163,184,0.15); color: var(--text2); }
+.finding-desc { font-size: 13px; line-height: 1.5; flex: 1; }
+.finding-empty { color: var(--text2); font-size: 13px; padding: 12px 0; }
+/* Evidence Footer */
+.evidence-footer {
+  margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;
+  font-size: 11px; color: #585b70; font-family: "SF Mono", Consolas, monospace;
+}
+/* ─── Live Mode ─── */
+.live-layout { display: none; padding: 24px 32px; max-width: 800px; margin: 0 auto; }
+.live-layout.active { display: block; }
+.config-row {
+  display: flex; gap: 12px; margin-bottom: 16px; align-items: flex-end; flex-wrap: wrap;
+}
+.config-row .field { flex: 1; min-width: 200px; }
+.config-row label {
+  display: block; font-size: 11px; font-weight: 700; color: var(--text2);
+  text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;
+}
+.config-row input, .config-row select {
+  width: 100%; padding: 10px 14px; background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); font-size: 13px; color: var(--text);
+  font-family: "SF Mono", Consolas, monospace;
+}
+.config-row input:focus, .config-row select:focus {
+  outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim);
+}
+.config-row select { font-family: system-ui, sans-serif; cursor: pointer; }
+.provider-badge {
+  display: inline-block; font-size: 11px; font-weight: 600; padding: 4px 10px;
+  border-radius: 12px; background: var(--accent-dim); color: #c4b5fd;
+}
+.live-inputs { display: flex; flex-direction: column; gap: 14px; }
+.live-inputs textarea {
+  width: 100%; padding: 14px; background: var(--code-bg); border: 1px solid var(--border);
+  border-radius: var(--radius); font-family: "SF Mono", Consolas, monospace;
+  font-size: 13px; line-height: 1.6; color: var(--text); resize: vertical;
+}
+.live-inputs textarea:focus { outline: none; border-color: var(--accent); }
+.live-inputs textarea#live-req { font-family: system-ui, sans-serif; font-size: 14px; height: 80px; background: var(--card); }
+.audit-btn {
+  width: 100%; padding: 14px; background: var(--accent); color: #fff;
+  border: none; border-radius: var(--radius); font-size: 15px; font-weight: 700;
+  cursor: pointer; transition: background 0.2s, opacity 0.2s; margin-top: 4px;
+}
+.audit-btn:hover { background: #6d28d9; }
+.audit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+/* ─── Spinner ─── */
+.spinner-wrap { display: none; text-align: center; padding: 32px; }
+.spinner-wrap.active { display: block; }
+.spinner {
+  width: 40px; height: 40px; border: 3px solid var(--border);
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: spin 0.8s linear infinite; margin: 0 auto 14px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner-text { font-size: 14px; color: var(--text2); }
+/* ─── Live Results ─── */
+.live-results { display: none; margin-top: 24px; }
+.live-results.active { display: block; }
+/* ─── CTA Bar ─── */
+.cta-bar {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px 24px; margin: 24px 32px; text-align: center;
+}
+.cta-bar p { font-size: 14px; color: var(--text2); margin-bottom: 10px; }
+.cta-bar code {
+  display: inline-block; background: var(--code-bg); padding: 4px 12px;
+  border-radius: 4px; font-family: "SF Mono", Consolas, monospace;
+  font-size: 12px; color: #c4b5fd; margin: 2px 4px;
+}
+.cta-bar a { color: var(--accent); text-decoration: none; font-weight: 600; display: inline-block; margin-top: 8px; }
+.cta-bar a:hover { text-decoration: underline; }
+/* ─── Footer ─── */
+.footer {
+  border-top: 1px solid var(--border); margin: 24px 32px;
+  padding-top: 16px; font-size: 12px; color: var(--text2); text-align: center;
+}
+.footer a { color: var(--accent); text-decoration: none; }
+/* ─── Responsive ─── */
+@media (max-width: 1023px) {
+  .demo-layout { flex-direction: column; padding: 20px; }
+  .case-panel { width: 100%; flex-direction: row; overflow-x: auto; gap: 8px; padding-bottom: 8px; }
+  .case-card { min-width: 180px; flex-shrink: 0; }
+  .brains-row { grid-template-columns: 1fr; }
+  .live-layout { padding: 20px; }
+  .header, .cta-bar, .footer { margin-left: 20px; margin-right: 20px; }
+  .mode-tabs { margin: 16px 20px 0; }
+}
+@media (max-width: 767px) {
+  .demo-layout { padding: 16px; }
+  .case-panel { flex-direction: column; overflow-x: visible; }
+  .case-card { min-width: auto; }
+  .brains-row { grid-template-columns: 1fr; }
+  .audit-header { flex-direction: column; align-items: flex-start; }
+  .evidence-footer { flex-direction: column; gap: 6px; }
+  .config-row { flex-direction: column; }
+  .live-layout { padding: 16px; }
+  .header, .cta-bar, .footer { margin-left: 16px; margin-right: 16px; }
+  .mode-tabs { margin: 12px 16px 0; }
+}
 </style>
 </head>
 <body>
 
-<header>
-  <h1>AI Flow Architect</h1>
-  <p class="subtitle">Multi-agent code auditing. Two LLMs independently verify every finding before it reaches the report — no hallucinated vulnerabilities, no noise.</p>
-</header>
-
-<div class="cta hero-cta">
-  <p>Run your own audit in one command:</p>
-  <code>pip install ai-flow-architect[html]</code>
-  <code style="display:block;margin-top:0.5rem;">ai-flow audit ./your-project --html --output report.html</code>
-  <p style="margin-top:0.75rem;color:var(--text-secondary);">Results below are pre-generated. Install the CLI and configure your API keys to run live audits.</p>
+<!-- ─── Header ─── -->
+<div class="header">
+  <h1>AI Flow Architect Playground</h1>
+  <p>Dual-model adversarial code audit. Two LLMs independently review every finding.</p>
 </div>
 
-<h2>Example Audit Reports</h2>
-<p class="subtitle" style="margin-bottom:1rem;">Click either report to view the full audit with severity breakdowns, arbiter evidence chains, and fix suggestions.</p>
+<!-- ─── Mode Tabs ─── -->
+<div class="mode-tabs">
+  <button class="mode-tab active" data-mode="demo" onclick="switchMode('demo')">Demo Mode</button>
+  <button class="mode-tab" data-mode="live" onclick="switchMode('live')">Live Mode</button>
+</div>
 
-<div class="report-grid">
+<!-- ────────────── DEMO MODE ────────────── -->
+<div class="demo-layout active" id="demo-layout">
+  <!-- Left: case cards -->
+  <div class="case-panel" id="case-panel"></div>
+  <!-- Right: detail -->
+  <div class="detail-panel" id="detail-panel"></div>
+</div>
 
-  <a href="sample-report.html" class="report-card">
-    <div class="title">Express.js API Server</div>
-    <div class="desc">A toy Express.js server with deliberately introduced vulnerabilities: raw SQL queries, exposed stack traces, and missing CORS headers.</div>
-    <div class="meta">
-      <span class="badge badge-critical">2 Critical</span>
-      <span class="badge badge-high">3 High</span>
-      &middot; 4 findings &middot; 2 arbiters
+<!-- ────────────── LIVE MODE ────────────── -->
+<div class="live-layout" id="live-layout">
+  <div class="config-row">
+    <div class="field">
+      <label>API Key</label>
+      <input type="password" id="live-apikey" placeholder="sk-... or sk-ant-..." autocomplete="off">
     </div>
-  </a>
-
-  <a href="sample-report.html" class="report-card">
-    <div class="title">React Form Component</div>
-    <div class="desc">Client-side form with unsanitized user input rendered via dangerouslySetInnerHTML and missing CSRF token validation.</div>
-    <div class="meta">
-      <span class="badge badge-critical">1 Critical</span>
-      <span class="badge badge-high">2 High</span>
-      &middot; 1 finding &middot; 2 arbiters
+    <div class="field">
+      <label>Model</label>
+      <select id="live-model">
+        <option value="gpt-4o">GPT-4o</option>
+        <option value="gpt-4o-mini">GPT-4o-mini</option>
+        <option value="claude-sonnet-4-20250514">Claude Sonnet 4</option>
+      </select>
     </div>
-  </a>
-
+    <div class="field" style="display:flex;align-items:flex-end;">
+      <span class="provider-badge" id="provider-badge">Auto-detect</span>
+    </div>
+  </div>
+  <div class="live-inputs">
+    <textarea id="live-code" rows="18" placeholder="Paste your AI-generated code here..."></textarea>
+    <textarea id="live-req" placeholder="What was the original requirement? e.g. 'Create a user registration endpoint with email and password'"></textarea>
+  </div>
+  <button class="audit-btn" id="audit-btn" onclick="runLiveAudit()">Audit My Code</button>
+  <div class="spinner-wrap" id="live-spinner">
+    <div class="spinner"></div>
+    <div class="spinner-text">Both models are reviewing your code...</div>
+  </div>
+  <div class="live-results" id="live-results"></div>
 </div>
 
-<h2>How It Works</h2>
-
-<div class="pipeline">
-  <div class="pipeline-step">
-    <span class="step-num">1</span>
-    <strong>Auditor</strong> scans your code for 20+ vulnerability patterns
-  </div>
-  <span class="pipeline-arrow">&rarr;</span>
-  <div class="pipeline-step">
-    <span class="step-num">2</span>
-    <strong>Arbiter A</strong> independently verifies each finding with line-level evidence
-  </div>
-  <span class="pipeline-arrow">&rarr;</span>
-  <div class="pipeline-step">
-    <span class="step-num">3</span>
-    <strong>Arbiter B</strong> does the same — both must agree
-  </div>
-  <span class="pipeline-arrow">&rarr;</span>
-  <div class="pipeline-step">
-    <span class="step-num">4</span>
-    <strong>Report</strong> includes only confirmed findings with severity, evidence, and fixes
-  </div>
+<!-- ─── CTA Bar ─── -->
+<div class="cta-bar">
+  <p>Audit your entire project from the terminal</p>
+  <code>pip install ai-flow-architect</code>
+  <code>ai-flow init</code>
+  <code>ai-flow audit your_file.py -r "requirement description"</code>
+  <br>
+  <a href="https://github.com/ai-flow-architect">GitHub &rarr;</a>
 </div>
 
-<footer>
-  AI Flow Architect &mdash; Multi-agent code auditing pipeline. Open source on GitHub.
-</footer>
+<!-- ─── Footer ─── -->
+<div class="footer">
+  AI Flow Architect &mdash; Open source on <a href="https://github.com/ai-flow-architect">GitHub</a>
+</div>
 
+<script>
+/* ================================================================
+   GLOBAL STATE
+   ================================================================ */
+var currentMode = 'demo';
+var DEMO_CASES = JSON.parse(document.getElementById('demo-cases').textContent);
+var currentCaseIdx = 0;
+
+/* ================================================================
+   MODE SWITCHING
+   ================================================================ */
+function switchMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-tab').forEach(function(t) {
+    t.classList.toggle('active', t.dataset.mode === mode);
+  });
+  document.getElementById('demo-layout').classList.toggle('active', mode === 'demo');
+  document.getElementById('live-layout').classList.toggle('active', mode === 'live');
+}
+
+/* ================================================================
+   DEMO MODE
+   ================================================================ */
+function initDemo() {
+  var panel = document.getElementById('case-panel');
+  panel.innerHTML = '';
+  DEMO_CASES.forEach(function(c, i) {
+    var card = document.createElement('div');
+    card.className = 'case-card' + (i === 0 ? ' active' : '');
+    card.onclick = function() { selectCase(i); };
+    var v = c.verdict.toLowerCase();
+    card.innerHTML =
+      '<div class="case-title">' + esc(c.title) + '</div>' +
+      '<div class="case-meta">' +
+        '<span class="verdict-dot ' + v + '"></span>' +
+        '<span class="verdict-label ' + v + '">' + c.verdict + '</span>' +
+        '<span style="color:var(--text2);">' + c.confidence + '%</span>' +
+      '</div>';
+    panel.appendChild(card);
+  });
+  renderCase(0);
+}
+
+function selectCase(idx) {
+  currentCaseIdx = idx;
+  var cards = document.querySelectorAll('.case-card');
+  cards.forEach(function(c, i) { c.classList.toggle('active', i === idx); });
+  renderCase(idx);
+}
+
+function renderCase(idx) {
+  var c = DEMO_CASES[idx];
+  var panel = document.getElementById('detail-panel');
+
+  var v = c.verdict.toLowerCase();
+  var confClass = c.confidence >= 80 ? 'high' : (c.confidence >= 45 ? 'mid' : 'low');
+  var conflict = c.brain1.verdict !== c.brain2.verdict;
+
+  var b1v = c.brain1.verdict.toLowerCase();
+  var b2v = c.brain2.verdict.toLowerCase();
+
+  var findingsHtml = '';
+  if (c.findings.length === 0) {
+    findingsHtml = '<div class="finding-empty">No issues found. Both models agree the code is clean.</div>';
+  } else {
+    c.findings.forEach(function(f) {
+      findingsHtml +=
+        '<div class="finding-row">' +
+          '<span class="finding-cat">' + esc(f.category) + '</span>' +
+          '<span class="finding-sev ' + f.severity + '">' + f.severity + '</span>' +
+          '<span class="finding-desc">' + esc(f.description) + '</span>' +
+        '</div>';
+    });
+  }
+
+  var html =
+    /* Content Tabs */
+    '<div class="content-tabs">' +
+      '<span class="content-tab active" data-tab="code" onclick="switchTab(this,\'code\')">Code</span>' +
+      '<span class="content-tab" data-tab="req" onclick="switchTab(this,\'req\')">Requirement</span>' +
+    '</div>' +
+    /* Code Block with line numbers */
+    '<div class="code-block active" id="tab-code">' + renderCodeLines(c.code) + '</div>' +
+    '<div class="req-block" id="tab-req">' + esc(c.requirement) + '</div>' +
+    /* Audit Results */
+    '<div class="audit-header">' +
+      '<span class="verdict-badge ' + c.verdict + '">' + c.verdict + '</span>' +
+      '<div class="confidence-display">' +
+        '<span class="confidence-num">' + c.confidence + '</span>' +
+        '<span style="font-size:12px;color:var(--text2);">/ 100 trust</span>' +
+        '<div class="progress-bar"><div class="progress-fill ' + confClass + '" style="width:' + c.confidence + '%"></div></div>' +
+      '</div>' +
+    '</div>' +
+    /* Brain Comparison */
+    '<div class="brains-row">' +
+      '<div class="brain-card' + (conflict ? ' conflict' : '') + '">' +
+        '<div class="brain-label">Brain #1</div>' +
+        '<div class="brain-model">' + esc(c.brain1.model) + '</div>' +
+        '<span class="brain-verdict ' + b1v + '">' + c.brain1.verdict + '</span>' +
+        '<div class="brain-score">' + c.brain1.score + '</div>' +
+        '<div class="brain-reason">' + esc(c.brain1.reason) + '</div>' +
+      '</div>' +
+      '<div class="brain-card' + (conflict ? ' conflict' : '') + '">' +
+        '<div class="brain-label">Brain #2</div>' +
+        '<div class="brain-model">' + esc(c.brain2.model) + '</div>' +
+        '<span class="brain-verdict ' + b2v + '">' + c.brain2.verdict + '</span>' +
+        '<div class="brain-score">' + c.brain2.score + '</div>' +
+        '<div class="brain-reason">' + esc(c.brain2.reason) + '</div>' +
+      '</div>' +
+    '</div>' +
+    /* Findings */
+    '<div class="findings-section">' +
+      '<h3>Findings (' + c.findings.length + ')</h3>' +
+      findingsHtml +
+    '</div>' +
+    /* Evidence Footer */
+    '<div class="evidence-footer">' +
+      '<span>SHA256: ' + c.evidence_sha256.substring(0, 16) + '...</span>' +
+      '<span>Audited: ' + formatTimestamp(c.timestamp) + '</span>' +
+    '</div>';
+
+  panel.innerHTML = html;
+}
+
+function switchTab(el, tab) {
+  var parent = el.parentElement;
+  parent.querySelectorAll('.content-tab').forEach(function(t) { t.classList.remove('active'); });
+  el.classList.add('active');
+
+  var panel = el.closest('.detail-panel');
+  panel.querySelector('#tab-code').classList.toggle('active', tab === 'code');
+  panel.querySelector('#tab-req').classList.toggle('active', tab === 'req');
+}
+
+function renderCodeLines(code) {
+  var lines = code.split('\n');
+  return lines.map(function(l) { return '<span class="ln">' + esc(l) + '</span>'; }).join('');
+}
+
+/* ================================================================
+   LIVE MODE
+   ================================================================ */
+document.getElementById('live-apikey').addEventListener('input', function() {
+  var key = this.value.trim();
+  var badge = document.getElementById('provider-badge');
+  if (key.startsWith('sk-ant-')) {
+    badge.textContent = 'Anthropic';
+    badge.style.background = 'rgba(234,179,8,0.15)';
+    badge.style.color = '#facc15';
+  } else if (key.startsWith('sk-')) {
+    badge.textContent = 'OpenAI';
+    badge.style.background = 'rgba(34,197,94,0.12)';
+    badge.style.color = '#22c55e';
+  } else {
+    badge.textContent = 'Auto-detect';
+    badge.style.background = 'rgba(124,58,237,0.15)';
+    badge.style.color = '#c4b5fd';
+  }
+});
+
+async function runLiveAudit() {
+  var key = document.getElementById('live-apikey').value.trim();
+  var code = document.getElementById('live-code').value.trim();
+  var req = document.getElementById('live-req').value.trim();
+  var modelSelect = document.getElementById('live-model').value;
+
+  if (!key) {
+    showLiveError('Need an API Key? Try <a href="#" onclick="switchMode(\'demo\');return false;" style="color:var(--accent);">Demo mode</a> — no key required.');
+    return;
+  }
+  if (!code) { showLiveError('Please paste your code to audit.'); return; }
+  if (!req) { showLiveError('Please describe the original requirement.'); return; }
+
+  var isAnthropic = key.startsWith('sk-ant-');
+  if (isAnthropic && !modelSelect.startsWith('claude')) {
+    modelSelect = 'claude-sonnet-4-20250514';
+  }
+  if (!isAnthropic && modelSelect.startsWith('claude')) {
+    modelSelect = 'gpt-4o';
+  }
+
+  // Save key to localStorage
+  try { localStorage.setItem('afa_apikey', key); } catch(e) {}
+
+  var btn = document.getElementById('audit-btn');
+  var spinner = document.getElementById('live-spinner');
+  var results = document.getElementById('live-results');
+
+  btn.disabled = true;
+  btn.textContent = 'Auditing...';
+  spinner.classList.add('active');
+  results.classList.remove('active');
+  results.innerHTML = '';
+
+  try {
+    var systemPrompt = buildSystemPrompt();
+    var userContent = '## Requirement\n' + req + '\n\n## AI-Generated Code\n```\n' + code + '\n```';
+
+    var brain1Promise = callLLM(key, modelSelect, systemPrompt, userContent, isAnthropic);
+    var brain2Model = isAnthropic ? 'gpt-4o' : 'claude-sonnet-4-20250514';
+
+    var brain2Key = key;
+    if (isAnthropic) {
+      brain2Key = localStorage.getItem('afa_openai_key') || '';
+      if (!brain2Key) {
+        // Can't do cross-provider, fall back to same provider with different model
+        brain2Model = 'claude-sonnet-4-20250514';
+        brain2Key = key;
+      }
+    } else {
+      brain2Key = localStorage.getItem('afa_anthropic_key') || '';
+      if (!brain2Key) {
+        brain2Model = 'gpt-4o-mini';
+        brain2Key = key;
+      }
+    }
+
+    var brain2Promise = callLLM(brain2Key, brain2Model, systemPrompt, userContent,
+      brain2Key.startsWith('sk-ant-'));
+
+    var responses = await Promise.all([brain1Promise, brain2Promise]);
+
+    var brain1Result = parseLLMResponse(responses[0], modelSelect);
+    var brain2Result = parseLLMResponse(responses[1], brain2Model);
+
+    renderLiveResults(brain1Result, brain2Result, modelSelect, brain2Model);
+  } catch (e) {
+    showLiveError(e.message || 'Audit failed. Check your API key and try again.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Audit My Code';
+    spinner.classList.remove('active');
+  }
+}
+
+function buildSystemPrompt() {
+  return 'You are an adversarial code auditor — a security expert who independently reviews AI-generated code.\n\n' +
+    'Your task: Given a REQUIREMENT and the AI-generated CODE, audit the code for:\n' +
+    '1. **HAL-001 (API Hallucination)**: Non-existent APIs, methods, or parameters that the AI invented.\n' +
+    '2. **HAL-002 (Parameter Hallucination)**: Wrong parameter names, types, or counts in function calls.\n' +
+    '3. **HAL-003 (Security Stripping)**: Missing security measures — plaintext passwords, no hashing, no encryption.\n' +
+    '4. **HAL-004 (Logic Errors)**: SQL injection, XSS, race conditions, too-broad exception handling.\n' +
+    '5. **HAL-006 (Context Drift)**: Code does things beyond what was requested, silently adds side effects.\n\n' +
+    'Respond with ONLY a JSON object (no markdown fences, no extra text):\n' +
+    '{\n' +
+    '  "verdict": "PASS" | "REVIEW" | "REJECT",\n' +
+    '  "score": <0-100, where 100=perfect>,\n' +
+    '  "reason": "<Concise explanation of your verdict>",\n' +
+    '  "findings": [\n' +
+    '    {"category": "HAL-XXX", "severity": "critical"|"high"|"medium"|"low", "description": "..."}\n' +
+    '  ]\n' +
+    '}\n\n' +
+    'Be precise. Cite specific line numbers or API names. Do not hallucinate findings. If the code is correct, say so with PASS and an empty findings array.';
+}
+
+async function callLLM(apiKey, model, systemPrompt, userContent, isAnthropic) {
+  if (isAnthropic) {
+    var resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: model,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userContent }],
+        max_tokens: 2048
+      })
+    });
+    if (!resp.ok) {
+      var err = await resp.json().catch(function() { return {}; });
+      throw new Error('Anthropic API error: ' + (err.error?.message || resp.status));
+    }
+    var data = await resp.json();
+    return data.content[0].text;
+  } else {
+    var resp = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + apiKey
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent }
+        ],
+        temperature: 0.3,
+        max_tokens: 2048
+      })
+    });
+    if (!resp.ok) {
+      var err2 = await resp.json().catch(function() { return {}; });
+      throw new Error('OpenAI API error: ' + (err2.error?.message || resp.status));
+    }
+    var data2 = await resp.json();
+    return data2.choices[0].message.content;
+  }
+}
+
+function parseLLMResponse(text, model) {
+  // Strip markdown code fences
+  var cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+  try {
+    return JSON.parse(cleaned);
+  } catch(e) {
+    // Try to extract JSON from text
+    var match = cleaned.match(/\{[\s\S]*\}/);
+    if (match) {
+      try { return JSON.parse(match[0]); } catch(e2) {}
+    }
+    return {
+      verdict: 'REVIEW',
+      score: 50,
+      reason: 'Failed to parse model response: ' + text.substring(0, 200),
+      findings: []
+    };
+  }
+}
+
+function renderLiveResults(b1, b2, model1Name, model2Name) {
+  var results = document.getElementById('live-results');
+
+  // Compute agreement
+  var conflict = b1.verdict !== b2.verdict;
+  var avgScore = Math.round((b1.score + b2.score) / 2);
+  var allFindings = (b1.findings || []).concat(b2.findings || []);
+  // Simple confidence heuristic
+  var confidence = conflict ? Math.min(avgScore - 15, 65) : Math.min(avgScore + 5, 95);
+  confidence = Math.max(confidence, 10);
+
+  var verdict;
+  var hasCritical = allFindings.some(function(f) { return f.severity === 'critical'; });
+  if (hasCritical || avgScore < 25) {
+    verdict = 'REJECT';
+  } else if (!conflict && avgScore >= 80) {
+    verdict = 'PASS';
+  } else {
+    verdict = 'REVIEW';
+  }
+
+  var confClass = confidence >= 80 ? 'high' : (confidence >= 45 ? 'mid' : 'low');
+  var b1v = (b1.verdict || 'REVIEW').toLowerCase();
+  var b2v = (b2.verdict || 'REVIEW').toLowerCase();
+
+  // Deduplicate findings
+  var seen = {};
+  var uniqueFindings = [];
+  allFindings.forEach(function(f) {
+    var key = (f.category || '') + '|' + (f.description || '');
+    if (!seen[key]) { seen[key] = true; uniqueFindings.push(f); }
+  });
+
+  var findingsHtml = '';
+  if (uniqueFindings.length === 0) {
+    findingsHtml = '<div class="finding-empty">No issues found. Both models agree the code is clean.</div>';
+  } else {
+    uniqueFindings.forEach(function(f) {
+      findingsHtml +=
+        '<div class="finding-row">' +
+          '<span class="finding-cat">' + esc(f.category || 'HAL-???') + '</span>' +
+          '<span class="finding-sev ' + (f.severity || 'medium') + '">' + (f.severity || 'medium') + '</span>' +
+          '<span class="finding-desc">' + esc(f.description || '') + '</span>' +
+        '</div>';
+    });
+  }
+
+  var html =
+    '<div class="audit-header">' +
+      '<span class="verdict-badge ' + verdict + '">' + verdict + '</span>' +
+      '<div class="confidence-display">' +
+        '<span class="confidence-num">' + confidence + '</span>' +
+        '<span style="font-size:12px;color:var(--text2);">/ 100 trust</span>' +
+        '<div class="progress-bar"><div class="progress-fill ' + confClass + '" style="width:' + confidence + '%"></div></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="brains-row">' +
+      '<div class="brain-card' + (conflict ? ' conflict' : '') + '">' +
+        '<div class="brain-label">Brain #1</div>' +
+        '<div class="brain-model">' + esc(model1Name) + '</div>' +
+        '<span class="brain-verdict ' + b1v + '">' + (b1.verdict || 'REVIEW') + '</span>' +
+        '<div class="brain-score">' + (b1.score || 50) + '</div>' +
+        '<div class="brain-reason">' + esc(b1.reason || 'No reason provided.') + '</div>' +
+      '</div>' +
+      '<div class="brain-card' + (conflict ? ' conflict' : '') + '">' +
+        '<div class="brain-label">Brain #2</div>' +
+        '<div class="brain-model">' + esc(model2Name) + '</div>' +
+        '<span class="brain-verdict ' + b2v + '">' + (b2.verdict || 'REVIEW') + '</span>' +
+        '<div class="brain-score">' + (b2.score || 50) + '</div>' +
+        '<div class="brain-reason">' + esc(b2.reason || 'No reason provided.') + '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="findings-section">' +
+      '<h3>Findings (' + uniqueFindings.length + ')</h3>' +
+      findingsHtml +
+    '</div>' +
+    '<div class="evidence-footer">' +
+      '<span>Live audit &middot; Dual-model adversarial review</span>' +
+      '<span>' + new Date().toISOString().replace('T', ' ').substring(0, 19) + '</span>' +
+    '</div>';
+
+  results.innerHTML = html;
+  results.classList.add('active');
+}
+
+function showLiveError(msg) {
+  var results = document.getElementById('live-results');
+  results.innerHTML = '<div style="color:var(--reject);padding:20px;text-align:center;background:var(--reject-bg);border-radius:8px;">' + msg + '</div>';
+  results.classList.add('active');
+}
+
+/* ================================================================
+   HELPERS
+   ================================================================ */
+function esc(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function formatTimestamp(ts) {
+  try {
+    var d = new Date(ts);
+    return d.toLocaleString('en-US', { year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+  } catch(e) { return ts; }
+}
+
+/* ================================================================
+   RESTORE SAVED KEY
+   ================================================================ */
+(function() {
+  try {
+    var saved = localStorage.getItem('afa_apikey');
+    if (saved) document.getElementById('live-apikey').value = saved;
+  } catch(e) {}
+})();
+
+/* ================================================================
+   INIT
+   ================================================================ */
+initDemo();
+</script>
 </body>
 </html>

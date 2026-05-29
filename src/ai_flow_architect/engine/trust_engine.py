@@ -239,6 +239,7 @@ class TrustEngine:
             "qwen-": "DASHSCOPE_API_KEY",
             "glm-": "ZHIPU_API_KEY",
             "moonshot-": "MOONSHOT_API_KEY",
+            "gemini-": "GOOGLE_API_KEY",
         }
         for prefix, env_var in key_map.items():
             if model.startswith(prefix):
@@ -268,6 +269,8 @@ class TrustEngine:
                 providers.add("zhipu")
             elif model.startswith("moonshot-"):
                 providers.add("moonshot")
+            elif model.startswith("gemini-"):
+                providers.add("google")
             else:
                 providers.add("other")
         

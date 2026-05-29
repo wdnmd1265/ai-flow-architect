@@ -132,6 +132,10 @@ That's the idea. Everything else — the 8 providers, the fallback network, the 
 
 ## Quick Start
 
+🌐 **Try instantly in your browser**: [wdnmd1265.github.io/ai-flow-architect/playground.html](https://wdnmd1265.github.io/ai-flow-architect/playground.html) — no install, no API key
+
+> **Try it instantly — no install:** `npx ai-flow-architect-demo`
+
 ```bash
 pip install ai-flow-architect[html]
 ```
@@ -250,6 +254,27 @@ report.evidence_chain # SHA-256 hash + timestamp, fully verifiable
 | CrewAI | 4 lines | `crew.kickoff()` + `engine.audit()` |
 | OpenAI SDK | 5 lines | `client.create()` + `engine.audit()` |
 | GitHub Action | YAML | Copy `.github/workflows/ai-review.example.yml` |
+| MCP Server | 4 lines | `audit_code` / `audit_file` tools in Cursor/Claude Desktop |
+
+### MCP Server (Cursor / Claude Desktop)
+
+Configure in your AI editor's `mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "ai-flow-architect": {
+      "command": "uvx",
+      "args": ["ai-flow-architect[mcp]", "ai-flow-mcp"],
+      "env": {
+        "OPENAI_API_KEY": "sk-..."
+      }
+    }
+  }
+}
+```
+
+Then use `audit_code` and `audit_file` tools directly in your AI assistant to verify AI-generated code before it enters your codebase.
 
 ### Comparison
 

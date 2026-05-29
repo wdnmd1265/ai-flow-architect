@@ -133,7 +133,8 @@ class TestTrustReportSerialization:
         assert data["verdict"] == "review"
         assert data["confidence"] == 65.5
         assert data["version"] == "1.0"
-        assert data["engine_version"] == "0.1.0"
+        from ai_flow_architect import __version__
+        assert data["engine_version"] == __version__
         
         # 验证 findings
         assert len(data["findings"]) == 2

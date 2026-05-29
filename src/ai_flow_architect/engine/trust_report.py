@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 from loguru import logger
 
 from ..brains.brain_blind import BlindVerdict
+from .. import __version__ as _engine_version
 
 try:
     from jinja2 import Template
@@ -86,7 +87,7 @@ class TrustReport(BaseModel):
     # 元数据
     version: str = Field("1.0", description="报告格式版本")
     timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    engine_version: str = Field("0.1.0", description="引擎版本")
+    engine_version: str = Field(_engine_version, description="引擎版本")
     
     # 核心结论
     verdict: str = Field(..., description="审查结论：pass / review / reject")
@@ -111,7 +112,7 @@ class TrustReport(BaseModel):
     
     # 跨家族审查（Phase 3 P1：Cross-Family Enforcement）
     cross_family_validated: bool = Field(False, description="是否通过了跨家族校验")
-    brain_families: tuple = Field(default_factory=lambda: ("", ""), description="brain1 和 brain2 的 family")
+    brain_families: List[str] = Field(default_factory=lambda: ["", ""], description="brain1 和 brain2 的 family")
 
     # 4 层模型路由（Phase 3 P2：ComplexityRouter）
     route_tier: int = Field(0, ge=0, le=4, description="路由层级 (0=未启用路由, 1-4=对应层级)")

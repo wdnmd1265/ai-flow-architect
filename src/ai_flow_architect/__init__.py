@@ -5,7 +5,7 @@ TrustEngine：独立审计层，可被任何 AI Agent 集成。
 FlowArchitect：完整三阶段流水线（规划 → 执行 → 审查）。
 """
 
-__version__ = "2.2.0"
+__version__ = "2.3.0"
 __author__ = "盛鑫"
 __email__ = "2709786902@qq.com"
 

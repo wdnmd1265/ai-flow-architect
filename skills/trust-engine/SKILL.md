@@ -107,3 +107,32 @@ DEEPSEEK_API_KEY=sk-xxx        # DeepSeek
 ```
 
 配置两个不同提供商的 key 可启用跨模型交叉审查（推荐）。
+
+## MCP Integration
+
+This skill is also available as an MCP server. Configure in your AI editor's `mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "ai-flow-architect": {
+      "command": "uvx",
+      "args": ["ai-flow-architect[mcp]", "ai-flow-mcp"],
+      "env": {
+        "OPENAI_API_KEY": "sk-..."
+      }
+    }
+  }
+}
+```
+
+Then use `audit_code` or `audit_file` tools in your AI assistant. The tools return a structured JSON verdict (PASS/REVIEW/REJECT) with numeric trust score and cryptographic evidence chain.
+
+### Available MCP Tools
+
+| Tool | Purpose |
+|------|---------|
+| `audit_code` | Audit inline AI-generated code for hallucinations |
+| `audit_file` | Read a file from disk, then audit it |
+
+Both tools accept `code`/`file_path`, `requirement` (required), and optional `brain1` model name.

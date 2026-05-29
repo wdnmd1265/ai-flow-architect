@@ -9,6 +9,66 @@
 
 （暂无）
 
+## [2.3.0] - 2026-05-29
+
+### 新增
+
+**MCP Server — 零配置接入 Cursor / Windsurf / Claude Desktop**
+
+- `src/ai_flow_architect/mcp_server.py`：基于 `mcp` SDK，暴露 `audit_code` 和 `audit_file` 两个工具
+- 三层 API Key 降级：.env 文件 → 系统环境变量 → 降级为 REVIEW(UNCERTAIN) + 引导提示
+- 120 秒超时保护：`asyncio.wait_for` 防止 LLM 卡死
+- 启动入口：`ai-flow-mcp` 命令（`pyproject.toml` 注册）
+- 配置示例：`mcp.json.example`（支持 uvx 启动，零安装）
+- MCP 集成文档：`skills/trust-engine/SKILL.md` 新增 MCP Integration 章节
+
+**npx 一键体验**
+
+- `npx-demo/`：Node.js 包，`npx ai-flow-architect-demo` 即可运行
+- 5 个内置演示用例：Stripe API 幻觉 / 密码哈希错误 / 干净工具函数 / Pandas 参数 / 上下文漂移
+- JSON 结构化输出，可管道传递给 jq / 其他工具
+- 已发布至 npm：`ai-flow-architect-demo`
+
+**Playground 双模式**
+
+- Demo 模式（默认）：5 个预生成案例，零 API Key，点击即看完整 TrustReport
+- Live 模式：用户填入 API Key，调用真实 LLM 实时审查
+- 本地服务器：`ai-flow serve` 或 `python -m ai_flow_architect.playground_server`，浏览器自动打开
+- GitHub Pages：`docs/playground.html`，静态托管，无需后端
+
+### 变更
+
+**版本号一致性**
+
+- `trust_report.py` 的 `engine_version` 字段从硬编码 `"0.1.0"` 改为从 `__init__.__version__` 动态读取
+- `pyproject.toml` 和 `__init__.py` 版本号同步至 `2.3.0`
+
+**brain_families 类型**
+
+- `TrustReport.brain_families` 从 `tuple` 改为 `List[str]`，解决 Pydantic v2 序列化/反序列化类型不一致
+
+### 修复
+
+**Google/Gemini 模型支持缺失**
+
+- `trust_engine.py` `_check_api_key()` 补全 `gemini-` → `GOOGLE_API_KEY` 映射，Gemini 模型不再被跳过
+- `trust_engine.py` `_determine_isolation_level()` 补全 `gemini-` → `google` provider 映射，隔离级别判断正确
+- `mcp_server.py` `_check_api_keys()` 补全 `GOOGLE_API_KEY`，用户只配 Gemini Key 时 MCP Server 不再报 no_api_keys
+
+**代码质量**
+
+- `brains/brain_two.py`：3 处 `__import__('time')` / `__import__('datetime')` 内联导入改为顶部 import
+- `mcp_server.py`：`audit_code` 和 `audit_file` 提取公共函数 `_run_audit()`，消除 80% 重复代码
+- `npx-demo/package.json`：license 从 `MIT` 改为 `Apache-2.0`，仓库地址修正
+- `README.md` + `npx-demo/bin/cli.js`：Playground URL 修正为 `wdnmd1265.github.io/ai-flow-architect/playground.html`
+
+### 测试
+
+- 总测试数：481（全量通过）
+- 修复 3 个因类型/版本变更导致的测试断言
+
+---
+
 ## [2.2.0] - 2026-05-28
 
 ### 新增

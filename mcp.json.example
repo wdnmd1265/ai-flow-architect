@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "ai-flow-architect": {
+      "command": "uvx",
+      "args": ["ai-flow-architect[mcp]", "ai-flow-mcp"],
+      "env": {
+        "OPENAI_API_KEY": "sk-...",
+        "ANTHROPIC_API_KEY": "sk-ant-..."
+      }
+    }
+  }
+}

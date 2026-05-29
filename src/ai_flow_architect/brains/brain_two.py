@@ -2,6 +2,8 @@
 二号脑 - 质量仲裁官
 """
 
+import time
+from datetime import datetime
 from typing import Dict, Any, List
 from pydantic import BaseModel, Field
 from loguru import logger
@@ -65,7 +67,7 @@ class BrainTwo:
         self.audit_history.append({
             "task_id": blueprint.task_id,
             "result": audit_result,
-            "timestamp": __import__('time').time(),
+            "timestamp": time.time(),
         })
         
         logger.info(f"质量审核完成，通过: {audit_result['passed']}")
@@ -408,7 +410,7 @@ class BrainTwo:
 
 任务ID: {blueprint.task_id}
 任务描述: {blueprint.description}
-审核时间: {__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+审核时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
 质量评分: {quality_score:.1f}/100
 
@@ -564,7 +566,7 @@ class BrainTwo:
         self.audit_history.append({
             "task_id": blueprint.task_id,
             "result": combined,
-            "timestamp": __import__('time').time(),
+            "timestamp": time.time(),
             "type": "multi_audit",
         })
         logger.info(f"多元仲裁完成 | 平均分: {combined.get('avg_score', 0):.1f}")

@@ -1,0 +1,31 @@
+{
+  "name": "ai-flow-architect-demo",
+  "version": "2.3.0",
+  "description": "Instant demo of AI Flow Architect - dual-model adversarial code audit. See it in 3 seconds.",
+  "keywords": [
+    "ai",
+    "code-audit",
+    "hallucination",
+    "trust",
+    "mcp",
+    "code-review"
+  ],
+  "license": "Apache-2.0",
+  "author": "AI Flow Architect",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wdnmd1265/ai-flow-architect"
+  },
+  "main": "index.js",
+  "bin": {
+    "ai-flow-architect-demo": "./bin/cli.js"
+  },
+  "files": [
+    "index.js",
+    "bin/cli.js",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

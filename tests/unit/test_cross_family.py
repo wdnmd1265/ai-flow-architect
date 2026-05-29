@@ -228,7 +228,7 @@ class TestTrustReportCrossFamily:
         assert hasattr(report, "cross_family_validated")
         assert hasattr(report, "brain_families")
         assert report.cross_family_validated is False
-        assert report.brain_families == ("", "")
+        assert report.brain_families == ["", ""]
 
     def test_report_serialization_includes_cross_family(self):
         """TrustReport 序列化包含跨家族字段"""
@@ -257,7 +257,7 @@ class TestTrustReportCrossFamily:
         data = json.loads(json_str)
         reconstructed = TrustReport(**data)
         assert reconstructed.cross_family_validated is True
-        assert reconstructed.brain_families == ("openai", "anthropic")
+        assert reconstructed.brain_families == ["openai", "anthropic"]
 
 
 class TestCrossFamilyHTML:
