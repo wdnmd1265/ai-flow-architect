@@ -36,6 +36,14 @@
 
 ### 新增
 
+**漏斗引导链路**
+
+- `ai-flow init` 重写为 3 步交互对话：Provider 菜单（4 选 1）→ API Key（Ollama 跳过）→ Custom 额外问 endpoint + 已有配置覆盖检测
+- Playground Demo 新增 "Try with your own code →" 按钮，一键切到 Live 模式
+- 文案风格统一：箭头 + 等宽命令，npx Demo → Playground Demo → Playground Live → pip install 引导链路打通
+
+**测试**
+
 - `tests/unit/test_mcp_server.py`：11 个 MCP Server 测试
 - `src/ai_flow_architect/config/model_resolver.py`：模型解析器独立模块
 
