@@ -9,6 +9,23 @@
 
 （暂无）
 
+## [2.3.3] - 2026-05-30
+
+### 新增
+
+**社区基建**
+
+- `CODE_OF_CONDUCT.md`：Contributor Covenant 2.1
+- `SECURITY.md`：漏洞报告流程、支持版本、披露流程
+- Issue 模板升级为 .yml 表单格式：Bug Report（下拉选择 OS、必填字段）+ Feature Request（复选框选择范围）
+- `.github/ISSUE_TEMPLATE/config.yml`：禁用空白 Issue，引导到 Discussions
+
+**GitHub Action — 发布到 Marketplace**
+
+- `action.yml`：composite action，支持 9 个提供商 API Key 输入
+- `scripts/action_entry.py`：Action 入口脚本，JSON 结构化输出
+- 自动检测 PR 变更文件、支持 fail_on 配置（reject/review/never）、PR 评论 + Job Summary 双模式输出
+
 ## [2.3.2] - 2026-05-29
 
 ### 变更
