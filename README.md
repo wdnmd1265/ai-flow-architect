@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/img/logo.svg" alt="AI Flow Architect" width="500" />
+  <img src="docs/img/logo.svg" alt="Audison" width="500" />
 </p>
 
 <p align="center">
@@ -21,15 +21,15 @@ That's the idea. Everything else — the 8 providers, the fallback network, the 
 ---
 
 <p align="center">
-  <a href="https://wdnmd1265.github.io/ai-flow-architect/playground.html"><strong>🎮 Try it live →</strong></a>
+  <a href="https://wdnmd1265.github.io/audison/playground.html"><strong>🎮 Try it live →</strong></a>
 </p>
 
 <p align="center">
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.9%2B-3776AB.svg" alt="Python 3.9+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-4CAF50.svg" alt="License"></a>
-  <a href="https://github.com/wdnmd1265/ai-flow-architect/actions"><img src="https://img.shields.io/badge/tests-186%20passing-4CAF50.svg" alt="Tests"></a>
-  <a href="https://wdnmd1265.github.io/ai-flow-architect/playground.html"><img src="https://img.shields.io/badge/playground-live-58a6ff.svg" alt="Playground"></a>
-  <a href="https://wdnmd1265.github.io/ai-flow-architect/"><img src="https://img.shields.io/badge/docs-deployed-success.svg" alt="GitHub Pages"></a>
+  <a href="https://github.com/wdnmd1265/audison/actions"><img src="https://img.shields.io/badge/tests-186%20passing-4CAF50.svg" alt="Tests"></a>
+  <a href="https://wdnmd1265.github.io/audison/playground.html"><img src="https://img.shields.io/badge/playground-live-58a6ff.svg" alt="Playground"></a>
+  <a href="https://wdnmd1265.github.io/audison/"><img src="https://img.shields.io/badge/docs-deployed-success.svg" alt="GitHub Pages"></a>
 </p>
 
 <p align="center">
@@ -69,7 +69,7 @@ That's the idea. Everything else — the 8 providers, the fallback network, the 
 └─────────────────────────────────────────────────────┘
 ```
 
-### After: ai-flow-architect Adversarial Audit
+### After: audison Adversarial Audit
 
 ```
 ┌──────────────────────────────────────────────────────────┐
@@ -106,7 +106,7 @@ That's the idea. Everything else — the 8 providers, the fallback network, the 
 └──────────────────────────────────────────────────────────┘
 ```
 
-> **[Try the interactive Playground](https://wdnmd1265.github.io/ai-flow-architect/playground.html)** — see real audits of real AI outputs. No installation. No API key.
+> **[Try the interactive Playground](https://wdnmd1265.github.io/audison/playground.html)** — see real audits of real AI outputs. No installation. No API key.
 
 ---
 
@@ -132,12 +132,12 @@ That's the idea. Everything else — the 8 providers, the fallback network, the 
 
 ## Quick Start
 
-🌐 **Try instantly in your browser**: [wdnmd1265.github.io/ai-flow-architect/playground.html](https://wdnmd1265.github.io/ai-flow-architect/playground.html) — no install, no API key
+🌐 **Try instantly in your browser**: [wdnmd1265.github.io/audison/playground.html](https://wdnmd1265.github.io/audison/playground.html) — no install, no API key
 
-> **Try it instantly — no install:** `npx ai-flow-architect-demo`
+> **Try it instantly — no install:** `npx audison-demo`
 
 ```bash
-pip install ai-flow-architect[html]
+pip install audison[html]
 ```
 
 Set one API key — or two for cross-provider arbitration (recommended):
@@ -151,18 +151,18 @@ Audit anything in one command:
 
 ```bash
 # Audit a file with a specific concern
-ai-flow audit login.py -r "Check for SQL injection, auth bypass, and rate limiting"
+audison audit login.py -r "Check for SQL injection, auth bypass, and rate limiting"
 
 # Export as a shareable HTML report
-ai-flow audit login.py -r "Security audit" --html -o report.html
+audison audit login.py -r "Security audit" --html -o report.html
 
 # Pipe from other tools
-cat generated_code.py | ai-flow audit -r "Validate correctness"
+cat generated_code.py | audison audit -r "Validate correctness"
 ```
 
 ```python
 # Or use the Python SDK — 3 lines
-from ai_flow_architect import TrustEngine
+from audison import TrustEngine
 
 engine = TrustEngine()
 report = engine.audit(
@@ -216,7 +216,7 @@ The core insight: a single model cannot discover its own blind spots. Two models
 Export self-contained HTML reports with `--html`. Send them to your team. Post them in issues. Every share is an audit your AI didn't get away with.
 
 ```bash
-ai-flow audit contract.pdf -r "Check for unfair terms" --html -o contract-audit.html
+audison audit contract.pdf -r "Check for unfair terms" --html -o contract-audit.html
 ```
 
 The report includes color-coded findings, arbiter votes with model attribution, collapsible evidence chains, and a transparent cost breakdown. No external CSS, no JavaScript frameworks, no server — one file, works everywhere.
@@ -239,10 +239,10 @@ report.evidence_chain # SHA-256 hash + timestamp, fully verifiable
 
 | Format | Command | Use Case |
 |--------|---------|----------|
-| Terminal | `ai-flow audit ...` | Interactive, color-coded |
-| HTML | `ai-flow audit ... --html -o report.html` | Share with team, post in issues |
-| JSON | `ai-flow audit ... --json` | Pipe to other tools, CI/CD |
-| Markdown | `ai-flow audit ... --markdown` | Embed in docs, PR comments |
+| Terminal | `audison audit ...` | Interactive, color-coded |
+| HTML | `audison audit ... --html -o report.html` | Share with team, post in issues |
+| JSON | `audison audit ... --json` | Pipe to other tools, CI/CD |
+| Markdown | `audison audit ... --markdown` | Embed in docs, PR comments |
 
 ### Local Mode (Ollama)
 
@@ -258,19 +258,19 @@ ollama pull llama3
 ollama pull codellama
 
 # Run audit locally
-ai-flow audit your_code.py -r "requirement" --local
+audison audit your_code.py -r "requirement" --local
 
 # Or specify custom models
-ai-flow audit your_code.py -r "requirement" --local --model1 llama3 --model2 codellama
+audison audit your_code.py -r "requirement" --local --model1 llama3 --model2 codellama
 ```
 
-> **Accuracy Note**: Local models (~50-60% detection rate) are significantly less accurate than cloud models (85%+). More false positives and missed findings are expected. Use local mode when code privacy is critical, but use cloud mode (`ai-flow audit --help`) for production audit quality. The gap is due to smaller model sizes and weaker reasoning capabilities of locally-runnable models compared to frontier cloud models.
+> **Accuracy Note**: Local models (~50-60% detection rate) are significantly less accurate than cloud models (85%+). More false positives and missed findings are expected. Use local mode when code privacy is critical, but use cloud mode (`audison audit --help`) for production audit quality. The gap is due to smaller model sizes and weaker reasoning capabilities of locally-runnable models compared to frontier cloud models.
 
 ### Integrations
 
 | Integration | Effort | Guide |
 |-------------|--------|-------|
-| CLI | 1 line | `ai-flow audit ...` |
+| CLI | 1 line | `audison audit ...` |
 | Python SDK | 3 lines | `TrustEngine().audit(...)` |
 | LangChain | 3 lines | `agent.run()` + `engine.audit()` |
 | CrewAI | 4 lines | `crew.kickoff()` + `engine.audit()` |
@@ -285,9 +285,9 @@ Configure in your AI editor's `mcp.json`:
 ```json
 {
   "mcpServers": {
-    "ai-flow-architect": {
+    "audison": {
       "command": "uvx",
-      "args": ["ai-flow-architect[mcp]", "ai-flow-mcp"],
+      "args": ["audison[mcp]", "audison-mcp"],
       "env": {
         "OPENAI_API_KEY": "sk-..."
       }
@@ -300,7 +300,7 @@ Then use `audit_code` and `audit_file` tools directly in your AI assistant to ve
 
 ### Comparison
 
-| Feature | ai-flow-architect | Mira | Raw LLM |
+| Feature | audison | Mira | Raw LLM |
 |---------|-------------------|------|---------|
 | Open Source | ✅ | ❌ | — |
 | Multi-model Arbitration | ✅ | ✅ | ❌ |
@@ -313,7 +313,7 @@ Then use `audit_code` and `audit_file` tools directly in your AI assistant to ve
 
 ## Why Not PR-Agent / CodeRabbit / Copilot
 
-| | PR-Agent / CodeRabbit / Copilot | ai-flow-architect |
+| | PR-Agent / CodeRabbit / Copilot | audison |
 |---|---|---|
 | **Review model** | Single model reviews in one pass | Two models + adversarial opponent cross-verify |
 | **False positives** | Reported as-is. You triage manually. | Opponent Brain challenges and filters unconfirmed claims |
@@ -330,7 +330,7 @@ The difference isn't "better." Single-model review has a fundamental ceiling: on
 TrustEngine audits existing AI output. FlowArchitect builds the output under audit from the start. For when "review after generation" isn't enough — you want the opponent in the room during planning.
 
 ```python
-from ai_flow_architect import FlowArchitect
+from audison import FlowArchitect
 
 async def main():
     architect = FlowArchitect(config={"brain1": "gpt-4o"})
@@ -345,8 +345,8 @@ async def main():
 ## Project Structure
 
 ```
-ai-flow-architect/
-├── src/ai_flow_architect/
+audison/
+├── src/audison/
 │   ├── engine/                  # TrustEngine — standalone audit layer
 │   │   ├── trust_engine.py      # Core audit interface
 │   │   ├── trust_report.py      # TrustReport schema + serialization (JSON/MD/HTML)
@@ -383,11 +383,11 @@ ai-flow-architect/
 ## Roadmap
 
 - [ ] **GitHub Action** — Automated PR review comments with --html report links
-- [ ] **PyPI package** — `pip install ai-flow-architect`
+- [ ] **PyPI package** — `pip install audison`
 - [ ] **Persona marketplace** — Community-contributed adversarial review styles (`/personas`)
 - [ ] **Community showdown** — "Can you beat our opponent brain?" challenge
 - [x] **HTML report export** — Self-contained, shareable audit reports
-- [x] **CLI interface** — `ai-flow audit` with `--html`, `--json`, `--markdown`
+- [x] **CLI interface** — `audison audit` with `--html`, `--json`, `--markdown`
 - [x] **TrustEngine** — Multi-arbiter + adversarial + evidence chain
 - [x] **Model providers** — OpenAI + Anthropic production-tested, 5 more via compatible protocol
 - [ ] **Parallel execution** — Independent steps run concurrently
@@ -437,8 +437,8 @@ python scripts/benchmark.py --list-disputed
 Contributions welcome. If you've tested the engine with a provider not yet in our compatibility list, that alone is a valuable PR.
 
 ```bash
-git clone https://github.com/wdnmd1265/ai-flow-architect.git
-cd ai-flow-architect
+git clone https://github.com/wdnmd1265/audison.git
+cd audison
 pip install -e ".[html]"
 pytest tests/unit/ -v    # 186 tests
 ```
@@ -460,7 +460,7 @@ pytest tests/unit/ -v    # 186 tests
 </p>
 
 <p align="center">
-  <a href="https://wdnmd1265.github.io/ai-flow-architect/playground.html"><strong>See it in action: playground.html</strong></a>
+  <a href="https://wdnmd1265.github.io/audison/playground.html"><strong>See it in action: playground.html</strong></a>
   &nbsp;|&nbsp;
-  <a href="https://wdnmd1265.github.io/ai-flow-architect/">GitHub Pages — deployed</a>
+  <a href="https://wdnmd1265.github.io/audison/">GitHub Pages — deployed</a>
 </p>

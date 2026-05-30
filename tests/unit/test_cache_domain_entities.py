@@ -5,7 +5,7 @@
 """
 
 import pytest
-from ai_flow_architect.core.cache import CacheManager
+from audison.core.cache import CacheManager
 
 
 class TestExtractDomainEntities:

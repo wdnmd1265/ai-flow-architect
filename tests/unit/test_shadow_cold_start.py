@@ -9,7 +9,7 @@ import asyncio
 import tempfile
 import shutil
 from pathlib import Path
-from ai_flow_architect.utils.decision_recorder import DecisionRecorder
+from audison.utils.decision_recorder import DecisionRecorder
 
 
 class TestShadowColdStart:

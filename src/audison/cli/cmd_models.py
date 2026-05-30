@@ -36,4 +36,4 @@ def do_models():
         table.add_row(name, provider, str(ctx), fc, vis)
 
     console.print(table)
-    console.print(f"\n共 {len(models)} 个模型。使用 ai-flow audit --brain1 <模型名> 指定审查模型。")
+    console.print(f"\n共 {len(models)} 个模型。使用 audison audit --brain1 <模型名> 指定审查模型。")

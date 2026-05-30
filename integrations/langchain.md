@@ -5,7 +5,7 @@
 ## 安装
 
 ```bash
-pip install ai-flow-architect langchain langchain-openai
+pip install audison langchain langchain-openai
 ```
 
 ## 场景说明
@@ -17,7 +17,7 @@ pip install ai-flow-architect langchain langchain-openai
 ```python
 from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain_openai import ChatOpenAI
-from ai_flow_architect import TrustEngine
+from audison import TrustEngine
 
 # 1. 创建 LangChain Agent
 llm = ChatOpenAI(model="gpt-4o")

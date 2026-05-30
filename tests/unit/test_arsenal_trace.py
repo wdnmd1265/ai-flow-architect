@@ -9,7 +9,7 @@
 
 import pytest
 
-from ai_flow_architect.engine.arsenal_trace import (
+from audison.engine.arsenal_trace import (
     TraceEngine,
     TraceConfig,
     TraceResult,

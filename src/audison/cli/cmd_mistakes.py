@@ -20,7 +20,7 @@ def do_mistakes(args):
 
         # 导出错题集
         if args.export:
-            output_path = args.output or str(Path.home() / ".ai-flow" / "mistake_corpus.jsonl")
+            output_path = args.output or str(Path.home() / ".audison" / "mistake_corpus.jsonl")
             exported_path = analyzer.export_mistake_corpus(output_path)
             console.print(f"[green]✓[/green] 错题集已导出: {exported_path}")
             console.print(f"  共导出 {sum(1 for _ in open(exported_path, 'r', encoding='utf-8'))} 条记录")

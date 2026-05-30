@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 from unittest.mock import patch, MagicMock
 
-from ai_flow_architect.utils.api_pool import APIPoolManager, DEFAULT_MODELS_PATH
+from audison.utils.api_pool import APIPoolManager, DEFAULT_MODELS_PATH
 
 
 @pytest.fixture

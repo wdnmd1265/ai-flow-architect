@@ -19,7 +19,7 @@ class TestLocalRulePrecheck:
 
     def test_valid_step_passes(self):
         """正常步骤应该通过预检"""
-        from ai_flow_architect.core.scheduler import TaskScheduler
+        from audison.core.scheduler import TaskScheduler
         scheduler = TaskScheduler()
 
         step = {
@@ -33,7 +33,7 @@ class TestLocalRulePrecheck:
 
     def test_invalid_expert_rejected(self):
         """未知专家角色应拒绝"""
-        from ai_flow_architect.core.scheduler import TaskScheduler
+        from audison.core.scheduler import TaskScheduler
         scheduler = TaskScheduler()
 
         step = {
@@ -49,7 +49,7 @@ class TestLocalRulePrecheck:
     @pytest.mark.parametrize("task", ["", "   ", None])
     def test_empty_task_rejected(self, task):
         """空任务描述应拒绝"""
-        from ai_flow_architect.core.scheduler import TaskScheduler
+        from audison.core.scheduler import TaskScheduler
         scheduler = TaskScheduler()
 
         step = {
@@ -65,7 +65,7 @@ class TestLocalRulePrecheck:
     @pytest.mark.parametrize("prompt", ["", "   ", None])
     def test_empty_prompt_rejected(self, prompt):
         """空专家提示词应拒绝"""
-        from ai_flow_architect.core.scheduler import TaskScheduler
+        from audison.core.scheduler import TaskScheduler
         scheduler = TaskScheduler()
 
         step = {
@@ -81,7 +81,7 @@ class TestLocalRulePrecheck:
     @pytest.mark.parametrize("complexity", ["", "超高", "very_high", "extreme"])
     def test_invalid_complexity_rejected(self, complexity):
         """未知复杂度等级应拒绝"""
-        from ai_flow_architect.core.scheduler import TaskScheduler
+        from audison.core.scheduler import TaskScheduler
         scheduler = TaskScheduler()
 
         step = {
@@ -96,7 +96,7 @@ class TestLocalRulePrecheck:
 
     def test_all_valid_experts_pass(self):
         """所有合法专家角色都应通过"""
-        from ai_flow_architect.core.scheduler import TaskScheduler
+        from audison.core.scheduler import TaskScheduler
         scheduler = TaskScheduler()
 
         for expert in ["creative", "evaluator", "programmer", "reviewer"]:
@@ -111,7 +111,7 @@ class TestLocalRulePrecheck:
 
     def test_all_valid_complexities_pass(self):
         """所有合法复杂度等级都应通过"""
-        from ai_flow_architect.core.scheduler import TaskScheduler
+        from audison.core.scheduler import TaskScheduler
         scheduler = TaskScheduler()
 
         for complexity in ["low", "medium", "high"]:
@@ -130,7 +130,7 @@ class TestStepCacheKey:
 
     def test_key_format(self):
         """缓存键应遵循 step::expert::task 格式"""
-        from ai_flow_architect.core.scheduler import TaskScheduler
+        from audison.core.scheduler import TaskScheduler
         scheduler = TaskScheduler()
 
         step = {"expert": "evaluator", "task": "评估需求可行性"}
@@ -139,7 +139,7 @@ class TestStepCacheKey:
 
     def test_key_handles_missing_fields(self):
         """缓存键应处理缺失字段，不回退为空"""
-        from ai_flow_architect.core.scheduler import TaskScheduler
+        from audison.core.scheduler import TaskScheduler
         scheduler = TaskScheduler()
 
         step = {}
@@ -151,7 +151,7 @@ class TestIsRetryableError:
     """可重试错误判断——Level 1"""
 
     def setup_method(self):
-        from ai_flow_architect.core.scheduler import TaskScheduler
+        from audison.core.scheduler import TaskScheduler
         self.scheduler = TaskScheduler()
 
     @pytest.mark.parametrize("error_msg", [
@@ -195,7 +195,7 @@ class TestIsModelUnavailableError:
     """模型不可用错误判断——Level 2"""
 
     def setup_method(self):
-        from ai_flow_architect.core.scheduler import TaskScheduler
+        from audison.core.scheduler import TaskScheduler
         self.scheduler = TaskScheduler()
 
     @pytest.mark.parametrize("error_msg", [
@@ -222,7 +222,7 @@ class TestFilterInputForExpert:
     """字段过滤——精确匹配逻辑"""
 
     def setup_method(self):
-        from ai_flow_architect.core.scheduler import TaskScheduler
+        from audison.core.scheduler import TaskScheduler
         self.scheduler = TaskScheduler()
 
     def test_unset_required_fields_returns_empty(self):
@@ -315,8 +315,8 @@ class TestCreateExpert:
 
     def test_create_creative(self):
         """creative映射到CreativeExpert"""
-        from ai_flow_architect.core.scheduler import TaskScheduler
-        from ai_flow_architect.experts.creative import CreativeExpert
+        from audison.core.scheduler import TaskScheduler
+        from audison.experts.creative import CreativeExpert
         scheduler = TaskScheduler()
         expert = scheduler._create_expert("creative", "测试提示词")
         assert isinstance(expert, CreativeExpert)
@@ -325,31 +325,31 @@ class TestCreateExpert:
 
     def test_create_evaluator(self):
         """evaluator映射到EvaluatorExpert"""
-        from ai_flow_architect.core.scheduler import TaskScheduler
-        from ai_flow_architect.experts.evaluator import EvaluatorExpert
+        from audison.core.scheduler import TaskScheduler
+        from audison.experts.evaluator import EvaluatorExpert
         scheduler = TaskScheduler()
         expert = scheduler._create_expert("evaluator", "测试提示词")
         assert isinstance(expert, EvaluatorExpert)
 
     def test_create_programmer(self):
         """programmer映射到ProgrammerExpert"""
-        from ai_flow_architect.core.scheduler import TaskScheduler
-        from ai_flow_architect.experts.programmer import ProgrammerExpert
+        from audison.core.scheduler import TaskScheduler
+        from audison.experts.programmer import ProgrammerExpert
         scheduler = TaskScheduler()
         expert = scheduler._create_expert("programmer", "测试提示词")
         assert isinstance(expert, ProgrammerExpert)
 
     def test_create_reviewer(self):
         """reviewer映射到ReviewerExpert"""
-        from ai_flow_architect.core.scheduler import TaskScheduler
-        from ai_flow_architect.experts.reviewer import ReviewerExpert
+        from audison.core.scheduler import TaskScheduler
+        from audison.experts.reviewer import ReviewerExpert
         scheduler = TaskScheduler()
         expert = scheduler._create_expert("reviewer", "测试提示词")
         assert isinstance(expert, ReviewerExpert)
 
     def test_unknown_expert_returns_none(self):
         """未知专家类型返回None"""
-        from ai_flow_architect.core.scheduler import TaskScheduler
+        from audison.core.scheduler import TaskScheduler
         scheduler = TaskScheduler()
         expert = scheduler._create_expert("unknown", "提示词")
         assert expert is None
@@ -361,8 +361,8 @@ class TestExecuteFlow:
     @pytest.mark.asyncio
     async def test_normal_execution(self):
         """正常执行：所有步骤完成"""
-        from ai_flow_architect.core.scheduler import TaskScheduler
-        from ai_flow_architect.core.architect import Blueprint
+        from audison.core.scheduler import TaskScheduler
+        from audison.core.architect import Blueprint
 
         scheduler = TaskScheduler()
         scheduler.cache = MagicMock()
@@ -399,8 +399,8 @@ class TestExecuteFlow:
     @pytest.mark.asyncio
     async def test_precheck_failure_skips_step(self):
         """预检失败应跳过该步骤"""
-        from ai_flow_architect.core.scheduler import TaskScheduler
-        from ai_flow_architect.core.architect import Blueprint
+        from audison.core.scheduler import TaskScheduler
+        from audison.core.architect import Blueprint
 
         scheduler = TaskScheduler()
 
@@ -426,8 +426,8 @@ class TestExecuteFlow:
     @pytest.mark.asyncio
     async def test_cache_hit_skips_execution(self):
         """缓存命中应跳过真实执行"""
-        from ai_flow_architect.core.scheduler import TaskScheduler
-        from ai_flow_architect.core.architect import Blueprint
+        from audison.core.scheduler import TaskScheduler
+        from audison.core.architect import Blueprint
 
         scheduler = TaskScheduler()
         scheduler.cache = MagicMock()
@@ -457,8 +457,8 @@ class TestExecuteFlow:
     @pytest.mark.asyncio
     async def test_skip_next_breaks_loop(self):
         """智能跳步应中断后续步骤执行"""
-        from ai_flow_architect.core.scheduler import TaskScheduler
-        from ai_flow_architect.core.architect import Blueprint
+        from audison.core.scheduler import TaskScheduler
+        from audison.core.architect import Blueprint
 
         scheduler = TaskScheduler()
         scheduler.cache = MagicMock()
@@ -489,8 +489,8 @@ class TestExecuteFlow:
     @pytest.mark.asyncio
     async def test_execution_error(self):
         """执行异常应被捕获并记录"""
-        from ai_flow_architect.core.scheduler import TaskScheduler
-        from ai_flow_architect.core.architect import Blueprint
+        from audison.core.scheduler import TaskScheduler
+        from audison.core.architect import Blueprint
 
         scheduler = TaskScheduler()
         scheduler.cache = MagicMock()
@@ -519,8 +519,8 @@ class TestShouldSkipNext:
     """智能跳步逻辑"""
 
     def setup_method(self):
-        from ai_flow_architect.core.scheduler import TaskScheduler
-        from ai_flow_architect.core.architect import Blueprint
+        from audison.core.scheduler import TaskScheduler
+        from audison.core.architect import Blueprint
         self.scheduler = TaskScheduler()
 
     @pytest.mark.asyncio

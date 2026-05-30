@@ -7,7 +7,7 @@
 import pytest
 import os
 from unittest.mock import patch
-from ai_flow_architect.brains.brain_two import BrainTwo
+from audison.brains.brain_two import BrainTwo
 
 
 class TestMultiArbitration:

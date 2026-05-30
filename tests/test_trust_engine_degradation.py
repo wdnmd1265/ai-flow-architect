@@ -11,8 +11,8 @@ TrustEngine 降级场景测试
 import pytest
 import asyncio
 from unittest.mock import AsyncMock, patch
-from ai_flow_architect.engine.trust_engine import TrustEngine
-from ai_flow_architect.engine.trust_report import TrustReport
+from audison.engine.trust_engine import TrustEngine
+from audison.engine.trust_report import TrustReport
 
 
 class TestBrainTwoFailureDegradation:

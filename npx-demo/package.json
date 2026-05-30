@@ -1,7 +1,7 @@
 {
-  "name": "ai-flow-architect-demo",
+  "name": "audison-demo",
   "version": "2.3.0",
-  "description": "Instant demo of AI Flow Architect - dual-model adversarial code audit. See it in 3 seconds.",
+  "description": "Instant demo of Audison - dual-model adversarial code audit. See it in 3 seconds.",
   "keywords": [
     "ai",
     "code-audit",
@@ -11,14 +11,14 @@
     "code-review"
   ],
   "license": "Apache-2.0",
-  "author": "AI Flow Architect",
+  "author": "Audison",
   "repository": {
     "type": "git",
-    "url": "https://github.com/wdnmd1265/ai-flow-architect"
+    "url": "https://github.com/wdnmd1265/audison"
   },
   "main": "index.js",
   "bin": {
-    "ai-flow-architect-demo": "./bin/cli.js"
+    "audison-demo": "./bin/cli.js"
   },
   "files": [
     "index.js",

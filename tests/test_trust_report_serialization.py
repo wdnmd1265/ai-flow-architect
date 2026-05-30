@@ -6,7 +6,7 @@ TrustReport 序列化测试
 import pytest
 import json
 from datetime import datetime, timezone
-from ai_flow_architect.engine.trust_report import (
+from audison.engine.trust_report import (
     TrustReport,
     Finding,
     Risk,
@@ -133,7 +133,7 @@ class TestTrustReportSerialization:
         assert data["verdict"] == "review"
         assert data["confidence"] == 65.5
         assert data["version"] == "1.0"
-        from ai_flow_architect import __version__
+        from audison import __version__
         assert data["engine_version"] == __version__
         
         # 验证 findings

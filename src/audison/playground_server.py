@@ -2,9 +2,9 @@
 Playground 本地服务器 — 浏览器打开即可使用。
 
 用法：
-    python -m ai_flow_architect.playground_server
+    python -m audison.playground_server
     # 或
-    ai-flow serve
+    audison serve
 
 浏览器自动打开 http://localhost:8765
 """
@@ -82,7 +82,7 @@ def _run_cross_examine(code: str, api_key: str) -> Dict[str, Any]:
 
     .. note:: 当前为占位实现，返回硬编码结果。
               完整的跨审查需要两个不同 provider 的 API Key，
-              请使用 ``ai-flow cross-examine`` CLI 命令。
+              请使用 ``audison cross-examine`` CLI 命令。
     """
     # 检测 provider
     provider = "openai"
@@ -119,7 +119,7 @@ def _run_cross_examine(code: str, api_key: str) -> Dict[str, Any]:
             "blind_spots": 0,
             "confidence": "-",
             "diffs": [],
-            "note": "Cross-Examine 需要两个不同 provider 的 API Key。请使用 ai-flow cross-examine CLI 命令。",
+            "note": "Cross-Examine 需要两个不同 provider 的 API Key。请使用 audison cross-examine CLI 命令。",
         }
     finally:
         if tmp_path and os.path.exists(tmp_path):
@@ -190,7 +190,7 @@ def serve(host: str = "127.0.0.1", port: int = 8765, open_browser: bool = True):
     server = HTTPServer((host, port), PlaygroundHandler)
     url = f"http://{host}:{port}"
 
-    print(f"\n  AI Flow Architect — Audit Playground")
+    print(f"\n  Audison — Audit Playground")
     print(f"  {'━' * 40}")
     print(f"  地址: {url}")
     print(f"  模式: Attack（本地规则引擎，不需要 API Key）")

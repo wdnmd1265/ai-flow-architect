@@ -1,6 +1,6 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "$id": "https://github.com/wdnmd1265/ai-flow-architect/schemas/trust-report-v1.schema.json",
+    "$id": "https://github.com/wdnmd1265/audison/schemas/trust-report-v1.schema.json",
     "title": "TrustReport",
     "description": "AI Trust Engine 输出的信任报告",
     "type": "object",

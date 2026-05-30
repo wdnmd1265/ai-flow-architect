@@ -1,6 +1,6 @@
 """
 CLI E2E 测试
-测试 `ai-flow audit` 命令的基本流程
+测试 `audison audit` 命令的基本流程
 """
 
 import pytest
@@ -82,14 +82,14 @@ class TestCLIE2E:
 
     def test_audit_json_output(self, temp_input_file, mock_audit_result):
         """测试 --json 输出格式"""
-        from ai_flow_architect.cli import main
-        from ai_flow_architect.engine.trust_engine import TrustEngine
+        from audison.cli import main
+        from audison.engine.trust_engine import TrustEngine
 
         # 设置 API key 环境变量
         os.environ["OPENAI_API_KEY"] = "sk-test-mock-key"
 
         with patch.object(TrustEngine, "audit", new_callable=AsyncMock) as mock_audit:
-            from ai_flow_architect.engine.trust_report import (
+            from audison.engine.trust_report import (
                 TrustReport,
                 Finding,
                 Risk,
@@ -140,7 +140,7 @@ class TestCLIE2E:
 
             # 模拟命令行参数
             test_args = [
-                "ai-flow",
+                "audison",
                 "audit",
                 temp_input_file,
                 "--json",
@@ -157,13 +157,13 @@ class TestCLIE2E:
 
     def test_audit_html_output(self, temp_input_file, temp_output_file):
         """测试 --html 报告生成"""
-        from ai_flow_architect.cli import main
-        from ai_flow_architect.engine.trust_engine import TrustEngine
+        from audison.cli import main
+        from audison.engine.trust_engine import TrustEngine
 
         os.environ["OPENAI_API_KEY"] = "sk-test-mock-key"
 
         with patch.object(TrustEngine, "audit", new_callable=AsyncMock) as mock_audit:
-            from ai_flow_architect.engine.trust_report import (
+            from audison.engine.trust_report import (
                 TrustReport,
                 Finding,
                 Risk,
@@ -206,7 +206,7 @@ class TestCLIE2E:
             mock_audit.return_value = mock_report
 
             test_args = [
-                "ai-flow",
+                "audison",
                 "audit",
                 temp_input_file,
                 "--html",
@@ -229,13 +229,13 @@ class TestCLIE2E:
 
     def test_audit_markdown_output(self, temp_input_file, temp_output_file):
         """测试 --markdown 输出格式"""
-        from ai_flow_architect.cli import main
-        from ai_flow_architect.engine.trust_engine import TrustEngine
+        from audison.cli import main
+        from audison.engine.trust_engine import TrustEngine
 
         os.environ["OPENAI_API_KEY"] = "sk-test-mock-key"
 
         with patch.object(TrustEngine, "audit", new_callable=AsyncMock) as mock_audit:
-            from ai_flow_architect.engine.trust_report import (
+            from audison.engine.trust_report import (
                 TrustReport,
                 Finding,
                 Risk,
@@ -292,7 +292,7 @@ class TestCLIE2E:
             mock_audit.return_value = mock_report
 
             test_args = [
-                "ai-flow",
+                "audison",
                 "audit",
                 temp_input_file,
                 "--markdown",
@@ -316,13 +316,13 @@ class TestCLIE2E:
 
     def test_audit_no_color_output(self, temp_input_file):
         """测试 --no-color 输出"""
-        from ai_flow_architect.cli import main
-        from ai_flow_architect.engine.trust_engine import TrustEngine
+        from audison.cli import main
+        from audison.engine.trust_engine import TrustEngine
 
         os.environ["OPENAI_API_KEY"] = "sk-test-mock-key"
 
         with patch.object(TrustEngine, "audit", new_callable=AsyncMock) as mock_audit:
-            from ai_flow_architect.engine.trust_report import (
+            from audison.engine.trust_report import (
                 TrustReport,
                 EvidenceChain,
             )
@@ -345,7 +345,7 @@ class TestCLIE2E:
             mock_audit.return_value = mock_report
 
             test_args = [
-                "ai-flow",
+                "audison",
                 "audit",
                 temp_input_file,
                 "--no-color",
@@ -361,13 +361,13 @@ class TestCLIE2E:
 
     def test_audit_with_requirement(self, temp_input_file):
         """测试带 --requirement 参数的审查"""
-        from ai_flow_architect.cli import main
-        from ai_flow_architect.engine.trust_engine import TrustEngine
+        from audison.cli import main
+        from audison.engine.trust_engine import TrustEngine
 
         os.environ["OPENAI_API_KEY"] = "sk-test-mock-key"
 
         with patch.object(TrustEngine, "audit", new_callable=AsyncMock) as mock_audit:
-            from ai_flow_architect.engine.trust_report import (
+            from audison.engine.trust_report import (
                 TrustReport,
                 EvidenceChain,
             )
@@ -390,7 +390,7 @@ class TestCLIE2E:
             mock_audit.return_value = mock_report
 
             test_args = [
-                "ai-flow",
+                "audison",
                 "audit",
                 temp_input_file,
                 "-r",
@@ -412,13 +412,13 @@ class TestCLIE2E:
 
     def test_audit_with_brain_models(self, temp_input_file):
         """测试 --brain1 和 --brain2 参数"""
-        from ai_flow_architect.cli import main
-        from ai_flow_architect.engine.trust_engine import TrustEngine
+        from audison.cli import main
+        from audison.engine.trust_engine import TrustEngine
 
         os.environ["OPENAI_API_KEY"] = "sk-test-mock-key"
 
         with patch.object(TrustEngine, "audit", new_callable=AsyncMock) as mock_audit:
-            from ai_flow_architect.engine.trust_report import (
+            from audison.engine.trust_report import (
                 TrustReport,
                 EvidenceChain,
             )
@@ -441,7 +441,7 @@ class TestCLIE2E:
             mock_audit.return_value = mock_report
 
             test_args = [
-                "ai-flow",
+                "audison",
                 "audit",
                 temp_input_file,
                 "--brain1",
@@ -461,13 +461,13 @@ class TestCLIE2E:
 
     def test_audit_stdin_input(self):
         """测试从 stdin 读取输入"""
-        from ai_flow_architect.cli import main
-        from ai_flow_architect.engine.trust_engine import TrustEngine
+        from audison.cli import main
+        from audison.engine.trust_engine import TrustEngine
 
         os.environ["OPENAI_API_KEY"] = "sk-test-mock-key"
 
         with patch.object(TrustEngine, "audit", new_callable=AsyncMock) as mock_audit:
-            from ai_flow_architect.engine.trust_report import (
+            from audison.engine.trust_report import (
                 TrustReport,
                 EvidenceChain,
             )
@@ -490,7 +490,7 @@ class TestCLIE2E:
             mock_audit.return_value = mock_report
 
             test_args = [
-                "ai-flow",
+                "audison",
                 "audit",
                 "-",
                 "--no-color",
@@ -512,14 +512,14 @@ class TestCLIErrorHandling:
 
     def test_no_api_key(self):
         """测试无 API key 时的错误处理"""
-        from ai_flow_architect.cli import main
+        from audison.cli import main
 
         # 确保 API key 未设置
         if "OPENAI_API_KEY" in os.environ:
             del os.environ["OPENAI_API_KEY"]
 
         test_args = [
-            "ai-flow",
+            "audison",
             "audit",
             "test.py",
             "--no-color",
@@ -534,12 +534,12 @@ class TestCLIErrorHandling:
 
     def test_file_not_found(self):
         """测试文件不存在时的错误处理"""
-        from ai_flow_architect.cli import main
+        from audison.cli import main
 
         os.environ["OPENAI_API_KEY"] = "sk-test-mock-key"
 
         test_args = [
-            "ai-flow",
+            "audison",
             "audit",
             "nonexistent_file_xyz.py",
             "--no-color",
@@ -555,8 +555,8 @@ class TestCLIErrorHandling:
 
     def test_audit_failure_handling(self, temp_input_file):
         """测试审查失败时的错误处理"""
-        from ai_flow_architect.cli import main
-        from ai_flow_architect.engine.trust_engine import TrustEngine
+        from audison.cli import main
+        from audison.engine.trust_engine import TrustEngine
 
         os.environ["OPENAI_API_KEY"] = "sk-test-mock-key"
 
@@ -564,7 +564,7 @@ class TestCLIErrorHandling:
             mock_audit.side_effect = RuntimeError("模拟审查失败")
 
             test_args = [
-                "ai-flow",
+                "audison",
                 "audit",
                 temp_input_file,
                 "--no-color",
@@ -580,13 +580,13 @@ class TestCLIErrorHandling:
 
     def test_html_without_jinja2(self, temp_input_file):
         """测试 jinja2 未安装时的 HTML 错误处理"""
-        from ai_flow_architect.cli import main
-        from ai_flow_architect.engine.trust_engine import TrustEngine
+        from audison.cli import main
+        from audison.engine.trust_engine import TrustEngine
 
         os.environ["OPENAI_API_KEY"] = "sk-test-mock-key"
 
         with patch.object(TrustEngine, "audit", new_callable=AsyncMock) as mock_audit:
-            from ai_flow_architect.engine.trust_report import (
+            from audison.engine.trust_report import (
                 TrustReport,
                 EvidenceChain,
             )
@@ -609,7 +609,7 @@ class TestCLIErrorHandling:
             mock_audit.return_value = mock_report
 
             test_args = [
-                "ai-flow",
+                "audison",
                 "audit",
                 temp_input_file,
                 "--html",
@@ -617,7 +617,7 @@ class TestCLIErrorHandling:
 
             # 模拟 jinja2 不可用
             with patch(
-                "ai_flow_architect.engine.trust_report._JINJA2_AVAILABLE", False
+                "audison.engine.trust_report._JINJA2_AVAILABLE", False
             ):
                 with patch.object(sys, "argv", test_args):
                     try:
@@ -636,8 +636,8 @@ class TestCLIInitAndModels:
 
     @pytest.fixture(autouse=True)
     def _init_env_cleanup(self):
-        """Setup: 备份 .ai-flow 目录；teardown: 恢复并清理测试残留"""
-        config_dir = Path.home() / ".ai-flow"
+        """Setup: 备份 .audison 目录；teardown: 恢复并清理测试残留"""
+        config_dir = Path.home() / ".audison"
         env_path = config_dir / ".env"
         config_path = config_dir / "config.yaml"
 
@@ -676,9 +676,9 @@ class TestCLIInitAndModels:
 
     def test_init_command(self):
         """测试 init 命令（模拟 input/getpass 完成交互式配置）"""
-        from ai_flow_architect.cli import main
+        from audison.cli import main
 
-        test_args = ["ai-flow", "init"]
+        test_args = ["audison", "init"]
 
         with patch.object(sys, "argv", test_args):
             with patch("builtins.input", side_effect=["1", ""]):
@@ -690,9 +690,9 @@ class TestCLIInitAndModels:
 
     def test_models_command(self):
         """测试 models 命令"""
-        from ai_flow_architect.cli import main
+        from audison.cli import main
 
-        test_args = ["ai-flow", "models"]
+        test_args = ["audison", "models"]
 
         with patch.object(sys, "argv", test_args):
             try:
@@ -702,9 +702,9 @@ class TestCLIInitAndModels:
 
     def test_no_command(self):
         """测试无命令时的帮助输出"""
-        from ai_flow_architect.cli import main
+        from audison.cli import main
 
-        test_args = ["ai-flow"]
+        test_args = ["audison"]
 
         with patch.object(sys, "argv", test_args):
             try:

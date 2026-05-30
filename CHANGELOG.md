@@ -38,14 +38,14 @@
 
 **漏斗引导链路**
 
-- `ai-flow init` 重写为 3 步交互对话：Provider 菜单（4 选 1）→ API Key（Ollama 跳过）→ Custom 额外问 endpoint + 已有配置覆盖检测
+- `audison init` 重写为 3 步交互对话：Provider 菜单（4 选 1）→ API Key（Ollama 跳过）→ Custom 额外问 endpoint + 已有配置覆盖检测
 - Playground Demo 新增 "Try with your own code →" 按钮，一键切到 Live 模式
 - 文案风格统一：箭头 + 等宽命令，npx Demo → Playground Demo → Playground Live → pip install 引导链路打通
 
 **测试**
 
 - `tests/unit/test_mcp_server.py`：11 个 MCP Server 测试
-- `src/ai_flow_architect/config/model_resolver.py`：模型解析器独立模块
+- `src/audison/config/model_resolver.py`：模型解析器独立模块
 
 ### 修复
 
@@ -58,25 +58,25 @@
 
 **MCP Server — 零配置接入 Cursor / Windsurf / Claude Desktop**
 
-- `src/ai_flow_architect/mcp_server.py`：基于 `mcp` SDK，暴露 `audit_code` 和 `audit_file` 两个工具
+- `src/audison/mcp_server.py`：基于 `mcp` SDK，暴露 `audit_code` 和 `audit_file` 两个工具
 - 三层 API Key 降级：.env 文件 → 系统环境变量 → 降级为 REVIEW(UNCERTAIN) + 引导提示
 - 120 秒超时保护：`asyncio.wait_for` 防止 LLM 卡死
-- 启动入口：`ai-flow-mcp` 命令（`pyproject.toml` 注册）
+- 启动入口：`audison-mcp` 命令（`pyproject.toml` 注册）
 - 配置示例：`mcp.json.example`（支持 uvx 启动，零安装）
 - MCP 集成文档：`skills/trust-engine/SKILL.md` 新增 MCP Integration 章节
 
 **npx 一键体验**
 
-- `npx-demo/`：Node.js 包，`npx ai-flow-architect-demo` 即可运行
+- `npx-demo/`：Node.js 包，`npx audison-demo` 即可运行
 - 5 个内置演示用例：Stripe API 幻觉 / 密码哈希错误 / 干净工具函数 / Pandas 参数 / 上下文漂移
 - JSON 结构化输出，可管道传递给 jq / 其他工具
-- 已发布至 npm：`ai-flow-architect-demo`
+- 已发布至 npm：`audison-demo`
 
 **Playground 双模式**
 
 - Demo 模式（默认）：5 个预生成案例，零 API Key，点击即看完整 TrustReport
 - Live 模式：用户填入 API Key，调用真实 LLM 实时审查
-- 本地服务器：`ai-flow serve` 或 `python -m ai_flow_architect.playground_server`，浏览器自动打开
+- 本地服务器：`audison serve` 或 `python -m audison.playground_server`，浏览器自动打开
 - GitHub Pages：`docs/playground.html`，静态托管，无需后端
 
 ### 变更
@@ -103,7 +103,7 @@
 - `brains/brain_two.py`：3 处 `__import__('time')` / `__import__('datetime')` 内联导入改为顶部 import
 - `mcp_server.py`：`audit_code` 和 `audit_file` 提取公共函数 `_run_audit()`，消除 80% 重复代码
 - `npx-demo/package.json`：license 从 `MIT` 改为 `Apache-2.0`，仓库地址修正
-- `README.md` + `npx-demo/bin/cli.js`：Playground URL 修正为 `wdnmd1265.github.io/ai-flow-architect/playground.html`
+- `README.md` + `npx-demo/bin/cli.js`：Playground URL 修正为 `wdnmd1265.github.io/audison/playground.html`
 
 ### 测试
 
@@ -124,7 +124,7 @@
 - `ReasoningChain` 数据模型：推理链统计（事实/推断/假设/遗漏计数 + 整体置信度）
 - 诚实双重标注：每条推理路径标注“由 X 模型推断生成，非原始推理记录”
 - 证据类型区分：强匹配 vs 模型声称 vs 无依据
-- CLI `ai-flow trace` 新增 `--trace-type external` 和 `--model-name` 参数
+- CLI `audison trace` 新增 `--trace-type external` 和 `--model-name` 参数
 - HTML 报告升级：推理路径可折叠面板（`<details>` 零 JS 依赖），可靠性颜色条（绿/黄/红）
 - JSON 输出新增 `reasoning_chain`、`honesty_label`、`inference_model` 字段
 - 新增 16 个 External Trace 测试
@@ -146,7 +146,7 @@
 - 删除 `test_mvp.py`（早期临时测试，已在 tests/ 目录覆盖）
 - 删除 `GITHUB_SETUP_GUIDE.md`（一次性文档，已完成使命）
 - 删除 `IMAGE_SPEC.md`（图片规格说明，图片已制作完成）
-- 删除 `example_output.txt` / `example_requirement.txt`（`ai-flow example` 生成文件，已加入 .gitignore）
+- 删除 `example_output.txt` / `example_requirement.txt`（`audison example` 生成文件，已加入 .gitignore）
 - 更新 `CONTRIBUTING.md`：安装命令统一为 `pip install -e ".[dev]"`
 
 ### 测试
@@ -162,16 +162,16 @@
 - GitHub Action 示例：.github/workflows/audit-pr.yml，PR 触发自动审查 + 评论摘要
 
 **HTML 报告导出**
-- `ai-flow audit` 新增 `--html` 参数，生成自包含单文件 HTML 报告
-- Jinja2 模板：src/ai_flow_architect/templates/report.html，与 Python 逻辑分离
-- `[html]` 可选依赖组：pip install ai-flow-architect[html]
+- `audison audit` 新增 `--html` 参数，生成自包含单文件 HTML 报告
+- Jinja2 模板：src/audison/templates/report.html，与 Python 逻辑分离
+- `[html]` 可选依赖组：pip install audison[html]
 - `-o` / `--output` 参数：所有输出格式（JSON/HTML/Markdown）均支持写入文件
 - setuptools package-data 配置：确保模板文件随包分发
 
 ### 修复
 
 **CLI 可用性**
-- `ai-flow` 现支持 `init`（生成 .env 模板）、`models`（列出所有模型）、`audit`（审查文件）三个子命令
+- `audison` 现支持 `init`（生成 .env 模板）、`models`（列出所有模型）、`audit`（审查文件）三个子命令
 - API key 检查改为动态：根据 `--brain1` 指定的模型从 models.yaml 查询对应环境变量，不再硬编码 OPENAI_API_KEY
 - `audit` 支持 `--brain1` 和 `--brain2` 参数，可指定审查模型
 

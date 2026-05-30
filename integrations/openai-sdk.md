@@ -5,7 +5,7 @@
 ## 安装
 
 ```bash
-pip install ai-flow-architect openai
+pip install audison openai
 ```
 
 ## 场景说明
@@ -16,7 +16,7 @@ pip install ai-flow-architect openai
 
 ```python
 from openai import OpenAI
-from ai_flow_architect import TrustEngine
+from audison import TrustEngine
 
 # 1. 用 OpenAI SDK 生成代码
 client = OpenAI()
@@ -102,7 +102,7 @@ finding.suggestion    # str | None
 
 ```python
 from openai import OpenAI
-from ai_flow_architect import TrustEngine
+from audison import TrustEngine
 
 client = OpenAI()
 

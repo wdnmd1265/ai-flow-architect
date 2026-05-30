@@ -17,7 +17,7 @@ import yaml
 from loguru import logger
 
 # apis.yaml 默认路径
-DEFAULT_APIS_PATH = Path.home() / ".ai-flow" / "apis.yaml"
+DEFAULT_APIS_PATH = Path.home() / ".audison" / "apis.yaml"
 
 # models.yaml 路径（包内 config 目录）
 DEFAULT_MODELS_PATH = Path(__file__).parent.parent / "config" / "models.yaml"
@@ -311,7 +311,7 @@ class APIPoolManager:
         try:
             req = urllib.request.Request(
                 f"{base_url.rstrip('/')}/api/tags",
-                headers={"User-Agent": "ai-flow-architect"},
+                headers={"User-Agent": "audison"},
             )
             urllib.request.urlopen(req, timeout=timeout)
             latency = (time.time() - start) * 1000
@@ -334,7 +334,7 @@ class APIPoolManager:
                 f"{base_url.rstrip('/')}/models",
                 headers={
                     "Authorization": f"Bearer {api_key}",
-                    "User-Agent": "ai-flow-architect",
+                    "User-Agent": "audison",
                 },
             )
             urllib.request.urlopen(req, timeout=timeout)

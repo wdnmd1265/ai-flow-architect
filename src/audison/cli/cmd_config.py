@@ -23,8 +23,8 @@ def do_config_apis_list(args):
         console.print(f"配置文件: {mgr.apis_path}")
         console.print()
         console.print("使用以下命令添加 API Key:")
-        console.print("  ai-flow config apis add <provider-id>")
-        console.print("  ai-flow config apis add-from-code")
+        console.print("  audison config apis add <provider-id>")
+        console.print("  audison config apis add-from-code")
         return
 
     table = Table(title="API Key 配置", box=Table.box.SIMPLE)
@@ -116,7 +116,7 @@ def do_config_apis_add_from_code(args):
     if not result:
         console.print("[yellow]未能从代码中识别 API Key[/yellow]")
         console.print("支持的模式: OpenAI SDK, Anthropic SDK, 环境变量 OPENAI_API_KEY / ANTHROPIC_API_KEY / OLLAMA_HOST")
-        console.print("请使用 'ai-flow config apis add <provider-id>' 手动添加。")
+        console.print("请使用 'audison config apis add <provider-id>' 手动添加。")
         return
 
     console.print()

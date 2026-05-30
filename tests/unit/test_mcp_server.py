@@ -30,7 +30,7 @@ class TestCheckApiKeys:
 
     def test_no_keys_returns_false(self, monkeypatch):
         """无任何 key 时返回 False"""
-        from ai_flow_architect.mcp_server import _check_api_keys
+        from audison.mcp_server import _check_api_keys
         key_vars = [
             "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "AIFLOW_API_KEY_1",
             "AIFLOW_API_KEY_2", "DASHSCOPE_API_KEY", "DEEPSEEK_API_KEY",
@@ -43,19 +43,19 @@ class TestCheckApiKeys:
 
     def test_openai_key_returns_true(self, monkeypatch):
         """有 OPENAI_API_KEY 时返回 True"""
-        from ai_flow_architect.mcp_server import _check_api_keys
+        from audison.mcp_server import _check_api_keys
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
         assert _check_api_keys() is True
 
     def test_nvidia_key_returns_true(self, monkeypatch):
         """有 NVIDIA_API_KEY 时返回 True（V2.4 新增）"""
-        from ai_flow_architect.mcp_server import _check_api_keys
+        from audison.mcp_server import _check_api_keys
         monkeypatch.setenv("NVIDIA_API_KEY", "nvapi-test")
         assert _check_api_keys() is True
 
     def test_mimo_key_returns_true(self, monkeypatch):
         """有 MIMO_API_KEY 时返回 True（V2.4 新增）"""
-        from ai_flow_architect.mcp_server import _check_api_keys
+        from audison.mcp_server import _check_api_keys
         monkeypatch.setenv("MIMO_API_KEY", "mimo-test")
         assert _check_api_keys() is True
 
@@ -64,14 +64,14 @@ class TestBuildResponses:
     """结构化响应构建"""
 
     def test_no_key_response_is_valid_json(self):
-        from ai_flow_architect.mcp_server import _build_no_key_response
+        from audison.mcp_server import _build_no_key_response
         resp = json.loads(_build_no_key_response())
         assert resp["verdict"] == "REVIEW"
         assert resp["confidence"] == 0
         assert "setup_guide" in resp
 
     def test_error_response_is_valid_json(self):
-        from ai_flow_architect.mcp_server import _build_error_response
+        from audison.mcp_server import _build_error_response
         resp = json.loads(_build_error_response("test error"))
         assert resp["verdict"] == "REVIEW"
         assert "test error" in resp["verdict_reason"]
@@ -81,11 +81,11 @@ class TestExtractRiskSummary:
     """风险摘要提取"""
 
     def test_empty_findings(self):
-        from ai_flow_architect.mcp_server import _extract_risk_summary
+        from audison.mcp_server import _extract_risk_summary
         assert _extract_risk_summary([]) == "No findings."
 
     def test_with_findings(self):
-        from ai_flow_architect.mcp_server import _extract_risk_summary
+        from audison.mcp_server import _extract_risk_summary
         findings = [
             {"severity": "high"},
             {"severity": "high"},
@@ -97,7 +97,7 @@ class TestExtractRiskSummary:
 
     def test_with_string_findings(self):
         """Finding 对象（非 dict）也能提取"""
-        from ai_flow_architect.mcp_server import _extract_risk_summary
+        from audison.mcp_server import _extract_risk_summary
         from types import SimpleNamespace
         findings = [SimpleNamespace(severity="critical")]
         summary = _extract_risk_summary(findings)
@@ -110,7 +110,7 @@ class TestRunAuditNoKey:
     @pytest.mark.asyncio
     async def test_no_key_returns_guidance(self, monkeypatch):
         """无 API key 时返回引导信息而非崩溃"""
-        from ai_flow_architect.mcp_server import _run_audit
+        from audison.mcp_server import _run_audit
         key_vars = [
             "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "AIFLOW_API_KEY_1",
             "AIFLOW_API_KEY_2", "DASHSCOPE_API_KEY", "DEEPSEEK_API_KEY",
@@ -133,7 +133,7 @@ class TestGetEngineBrain1:
     @pytest.mark.asyncio
     async def test_different_brain1_returns_different_engine(self, monkeypatch):
         """不同 brain1 应返回不同引擎实例"""
-        import ai_flow_architect.mcp_server as mcp_mod
+        import audison.mcp_server as mcp_mod
 
         # 重置全局状态
         mcp_mod._engine = None

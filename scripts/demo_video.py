@@ -21,7 +21,7 @@ logger.remove()  # 移除所有默认 handler
 # 把项目根目录加到 path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from ai_flow_architect.engine.arsenal_attack import AttackEngine
+from audison.engine.arsenal_attack import AttackEngine
 
 
 # ANSI 颜色码
@@ -111,7 +111,7 @@ def main():
 
     # ========== 开场 ==========
     print()
-    typewrite("  AI Flow Architect", 0.04, C.CYAN + C.BOLD)
+    typewrite("  Audison", 0.04, C.CYAN + C.BOLD)
     typewrite("  Verification Arsenal — Attack Engine", 0.03, C.DIM)
     print(f"  {C.DIM}{'━' * 50}{C.RESET}")
     print()
@@ -233,7 +233,7 @@ def main():
         print()
         time.sleep(0.3)
         print(f"  {C.DIM}{'━' * 50}{C.RESET}")
-        typewrite("  github.com/wdnmd1265/ai-flow-architect", 0.03, C.CYAN)
+        typewrite("  github.com/wdnmd1265/audison", 0.03, C.CYAN)
         print()
 
     except Exception as e:

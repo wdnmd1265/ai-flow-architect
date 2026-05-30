@@ -3,8 +3,8 @@
 """
 
 import pytest
-from ai_flow_architect.utils.token_counter import TokenCounter
-from ai_flow_architect.utils.validator import InputValidator
+from audison.utils.token_counter import TokenCounter
+from audison.utils.validator import InputValidator
 
 
 class TestTokenCounter:

@@ -1,8 +1,8 @@
 {
   "mcpServers": {
-    "ai-flow-architect": {
+    "audison": {
       "command": "uvx",
-      "args": ["ai-flow-architect[mcp]", "ai-flow-mcp"],
+      "args": ["audison[mcp]", "audison-mcp"],
       "env": {
         "OPENAI_API_KEY": "sk-...",
         "ANTHROPIC_API_KEY": "sk-ant-..."

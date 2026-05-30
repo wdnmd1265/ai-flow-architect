@@ -210,7 +210,7 @@ class ConsciencePipeline:
                 system_findings=[],
                 execution_time=0.0,
                 status="skipped",
-                reason="需要配置 API Key 才能运行健康度检查。请运行 ai-flow config apis add 添加至少一个 provider。"
+                reason="需要配置 API Key 才能运行健康度检查。请运行 audison config apis add 添加至少一个 provider。"
             )
         
         try:

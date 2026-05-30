@@ -9,7 +9,7 @@ import yaml
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from ai_flow_architect.config.cross_family import (
+from audison.config.cross_family import (
     PROVIDER_FAMILY_MAP,
     get_provider_family,
     get_model_family,
@@ -17,8 +17,8 @@ from ai_flow_architect.config.cross_family import (
     enforce_cross_family,
     CrossFamilyError,
 )
-from ai_flow_architect.engine.trust_engine import TrustEngine
-from ai_flow_architect.engine.trust_report import TrustReport
+from audison.engine.trust_engine import TrustEngine
+from audison.engine.trust_report import TrustReport
 
 
 # ── 测试用的 models.yaml 配置 ──

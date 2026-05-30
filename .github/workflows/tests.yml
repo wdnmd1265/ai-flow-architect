@@ -34,7 +34,7 @@ jobs:
       - name: Run tests with coverage
         if: matrix.python-version == '3.12'
         run: |
-          python -m pytest tests/ -v --cov=ai_flow_architect --cov-report=xml --cov-report=term
+          python -m pytest tests/ -v --cov=audison --cov-report=xml --cov-report=term
 
       - name: Upload coverage
         if: matrix.python-version == '3.12'

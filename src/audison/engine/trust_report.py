@@ -196,7 +196,7 @@ class TrustReport(BaseModel):
         sha_short = self.evidence.hash[:16] if self.evidence else "N/A"
         
         lines = [
-            "🤖 AI Flow Architect Audit",
+            "🤖 Audison Audit",
             "",
         ]
         
@@ -221,7 +221,7 @@ class TrustReport(BaseModel):
         lines.append(f"Final: {self.verdict.upper()} ({self.confidence:.0f}%)")
         lines.append(f"SHA256: {sha_short}")
         lines.append("")
-        lines.append("🔗 github.com/wdnmd1265/ai-flow-architect")
+        lines.append("🔗 github.com/wdnmd1265/audison")
         
         return "\n".join(lines)
     
@@ -364,17 +364,17 @@ class TrustReport(BaseModel):
             完整的自包含 HTML 字符串
         
         Raises:
-            ImportError: 如果 jinja2 未安装（提示 pip install ai-flow-architect[html]）
+            ImportError: 如果 jinja2 未安装（提示 pip install audison[html]）
         """
         if not _JINJA2_AVAILABLE:
             raise ImportError(
                 "Jinja2 未安装。要使用 --html 导出功能，请运行:\n"
-                "  pip install ai-flow-architect[html]"
+                "  pip install audison[html]"
             )
         
         from importlib.resources import files
         
-        template_path = files("ai_flow_architect.templates") / "report.html"
+        template_path = files("audison.templates") / "report.html"
         template = Template(template_path.read_text(encoding="utf-8"))
         
         # 预计算信任分析数据（锯齿状智能可视化）

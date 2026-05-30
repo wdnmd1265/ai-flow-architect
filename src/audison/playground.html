@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI Flow Architect Playground — Dual-model adversarial code audit</title>
+<title>Audison Playground — Dual-model adversarial code audit</title>
 <meta name="description" content="Dual-model adversarial code audit. Two LLMs independently review your code. Zero hallucinated findings.">
 <script type="application/json" id="demo-cases">[
 {
@@ -358,7 +358,7 @@ body {
 
 <!-- ─── Header ─── -->
 <div class="header">
-  <h1>AI Flow Architect Playground</h1>
+  <h1>Audison Playground</h1>
   <p>Dual-model adversarial code audit. Two LLMs independently review every finding.</p>
 </div>
 
@@ -410,16 +410,16 @@ body {
 <!-- ─── CTA Bar ─── -->
 <div class="cta-bar">
   <p>Audit your entire project from the terminal</p>
-  <code>pip install ai-flow-architect</code>
-  <code>ai-flow init</code>
-  <code>ai-flow audit your_file.py -r "requirement description"</code>
+  <code>pip install audison</code>
+  <code>audison init</code>
+  <code>audison audit your_file.py -r "requirement description"</code>
   <br>
-  <a href="https://github.com/ai-flow-architect">GitHub &rarr;</a>
+  <a href="https://github.com/audison">GitHub &rarr;</a>
 </div>
 
 <!-- ─── Footer ─── -->
 <div class="footer">
-  AI Flow Architect &mdash; Served by <code>playground_server.py</code> &middot; Open source on <a href="https://github.com/ai-flow-architect">GitHub</a>
+  Audison &mdash; Served by <code>playground_server.py</code> &middot; Open source on <a href="https://github.com/audison">GitHub</a>
 </div>
 
 <script>
@@ -924,7 +924,7 @@ function shareLiveResult(btn) {
 
 function buildShareText(model1, model2, v1, v2, s1, s2, verdict, confidence, findings, sha) {
   var lines = [
-    '🤖 AI Flow Architect Audit',
+    '🤖 Audison Audit',
     '',
     'Brain #1 (' + model1 + '): ' + v1 + ' (' + s1 + '%)',
     'Brain #2 (' + model2 + '): ' + v2 + ' (' + s2 + '%)',
@@ -944,7 +944,7 @@ function buildShareText(model1, model2, v1, v2, s1, s2, verdict, confidence, fin
   lines.push('Final: ' + verdict + ' (' + confidence + '%)');
   lines.push('SHA256: ' + (sha ? sha.substring(0, 16) : 'N/A'));
   lines.push('');
-  lines.push('🔗 github.com/wdnmd1265/ai-flow-architect');
+  lines.push('🔗 github.com/wdnmd1265/audison');
 
   return lines.join('\n');
 }

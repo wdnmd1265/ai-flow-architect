@@ -19,14 +19,14 @@ from .trust_report import TrustReport
 class EvidenceDB:
     """证据链 SQLite 持久化。"""
 
-    DEFAULT_DB_PATH = Path.home() / ".ai-flow" / "evidence.db"
+    DEFAULT_DB_PATH = Path.home() / ".audison" / "evidence.db"
 
     def __init__(self, db_path: Optional[str] = None):
         """
         初始化证据数据库。
 
         Args:
-            db_path: 数据库文件路径，默认为 ~/.ai-flow/evidence.db
+            db_path: 数据库文件路径，默认为 ~/.audison/evidence.db
         """
         self.db_path = Path(db_path) if db_path else self.DEFAULT_DB_PATH
         self._ensure_db()
@@ -583,7 +583,7 @@ class MistakeAnalyzer:
         """
         if output_path is None:
             output_path = str(
-                Path.home() / ".ai-flow" / "mistake_corpus.jsonl"
+                Path.home() / ".audison" / "mistake_corpus.jsonl"
             )
 
         output_path = Path(output_path)

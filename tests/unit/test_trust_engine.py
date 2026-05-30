@@ -5,8 +5,8 @@ TrustEngine 测试
 import pytest
 import os
 from unittest.mock import AsyncMock, patch, MagicMock
-from ai_flow_architect.engine.trust_engine import TrustEngine
-from ai_flow_architect.engine.audit_context import AuditContext
+from audison.engine.trust_engine import TrustEngine
+from audison.engine.audit_context import AuditContext
 
 
 class TestTrustEngine:

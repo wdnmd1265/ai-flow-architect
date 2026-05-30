@@ -1,5 +1,5 @@
 """
-Basic usage examples for AI Flow Architect
+Basic usage examples for Audison
 
 Before running:
 1. Copy .env.example to .env and fill in your API keys
@@ -8,7 +8,7 @@ Before running:
 """
 
 import asyncio
-from ai_flow_architect import FlowArchitect
+from audison import FlowArchitect
 
 
 async def single_key_example():
@@ -114,7 +114,7 @@ async def custom_blueprint_example():
     """Custom blueprint example (no AI calls, just data structure)"""
     print("\n=== Custom Blueprint Example ===")
 
-    from ai_flow_architect.core.architect import Blueprint
+    from audison.core.architect import Blueprint
 
     blueprint = Blueprint(
         task_id="custom_001",
@@ -163,7 +163,7 @@ async def custom_blueprint_example():
 
 
 async def main():
-    print("AI Flow Architect - Usage Examples")
+    print("Audison - Usage Examples")
     print("=" * 50)
 
     try:

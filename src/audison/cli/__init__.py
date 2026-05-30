@@ -9,18 +9,18 @@ import argparse
 import sys
 from pathlib import Path
 
-# 加载环境变量（优先级：项目 .env > ~/.ai-flow/.env）
+# 加载环境变量（优先级：项目 .env > ~/.audison/.env）
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent.parent.parent / ".env", override=False)
-load_dotenv(Path.home() / ".ai-flow" / ".env", override=False)
+load_dotenv(Path.home() / ".audison" / ".env", override=False)
 
 DEFAULT_REQUIREMENT = "审查这段 AI 输出"
 
 
 def main():
     parser = argparse.ArgumentParser(
-        prog="ai-flow",
-        description="AI Flow Architect — 开源 AI 输出审查中间件",
+        prog="audison",
+        description="Audison — 开源 AI 输出审查中间件",
     )
     sub = parser.add_subparsers(dest="command")
 
@@ -37,7 +37,7 @@ def main():
     p_mistakes = p_analyze_sub.add_parser("mistakes", help="错题本分析：跨模型对抗模式")
     p_mistakes.add_argument("--limit", type=int, default=50, help="分析记录数（默认：50）")
     p_mistakes.add_argument("--export", action="store_true", help="导出错题集 JSONL")
-    p_mistakes.add_argument("-o", "--output", default=None, help="导出路径（默认：~/.ai-flow/mistake_corpus.jsonl）")
+    p_mistakes.add_argument("-o", "--output", default=None, help="导出路径（默认：~/.audison/mistake_corpus.jsonl）")
     p_mistakes.add_argument("--family", action="store_true", help="按家族统计")
     p_mistakes.add_argument("--consensus-failures", action="store_true", help="显示全模型共识失败")
     p_mistakes.add_argument("--threshold", type=float, default=0.8, help="共识失败阈值（默认：0.8）")

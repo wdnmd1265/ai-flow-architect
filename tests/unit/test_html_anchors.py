@@ -14,7 +14,7 @@ from pathlib import Path
 
 def get_report_template_path():
     """获取 report.html 模板路径"""
-    return Path(__file__).parent.parent.parent / "src" / "ai_flow_architect" / "templates" / "report.html"
+    return Path(__file__).parent.parent.parent / "src" / "audison" / "templates" / "report.html"
 
 
 def read_template():

@@ -22,7 +22,7 @@ class TestCacheBasic:
     """基础 CRUD 操作"""
 
     def setup_method(self):
-        from ai_flow_architect.core.cache import CacheManager
+        from audison.core.cache import CacheManager
         self.cache = CacheManager(max_size=100)
 
     def test_set_and_get(self):
@@ -82,31 +82,31 @@ class TestCacheTTL:
 
     def test_ttl_expiration(self):
         """TTL 过期后 get 应返回 None"""
-        from ai_flow_architect.core.cache import CacheManager
+        from audison.core.cache import CacheManager
 
         cache = CacheManager(max_size=100)
 
         fixed_time = 1000.0
 
-        with patch("ai_flow_architect.core.cache.time.time", return_value=fixed_time):
+        with patch("audison.core.cache.time.time", return_value=fixed_time):
             cache.set("key1", "value1", ttl=10)
 
         # TTL 未过期
-        with patch("ai_flow_architect.core.cache.time.time", return_value=fixed_time + 5):
+        with patch("audison.core.cache.time.time", return_value=fixed_time + 5):
             assert cache.get("key1") == "value1"
 
         # TTL 已过期
-        with patch("ai_flow_architect.core.cache.time.time", return_value=fixed_time + 15):
+        with patch("audison.core.cache.time.time", return_value=fixed_time + 15):
             assert cache.get("key1") is None
 
     def test_no_ttl_means_no_expiry(self):
         """不设置 TTL 应永不过期"""
-        from ai_flow_architect.core.cache import CacheManager
+        from audison.core.cache import CacheManager
         cache = CacheManager(max_size=100)
 
         cache.set("key1", "forever")
         # 模拟很久以后
-        with patch("ai_flow_architect.core.cache.time.time", return_value=9999999999):
+        with patch("audison.core.cache.time.time", return_value=9999999999):
             assert cache.get("key1") == "forever"
 
 
@@ -114,7 +114,7 @@ class TestCacheKeyGeneration:
     """缓存键生成"""
 
     def setup_method(self):
-        from ai_flow_architect.core.cache import CacheManager
+        from audison.core.cache import CacheManager
         self.cache = CacheManager()
 
     def test_generate_key_deterministic(self):
@@ -141,7 +141,7 @@ class TestCacheApiCall:
     """API 调用缓存"""
 
     def setup_method(self):
-        from ai_flow_architect.core.cache import CacheManager
+        from audison.core.cache import CacheManager
         self.cache = CacheManager()
 
     def test_cache_and_retrieve_api_call(self):
@@ -166,7 +166,7 @@ class TestCachePrompt:
     """提示词响应缓存"""
 
     def setup_method(self):
-        from ai_flow_architect.core.cache import CacheManager
+        from audison.core.cache import CacheManager
         self.cache = CacheManager()
 
     def test_cache_and_retrieve_prompt(self):
@@ -191,7 +191,7 @@ class TestCacheStats:
     """缓存统计"""
 
     def setup_method(self):
-        from ai_flow_architect.core.cache import CacheManager
+        from audison.core.cache import CacheManager
         self.cache = CacheManager()
 
     def test_hits_and_misses(self):
@@ -231,22 +231,22 @@ class TestCacheCleanup:
     """过期缓存清理"""
 
     def setup_method(self):
-        from ai_flow_architect.core.cache import CacheManager
+        from audison.core.cache import CacheManager
         self.cache = CacheManager()
 
     def test_cleanup_expired(self):
         """cleanup_expired 应清理所有过期条目"""
         fixed_time = 1000.0
 
-        with patch("ai_flow_architect.core.cache.time.time", return_value=fixed_time):
+        with patch("audison.core.cache.time.time", return_value=fixed_time):
             self.cache.set("expired", "v1", ttl=10)
             self.cache.set("valid", "v2", ttl=100)
 
         # 模拟过了一段时间再清理
-        with patch("ai_flow_architect.core.cache.time.time", return_value=fixed_time + 50):
+        with patch("audison.core.cache.time.time", return_value=fixed_time + 50):
             self.cache.cleanup_expired()
 
         # expired 应该已被清理
-        with patch("ai_flow_architect.core.cache.time.time", return_value=fixed_time + 50):
+        with patch("audison.core.cache.time.time", return_value=fixed_time + 50):
             assert self.cache.get("expired") is None
             assert self.cache.get("valid") == "v2"

@@ -2,7 +2,7 @@
 TrustEngine API — FastAPI 包装
 
 启动：
-    uvicorn ai_flow_architect.api:app --host 0.0.0.0 --port 8000
+    uvicorn audison.api:app --host 0.0.0.0 --port 8000
 
 调用：
     POST /audit

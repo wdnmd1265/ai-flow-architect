@@ -12,15 +12,15 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from ai_flow_architect.engine.evidence_db import EvidenceDB
-from ai_flow_architect.engine.trust_report import (
+from audison.engine.evidence_db import EvidenceDB
+from audison.engine.trust_report import (
     TrustReport,
     Finding,
     ArbiterVote,
     Uncertainty,
     EvidenceChain,
 )
-from ai_flow_architect.engine.trust_engine import TrustEngine
+from audison.engine.trust_engine import TrustEngine
 
 
 # ---------------------------------------------------------------------------
@@ -329,7 +329,7 @@ class TestEngineIntegration:
         assert report.verdict in ("pass", "review", "reject")
 
         # 验证数据库中有记录
-        from ai_flow_architect.engine.evidence_db import EvidenceDB
+        from audison.engine.evidence_db import EvidenceDB
 
         verify_db = EvidenceDB(db_path=db_path)
         rows = verify_db.get_recent(limit=10)
@@ -405,7 +405,7 @@ class TestMistakeAnalyzer:
         tmp_dir = tempfile.mkdtemp()
         db_path = os.path.join(tmp_dir, "test_mistake.db")
 
-        from ai_flow_architect.engine.evidence_db import EvidenceDB
+        from audison.engine.evidence_db import EvidenceDB
 
         db = EvidenceDB(db_path=db_path)
 
@@ -565,7 +565,7 @@ class TestMistakeAnalyzer:
     @pytest.fixture
     def analyzer(self, db):
         """创建分析器实例。"""
-        from ai_flow_architect.engine.evidence_db import MistakeAnalyzer
+        from audison.engine.evidence_db import MistakeAnalyzer
 
         return MistakeAnalyzer(db)
 
@@ -624,7 +624,7 @@ class TestMistakeAnalyzer:
 
     def test_mistake_patterns_all_pass_excluded(self):
         """全通过的记录（verdict=pass）不被分析。"""
-        from ai_flow_architect.engine.evidence_db import EvidenceDB, MistakeAnalyzer
+        from audison.engine.evidence_db import EvidenceDB, MistakeAnalyzer
 
         # 新数据库只有全通过一条记录
         tmp_dir = tempfile.mkdtemp()
@@ -761,7 +761,7 @@ class TestMistakeAnalyzer:
         """空数据库不报错。"""
         tmp_dir = tempfile.mkdtemp()
         db_path = os.path.join(tmp_dir, "empty.db")
-        from ai_flow_architect.engine.evidence_db import EvidenceDB, MistakeAnalyzer
+        from audison.engine.evidence_db import EvidenceDB, MistakeAnalyzer
 
         db = EvidenceDB(db_path=db_path)
         analyzer = MistakeAnalyzer(db)

@@ -6,8 +6,8 @@ import pytest
 import tempfile
 import shutil
 from pathlib import Path
-from ai_flow_architect.tools.base import Tool, ToolResult
-from ai_flow_architect.tools.file_tools import (
+from audison.tools.base import Tool, ToolResult
+from audison.tools.file_tools import (
     ReadFileTool,
     WriteFileTool,
     SearchFilesTool,

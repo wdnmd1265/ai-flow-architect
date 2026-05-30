@@ -34,7 +34,7 @@ function getPipCommand() {
 
 // ── Step 1: Check Python ──────────────────────────────────────────
 print('');
-print(`${CYAN}${BOLD}AI Flow Architect — Instant Demo${RESET}`);
+print(`${CYAN}${BOLD}Audison — Instant Demo${RESET}`);
 print('');
 
 if (!checkCommand('python3') && !checkCommand('python')) {
@@ -57,10 +57,10 @@ try {
   fail('Could not determine Python version. Please ensure Python 3.10+ is installed.');
 }
 
-// ── Step 2: Check ai-flow-architect ────────────────────────────────
+// ── Step 2: Check audison ────────────────────────────────
 let installed = false;
 try {
-  execSync(`${pythonCmd} -c "import ai_flow_architect"`, { stdio: 'pipe' });
+  execSync(`${pythonCmd} -c "import audison"`, { stdio: 'pipe' });
   installed = true;
 } catch {
   installed = false;
@@ -68,7 +68,7 @@ try {
 
 // ── Step 3: Install if needed ──────────────────────────────────────
 if (!installed) {
-  print(`${YELLOW}Installing AI Flow Architect...${RESET}`);
+  print(`${YELLOW}Installing Audison...${RESET}`);
   print('');
 
   const pipCmd = getPipCommand();
@@ -77,34 +77,34 @@ if (!installed) {
   }
 
   try {
-    execSync(`${pipCmd} install --user ai-flow-architect`, { stdio: 'inherit' });
+    execSync(`${pipCmd} install --user audison`, { stdio: 'inherit' });
     print('');
     print(`${GREEN}Installation complete.${RESET}`);
   } catch (e) {
-    fail('Failed to install ai-flow-architect.\n' +
-         '  Try manually: pip install --user ai-flow-architect');
+    fail('Failed to install audison.\n' +
+         '  Try manually: pip install --user audison');
   }
 } else {
-  print(`${GREEN}AI Flow Architect is already installed.${RESET}`);
+  print(`${GREEN}Audison is already installed.${RESET}`);
 }
 
 print('');
 
-// ── Step 4: Run ai-flow example ────────────────────────────────────
+// ── Step 4: Run audison example ────────────────────────────────────
 try {
-  execSync(`ai-flow example`, { stdio: 'inherit' });
+  execSync(`audison example`, { stdio: 'inherit' });
 } catch {
-  // If `ai-flow` is not on PATH, try python -m
+  // If `audison` is not on PATH, try python -m
   try {
-    execSync(`${pythonCmd} -m ai_flow_architect.cli example`, { stdio: 'inherit' });
+    execSync(`${pythonCmd} -m audison.cli example`, { stdio: 'inherit' });
   } catch {
-    fail('Could not run ai-flow example. Please try: pip install --user ai-flow-architect && ai-flow example');
+    fail('Could not run audison example. Please try: pip install --user audison && audison example');
   }
 }
 
 // ── Step 5: Post-example guidance ──────────────────────────────────
 print('');
 print(`${BOLD}Want to audit your own code?${RESET}`);
-print(`  ${CYAN}→ Open Playground: https://wdnmd1265.github.io/ai-flow-architect/playground.html${RESET}`);
-print(`  ${CYAN}→ Install CLI:     pip install --user ai-flow-architect && ai-flow init${RESET}`);
+print(`  ${CYAN}→ Open Playground: https://wdnmd1265.github.io/audison/playground.html${RESET}`);
+print(`  ${CYAN}→ Install CLI:     pip install --user audison && audison init${RESET}`);
 print('');

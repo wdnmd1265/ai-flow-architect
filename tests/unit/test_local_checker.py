@@ -1,7 +1,7 @@
 """测试 LocalChecker — Tier 1 纯规则引擎。"""
 
 import pytest
-from ai_flow_architect.engine.local_checker import (
+from audison.engine.local_checker import (
     LocalChecker,
     LocalCheckResult,
     LocalFinding,

@@ -11,7 +11,7 @@
 import pytest
 from pathlib import Path
 
-from ai_flow_architect.engine.arsenal_cross_examine import (
+from audison.engine.arsenal_cross_examine import (
     CrossExamineEngine,
     CrossExamineConfig,
 )
@@ -51,7 +51,7 @@ class TestCrossExamineEngine:
 
     def test_format_text_agreement(self, engine):
         """测试文本格式输出：完全一致"""
-        from ai_flow_architect.utils.arsenal_client import CrossExamineResult
+        from audison.utils.arsenal_client import CrossExamineResult
         
         result = CrossExamineResult(
             original_output="这是一个测试输出。",
@@ -68,7 +68,7 @@ class TestCrossExamineEngine:
 
     def test_format_text_divergences(self, engine):
         """测试文本格式输出：有分歧"""
-        from ai_flow_architect.utils.arsenal_client import CrossExamineResult
+        from audison.utils.arsenal_client import CrossExamineResult
         
         result = CrossExamineResult(
             original_output="方案A：使用微服务架构。",
@@ -94,7 +94,7 @@ class TestCrossExamineEngine:
 
     def test_format_html_agreement(self, engine):
         """测试 HTML 格式输出：完全一致"""
-        from ai_flow_architect.utils.arsenal_client import CrossExamineResult
+        from audison.utils.arsenal_client import CrossExamineResult
         
         result = CrossExamineResult(
             original_output="测试内容。",
@@ -111,7 +111,7 @@ class TestCrossExamineEngine:
 
     def test_format_html_divergences(self, engine):
         """测试 HTML 格式输出：四类标签"""
-        from ai_flow_architect.utils.arsenal_client import CrossExamineResult
+        from audison.utils.arsenal_client import CrossExamineResult
         
         result = CrossExamineResult(
             original_output="事实A是100。",
@@ -136,7 +136,7 @@ class TestCrossExamineEngine:
 
     def test_format_json(self, engine):
         """测试 JSON 格式输出"""
-        from ai_flow_architect.utils.arsenal_client import CrossExamineResult
+        from audison.utils.arsenal_client import CrossExamineResult
         
         result = CrossExamineResult(
             original_output="输出A",
@@ -154,7 +154,7 @@ class TestCrossExamineEngine:
 
     def test_single_provider_warning(self, engine):
         """测试单 provider 警告"""
-        from ai_flow_architect.utils.arsenal_client import CrossExamineResult
+        from audison.utils.arsenal_client import CrossExamineResult
         
         result = CrossExamineResult(
             original_output="测试。",
@@ -171,7 +171,7 @@ class TestCrossExamineEngine:
 
     def test_divergence_tag_classification(self, engine):
         """测试分歧四标签分类"""
-        from ai_flow_architect.utils.arsenal_client import CrossExamineResult
+        from audison.utils.arsenal_client import CrossExamineResult
         
         # 测试四种标签
         tags = ["[方案分歧]", "[事实分歧]", "[范围分歧]", "[无实质差异]"]
@@ -199,7 +199,7 @@ class TestCrossExamineEngine:
 
     def test_empty_output(self, engine):
         """测试空输出处理"""
-        from ai_flow_architect.utils.arsenal_client import CrossExamineResult
+        from audison.utils.arsenal_client import CrossExamineResult
         
         result = CrossExamineResult(
             original_output="",
@@ -237,18 +237,18 @@ class TestLineRangeParsing:
     """行范围解析测试"""
 
     def test_parse_line_range(self):
-        from ai_flow_architect.engine.arsenal_cross_examine import _parse_line_range
+        from audison.engine.arsenal_cross_examine import _parse_line_range
         start, end = _parse_line_range("10-20")
         assert start == 10
         assert end == 20
 
     def test_parse_line_range_invalid(self):
-        from ai_flow_architect.engine.arsenal_cross_examine import _parse_line_range
+        from audison.engine.arsenal_cross_examine import _parse_line_range
         with pytest.raises(ValueError):
             _parse_line_range("invalid")
 
     def test_parse_line_range_single(self):
-        from ai_flow_architect.engine.arsenal_cross_examine import _parse_line_range
+        from audison.engine.arsenal_cross_examine import _parse_line_range
         start, end = _parse_line_range("5-5")
         assert start == 5
         assert end == 5
@@ -260,7 +260,7 @@ class TestClassifyTrustFourTags:
     @staticmethod
     def _get_classify_trust_result(sent_a: str, sent_b: str, ref_a: str, ref_b: str):
         """模拟 classify_trust 调用"""
-        from ai_flow_architect.utils.arsenal_client import classify_trust
+        from audison.utils.arsenal_client import classify_trust
         return classify_trust(sent_a, sent_b, ref_a, ref_b)
 
     def test_trust_confirmed_identical_sentences(self):
@@ -345,7 +345,7 @@ class TestClassifyTrustFourTags:
 
     def test_trust_result_has_trust_level_field(self):
         """测试 CrossExamineResult 包含 trust_level 字段"""
-        from ai_flow_architect.utils.arsenal_client import CrossExamineResult
+        from audison.utils.arsenal_client import CrossExamineResult
         result = CrossExamineResult(
             original_output="A",
             second_output="B",
@@ -358,8 +358,8 @@ class TestClassifyTrustFourTags:
 
     def test_trust_agreement_with_confirmed_output(self):
         """测试完全一致时输出 CONFIRMED 确认行"""
-        from ai_flow_architect.engine.arsenal_cross_examine import CrossExamineEngine
-        from ai_flow_architect.utils.arsenal_client import CrossExamineResult
+        from audison.engine.arsenal_cross_examine import CrossExamineEngine
+        from audison.utils.arsenal_client import CrossExamineResult
 
         engine = CrossExamineEngine(models=["m1", "m2"])
         result = CrossExamineResult(

@@ -18,7 +18,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch, MagicMock, PropertyMock
 
-from ai_flow_architect.engine.conscience import (
+from audison.engine.conscience import (
     ConsciencePipeline,
     Challenge,
     ChallengeResult,
@@ -27,8 +27,8 @@ from ai_flow_architect.engine.conscience import (
     HealthReport,
     HealthAlert
 )
-from ai_flow_architect.engine.arsenal_attack import StrategyMonitor
-from ai_flow_architect.engine.trust_report import TrustReport, Finding
+from audison.engine.arsenal_attack import StrategyMonitor
+from audison.engine.trust_report import TrustReport, Finding
 
 
 @pytest.fixture
@@ -162,7 +162,7 @@ class TestChallengeExecution:
         assert result.system_findings == []
         assert result.execution_time == 0.0
         assert "API Key" in result.reason
-        assert "ai-flow config apis add" in result.reason
+        assert "audison config apis add" in result.reason
     
     def test_run_challenge_with_mock_engine(self, conscience_pipeline):
         """测试 mock TrustEngine 正常审查流程"""

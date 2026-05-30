@@ -42,7 +42,7 @@ class Blueprint(BaseModel):
 
 class FlowArchitect:
     """
-    AI Flow Architect 主框架类
+    Audison 主框架类
     
     协调整个多模型协作工作流，包括：
     1. 一号脑需求分析和规划
@@ -105,7 +105,7 @@ class FlowArchitect:
         # 注册工具系统
         self._register_tools()
         
-        logger.info(f"AI Flow Architect 初始化完成 | 一号脑: {brain1_model} | 二号脑: {brain2_model} | 可用提供商: {provider_count}")
+        logger.info(f"Audison 初始化完成 | 一号脑: {brain1_model} | 二号脑: {brain2_model} | 可用提供商: {provider_count}")
 
     def _scan_available_providers(self) -> int:
         """

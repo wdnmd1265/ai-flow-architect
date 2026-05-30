@@ -8,7 +8,7 @@
 | `architecture.svg` | 双脑对抗架构流程图 | "解法：让两个 AI 互相打架" 段落之后 |
 | `opponent-brain.svg` | 对手脑 5 视角图 | "核心设计拆解" → "1. 对手脑" 段落之后 |
 | `comparison.svg` | 框架对比图 | "与 LangChain / CrewAI 的本质区别" 段落之后 |
-| `ai-flow-architect-csdn.md` | 文章正文 | 复制到 CSDN Markdown 编辑器 |
+| `audison-csdn.md` | 文章正文 | 复制到 CSDN Markdown 编辑器 |
 
 ## 发布步骤
 
@@ -25,7 +25,7 @@ SVG 文件需要转成 PNG 再上传。最简单的方法：
 1. 打开 CSDN 创作中心 → 写文章
 2. 选择 **Markdown 编辑器**
 3. 上传封面图：`cover.png` 作为文章封面
-4. 复制 `ai-flow-architect-csdn.md` 全文到编辑器
+4. 复制 `audison-csdn.md` 全文到编辑器
 5. 在对应位置插入图片：
    - 找到 `<!-- 图片位置：上传 cover.png -->` 这行注释，删除注释，插入封面图
    - 找到 `<!-- 图片位置：上传 architecture.png -->`，删除注释，插入架构图
@@ -48,7 +48,7 @@ SVG 文件需要转成 PNG 再上传。最简单的方法：
 备选标题（如果 CSDN 标题长度有限制）：
 - `让 GPT 和 Claude 互相挑刺：对抗式 AI 工作流引擎`
 - `AI 幻觉的解法：双脑对抗工作流引擎开源`
-- `pip install ai-flow-architect：一个让 AI 互相监督的框架`
+- `pip install audison：一个让 AI 互相监督的框架`
 
 ### 4. 发布后的优化
 

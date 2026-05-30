@@ -4,7 +4,7 @@ TrustReport 测试
 
 import pytest
 import json
-from ai_flow_architect.engine.trust_report import (
+from audison.engine.trust_report import (
     TrustReport,
     Finding,
     Risk,

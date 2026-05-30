@@ -6,7 +6,7 @@
 
 import pytest
 from unittest.mock import AsyncMock, patch
-from ai_flow_architect.brains.brain_opponent import BrainOpponent
+from audison.brains.brain_opponent import BrainOpponent
 
 
 class MockBlueprint:

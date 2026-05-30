@@ -11,7 +11,7 @@
 ### 作为独立审查（推荐）
 
 ```python
-from ai_flow_architect.engine import TrustEngine
+from audison.engine import TrustEngine
 
 engine = TrustEngine(brain1="gpt-4o", brain2="claude-3-5-sonnet")
 report = await engine.audit(requirement="需求描述", ai_output="AI产出内容")
@@ -27,7 +27,7 @@ print(report.to_markdown())
 
 ```bash
 # 启动服务
-uvicorn ai_flow_architect.api:app --host 0.0.0.0 --port 8000
+uvicorn audison.api:app --host 0.0.0.0 --port 8000
 
 # 调用审查
 curl -X POST http://localhost:8000/audit \
@@ -41,7 +41,7 @@ curl -X POST http://localhost:8000/audit \
 ### 作为 FlowArchitect 内部组件
 
 ```python
-from ai_flow_architect import FlowArchitect
+from audison import FlowArchitect
 
 architect = FlowArchitect()
 result = await architect.execute("用户登录系统")
@@ -86,7 +86,7 @@ TrustReport 包含：
 ## 依赖
 
 ```
-pip install ai-flow-architect
+pip install audison
 ```
 
 或从源码安装：
@@ -115,9 +115,9 @@ This skill is also available as an MCP server. Configure in your AI editor's `mc
 ```json
 {
   "mcpServers": {
-    "ai-flow-architect": {
+    "audison": {
       "command": "uvx",
-      "args": ["ai-flow-architect[mcp]", "ai-flow-mcp"],
+      "args": ["audison[mcp]", "audison-mcp"],
       "env": {
         "OPENAI_API_KEY": "sk-..."
       }

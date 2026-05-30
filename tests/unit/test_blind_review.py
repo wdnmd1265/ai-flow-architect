@@ -6,15 +6,15 @@ Phase 3 P1: TrustEngine 新增无上下文盲审步骤
 import pytest
 import json
 from unittest.mock import AsyncMock, patch, MagicMock
-from ai_flow_architect.engine.trust_engine import TrustEngine
-from ai_flow_architect.engine.trust_report import (
+from audison.engine.trust_engine import TrustEngine
+from audison.engine.trust_report import (
     TrustReport,
     Finding,
     Risk,
     ArbiterVote,
     Uncertainty,
 )
-from ai_flow_architect.brains.brain_blind import BlindVerdict, BrainBlind
+from audison.brains.brain_blind import BlindVerdict, BrainBlind
 
 
 class TestBlindVerdictModel:

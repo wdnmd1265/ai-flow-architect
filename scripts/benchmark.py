@@ -23,7 +23,7 @@ from typing import Dict, Any, List
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-DEFAULT_LOG_DIR = Path.home() / ".ai-flow" / "logs"
+DEFAULT_LOG_DIR = Path.home() / ".audison" / "logs"
 TEST_BANK_VERSION = "1.0.0"
 
 
@@ -89,7 +89,7 @@ def load_test_bank() -> List[Dict[str, Any]]:
     import yaml
     
     test_bank_path = (
-        PROJECT_ROOT / "src" / "ai_flow_architect" / 
+        PROJECT_ROOT / "src" / "audison" / 
         "config" / "conscience" / "test_bank.yaml"
     )
     
@@ -121,7 +121,7 @@ def run_challenge(challenge: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         结果字典
     """
-    from ai_flow_architect.engine.conscience import (
+    from audison.engine.conscience import (
         Challenge, Verdict, ChallengeResult, VerdictComparison
     )
     

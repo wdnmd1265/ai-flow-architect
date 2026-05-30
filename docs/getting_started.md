@@ -10,8 +10,8 @@
 ## Installation
 
 ```bash
-git clone https://github.com/wdnmd1265/ai-flow-architect.git
-cd ai-flow-architect
+git clone https://github.com/wdnmd1265/audison.git
+cd audison
 pip install -e .
 ```
 
@@ -53,7 +53,7 @@ Brain #2 (quality arbiter) should ideally use a different model from Brain #1. S
 
 ```python
 import asyncio
-from ai_flow_architect import FlowArchitect
+from audison import FlowArchitect
 
 async def main():
     # Single key: brain2 auto-resolves
@@ -133,7 +133,7 @@ Steps:
 
 ```python
 import asyncio
-from ai_flow_architect import FlowArchitect
+from audison import FlowArchitect
 
 async def main():
     architect = FlowArchitect(config={
@@ -154,7 +154,7 @@ asyncio.run(main())
 ## Custom Blueprint
 
 ```python
-from ai_flow_architect.core.architect import Blueprint
+from audison.core.architect import Blueprint
 
 blueprint = Blueprint(
     task_id="custom_001",
@@ -204,7 +204,7 @@ pip install pytest pytest-asyncio pytest-cov
 pytest tests/unit/ -v
 
 # With coverage report
-pytest tests/unit/ --cov=ai_flow_architect --cov-report=term-missing
+pytest tests/unit/ --cov=audison --cov-report=term-missing
 ```
 
 ## FAQ

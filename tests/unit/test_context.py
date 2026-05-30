@@ -19,7 +19,7 @@ class TestSessionBasic:
     """Session 基础 CRUD"""
 
     def setup_method(self):
-        from ai_flow_architect.core.context import ContextManager
+        from audison.core.context import ContextManager
         self.ctx = ContextManager()
 
     def test_create_session(self):
@@ -53,7 +53,7 @@ class TestSessionHistory:
     """历史消息管理"""
 
     def setup_method(self):
-        from ai_flow_architect.core.context import ContextManager
+        from audison.core.context import ContextManager
         self.ctx = ContextManager()
         self.session = self.ctx.create_session("evaluator", "task-001")
 
@@ -70,7 +70,7 @@ class TestSessionHistory:
 
     def test_add_to_nonexistent_session(self):
         """向不存在的 session 添加消息不应崩溃（记录警告）"""
-        from ai_flow_architect.core.context import ContextManager
+        from audison.core.context import ContextManager
         ctx = ContextManager()  # 全新的，没有 session
         # 不抛出异常即可
         ctx.add_to_history("nonexistent", "user", "内容")
@@ -95,7 +95,7 @@ class TestExpertSessions:
     """专家索引"""
 
     def setup_method(self):
-        from ai_flow_architect.core.context import ContextManager
+        from audison.core.context import ContextManager
         self.ctx = ContextManager()
 
     def test_get_expert_sessions_empty(self):
@@ -123,7 +123,7 @@ class TestSessionCleanup:
     """会话清理"""
 
     def setup_method(self):
-        from ai_flow_architect.core.context import ContextManager
+        from audison.core.context import ContextManager
         self.ctx = ContextManager()
         self.s1 = self.ctx.create_session("evaluator", "task-001")
         self.s2 = self.ctx.create_session("programmer", "task-002")
@@ -147,7 +147,7 @@ class TestSessionCount:
 
     def test_get_session_count(self):
         """get_session_count 应返回正确数量"""
-        from ai_flow_architect.core.context import ContextManager
+        from audison.core.context import ContextManager
         ctx = ContextManager()
         assert ctx.get_session_count() == 0
 
@@ -165,7 +165,7 @@ class TestSessionCompress:
     """历史压缩"""
 
     def setup_method(self):
-        from ai_flow_architect.core.context import ContextManager
+        from audison.core.context import ContextManager
         self.ctx = ContextManager()
         self.session = self.ctx.create_session("evaluator", "task-001")
 
@@ -190,7 +190,7 @@ class TestSessionCompress:
 
     def test_compress_nonexistent_session(self):
         """压缩不存在的 session 应返回 False"""
-        from ai_flow_architect.core.context import ContextManager
+        from audison.core.context import ContextManager
         ctx = ContextManager()
         result = ctx.compress_history("nonexistent")
         assert result is False
@@ -200,7 +200,7 @@ class TestSessionImportExport:
     """会话导入导出"""
 
     def setup_method(self):
-        from ai_flow_architect.core.context import ContextManager
+        from audison.core.context import ContextManager
         self.ctx = ContextManager()
 
     def test_export_import_roundtrip(self):
@@ -213,7 +213,7 @@ class TestSessionImportExport:
         assert exported is not None
 
         # 导入（创建新的 ContextManager）
-        from ai_flow_architect.core.context import ContextManager
+        from audison.core.context import ContextManager
         new_ctx = ContextManager()
         imported = new_ctx.import_session(exported)
 

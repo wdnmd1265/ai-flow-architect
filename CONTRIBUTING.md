@@ -1,6 +1,6 @@
 # 贡献指南
 
-感谢你对 AI Flow Architect 项目的关注！我们欢迎所有形式的贡献。
+感谢你对 Audison 项目的关注！我们欢迎所有形式的贡献。
 
 ## 如何贡献
 
@@ -22,8 +22,8 @@
 
 2. **克隆你的 Fork**
    ```bash
-   git clone https://github.com/wdnmd1265/ai-flow-architect.git
-   cd ai-flow-architect
+   git clone https://github.com/wdnmd1265/audison.git
+   cd audison
    ```
 
 3. **创建特性分支**
@@ -139,13 +139,13 @@ pytest
 pytest tests/test_brain_one.py
 
 # 运行带覆盖率的测试
-pytest --cov=src/ai_flow_architect tests/
+pytest --cov=src/audison tests/
 ```
 
 ## 项目结构说明
 
 ```
-src/ai_flow_architect/
+src/audison/
 ├── core/           # 核心引擎组件
 ├── brains/         # 双脑系统实现
 ├── experts/        # 专家角色定义

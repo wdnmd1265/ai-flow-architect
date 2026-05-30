@@ -1,8 +1,8 @@
-# AI Flow Architect 默认配置
+# Audison 默认配置
 
 # 框架配置
 framework:
-  name: "AI Flow Architect"
+  name: "Audison"
   version: "0.1.0"
   debug: false
   log_level: "INFO"

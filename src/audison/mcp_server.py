@@ -1,5 +1,5 @@
 """
-MCP Server: AI Flow Architect TrustEngine
+MCP Server: Audison TrustEngine
 
 将 TrustEngine 包装为 AI 助手（Cursor / Claude Desktop）可发现和调用的 MCP 工具。
 
@@ -8,7 +8,7 @@ MCP Server: AI Flow Architect TrustEngine
   - audit_file:  审查磁盘上的代码文件
 
 用法:
-  uvx ai-flow-architect[mcp] ai-flow-mcp
+  uvx audison[mcp] audison-mcp
 """
 
 import os
@@ -19,7 +19,7 @@ from typing import Optional, Any
 from mcp.server.fastmcp import FastMCP
 
 # ── FastMCP 实例 ────────────────────────────────────────────
-mcp = FastMCP("AI Flow Architect")
+mcp = FastMCP("Audison")
 
 # ── 懒加载 TrustEngine ───────────────────────────────────────
 _engine: Optional[Any] = None
@@ -66,7 +66,7 @@ async def _get_engine(brain1: str = "gpt-4o"):
         _engine_init_error = None
 
         try:
-            from ai_flow_architect.engine import TrustEngine
+            from audison.engine import TrustEngine
 
             if not _check_api_keys():
                 _engine_init_error = "no_api_keys"
@@ -103,7 +103,7 @@ def _build_no_key_response() -> str:
         "setup_guide": (
             "Create a .env file with OPENAI_API_KEY=sk-... "
             "or set the AIFLOW_API_KEY_1 environment variable. "
-            "See https://github.com/wdnmd1265/ai-flow-architect#quick-start"
+            "See https://github.com/wdnmd1265/audison#quick-start"
         ),
     }, ensure_ascii=False)
 

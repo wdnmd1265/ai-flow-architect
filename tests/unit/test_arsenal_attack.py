@@ -12,7 +12,7 @@ import pytest
 import tempfile
 from pathlib import Path
 
-from ai_flow_architect.engine.arsenal_attack import (
+from audison.engine.arsenal_attack import (
     AttackEngine,
     AttackStrategy,
     AttackResult,

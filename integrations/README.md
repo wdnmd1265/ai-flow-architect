@@ -1,6 +1,6 @@
-# ai-flow-architect 集成指南
+# audison 集成指南
 
-ai-flow-architect 提供了多种集成方式，从命令行一键审查到框架内部挂载 TrustEngine，覆盖不同工作流需求。
+audison 提供了多种集成方式，从命令行一键审查到框架内部挂载 TrustEngine，覆盖不同工作流需求。
 
 ## 集成方式总览
 

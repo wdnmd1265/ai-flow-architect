@@ -7,8 +7,8 @@ _compute_uncertainty 回归测试
 """
 
 import pytest
-from ai_flow_architect.engine.trust_engine import TrustEngine
-from ai_flow_architect.engine.trust_report import Finding
+from audison.engine.trust_engine import TrustEngine
+from audison.engine.trust_report import Finding
 
 
 class TestComputeUncertainty:

@@ -3,7 +3,7 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ai-flow-architect"
+name = "audison"
 version = "2.3.0"
 description = "AI proposes. You decide. — Adversarial AI workflow engine with built-in quality arbitration"
 readme = "README.md"
@@ -92,21 +92,21 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/wdnmd1265/ai-flow-architect"
-Documentation = "https://github.com/wdnmd1265/ai-flow-architect#readme"
-Repository = "https://github.com/wdnmd1265/ai-flow-architect"
-"Bug Tracker" = "https://github.com/wdnmd1265/ai-flow-architect/issues"
-npm = "https://www.npmjs.com/package/ai-flow-architect-demo"
+Homepage = "https://github.com/wdnmd1265/audison"
+Documentation = "https://github.com/wdnmd1265/audison#readme"
+Repository = "https://github.com/wdnmd1265/audison"
+"Bug Tracker" = "https://github.com/wdnmd1265/audison/issues"
+npm = "https://www.npmjs.com/package/audison-demo"
 
 [project.scripts]
-ai-flow = "ai_flow_architect.cli:main"
-ai-flow-mcp = "ai_flow_architect.mcp_server:main"
+audison = "audison.cli:main"
+audison-mcp = "audison.mcp_server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-"ai_flow_architect" = [
+"audison" = [
     "templates/*.html",
     "config/*.yaml",
     "config/attack_strategies/*.yaml",
@@ -135,7 +135,7 @@ exclude = '''
 profile = "black"
 multi_line_output = 3
 line_length = 88
-known_first_party = ["ai_flow_architect"]
+known_first_party = ["audison"]
 known_third_party = ["openai", "anthropic", "pydantic", "redis", "click", "typer"]
 
 [tool.mypy]
@@ -165,9 +165,9 @@ markers = [
     "unit: marks tests as unit tests",
 ]
 
-[project.entry-points."ai_flow_architect.experts"]
-base = "ai_flow_architect.experts.base:BaseExpert"
-creative = "ai_flow_architect.experts.creative:CreativeExpert"
-evaluator = "ai_flow_architect.experts.evaluator:EvaluatorExpert"
-programmer = "ai_flow_architect.experts.programmer:ProgrammerExpert"
-reviewer = "ai_flow_architect.experts.reviewer:ReviewerExpert"
+[project.entry-points."audison.experts"]
+base = "audison.experts.base:BaseExpert"
+creative = "audison.experts.creative:CreativeExpert"
+evaluator = "audison.experts.evaluator:EvaluatorExpert"
+programmer = "audison.experts.programmer:ProgrammerExpert"
+reviewer = "audison.experts.reviewer:ReviewerExpert"

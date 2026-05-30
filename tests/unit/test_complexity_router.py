@@ -1,7 +1,7 @@
 """测试 ComplexityRouter — 4 层模型路由。"""
 
 import pytest
-from ai_flow_architect.engine.complexity_router import (
+from audison.engine.complexity_router import (
     ComplexityRouter,
     RouteDecision,
 )

@@ -51,7 +51,7 @@ jobs:
           import asyncio
           import json
           import os
-          from ai_flow_architect.engine import TrustEngine
+          from audison.engine import TrustEngine
 
           async def main():
               engine = TrustEngine()

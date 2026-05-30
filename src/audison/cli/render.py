@@ -106,7 +106,7 @@ def render_divergence_view(report, console: Console) -> bool:
     # ── 分享引导 ──
     console.print(Text("─" * 40, style="dim"))
     console.print(Text("📸 截图分享这个结果", style="bold"))
-    console.print("  Share: https://github.com/wdnmd1265/ai-flow-architect", style="dim")
+    console.print("  Share: https://github.com/wdnmd1265/audison", style="dim")
     console.print()
 
     return True

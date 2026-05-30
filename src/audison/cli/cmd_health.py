@@ -17,11 +17,11 @@ def _load_health_from_db() -> dict:
     2. 表存在但为空 → 返回占位 + warning
     3. 数据库损坏或读取出错 → 返回占位 + warning
     """
-    db_path = Path.home() / ".ai-flow" / "evidence.db"
+    db_path = Path.home() / ".audison" / "evidence.db"
 
     # 路径 1：数据库文件不存在
     if not db_path.exists():
-        return _placeholder_health("数据库不存在。请先运行 ai-flow audit 产生审查记录。")
+        return _placeholder_health("数据库不存在。请先运行 audison audit 产生审查记录。")
 
     try:
         from ..engine.evidence_db import EvidenceDB
@@ -30,7 +30,7 @@ def _load_health_from_db() -> dict:
 
         if stats["total"] == 0:
             # 路径 2：表存在但为空
-            return _placeholder_health("数据库为空。请先运行 ai-flow audit 产生审查记录。")
+            return _placeholder_health("数据库为空。请先运行 audison audit 产生审查记录。")
 
         # 构建真实数据
         recent = db.get_recent(limit=10)

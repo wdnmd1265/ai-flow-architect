@@ -20,7 +20,7 @@ What you expected to happen instead.
 **Environment**
 - OS: [e.g. Windows 11, macOS 14, Ubuntu 24.04]
 - Python version: [e.g. 3.11.5]
-- ai-flow-architect version: [e.g. 0.1.0]
+- audison version: [e.g. 0.1.0]
 - Models used: [e.g. gpt-4o + claude-3-5-sonnet]
 
 **Additional context**

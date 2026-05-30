@@ -11,7 +11,7 @@
 
   <!-- Column headers -->
   <rect x="40" y="20" width="180" height="40" rx="8" fill="#CECBF6" stroke="none"/>
-  <text class="header" x="130" y="44" text-anchor="middle" dominant-baseline="central" fill="#3C3489">ai-flow-architect</text>
+  <text class="header" x="130" y="44" text-anchor="middle" dominant-baseline="central" fill="#3C3489">audison</text>
 
   <rect x="250" y="20" width="180" height="40" rx="8" fill="#B5D4F4" stroke="none"/>
   <text class="header" x="340" y="44" text-anchor="middle" dominant-baseline="central" fill="#0C447C">LangChain</text>
@@ -30,7 +30,7 @@
   <rect x="40" y="120" width="600" height="44" rx="0" fill="white" stroke="#D3D1C7" stroke-width="0.5"/>
   <text class="label" x="56" y="128" fill="#5F5E5A">质量把控</text>
 
-  <!-- ai-flow: built-in (green) -->
+  <!-- audison: built-in (green) -->
   <rect x="90" y="136" width="80" height="20" rx="4" fill="#97C459"/>
   <text class="badge" x="130" y="148" text-anchor="middle" dominant-baseline="central">内置</text>
 
@@ -77,5 +77,5 @@
 
   <!-- Bottom takeaway -->
   <rect x="120" y="320" width="440" height="40" rx="12" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
-  <text class="title" x="340" y="344" text-anchor="middle" dominant-baseline="central" fill="#3C3489">需要可审计的质量保证？→ ai-flow-architect</text>
+  <text class="title" x="340" y="344" text-anchor="middle" dominant-baseline="central" fill="#3C3489">需要可审计的质量保证？→ audison</text>
 </svg>

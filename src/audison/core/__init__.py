@@ -3,7 +3,7 @@
 
 .. deprecated:: 2.0
     FlowArchitect, TaskScheduler, ContextManager, CacheManager 为 V1 遗留模块。
-    活跃代码请使用 ``from ai_flow_architect.engine import TrustEngine``。
+    活跃代码请使用 ``from audison.engine import TrustEngine``。
     这些模块将在 V3.0 正式移除。
 """
 
