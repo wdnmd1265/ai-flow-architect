@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "audison"
-version = "2.3.0"
+version = "2.3.4"
 description = "AI proposes. You decide. — Adversarial AI workflow engine with built-in quality arbitration"
 readme = "README.md"
 license = "Apache-2.0"

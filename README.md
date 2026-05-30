@@ -21,15 +21,15 @@ That's the idea. Everything else — the 8 providers, the fallback network, the 
 ---
 
 <p align="center">
-  <a href="https://wdnmd1265.github.io/audison/playground.html"><strong>🎮 Try it live →</strong></a>
+  <a href="https://wdnmd1265.github.io/Audison/playground.html"><strong>🎮 Try it live →</strong></a>
 </p>
 
 <p align="center">
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.9%2B-3776AB.svg" alt="Python 3.9+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-4CAF50.svg" alt="License"></a>
-  <a href="https://github.com/wdnmd1265/audison/actions"><img src="https://img.shields.io/badge/tests-186%20passing-4CAF50.svg" alt="Tests"></a>
-  <a href="https://wdnmd1265.github.io/audison/playground.html"><img src="https://img.shields.io/badge/playground-live-58a6ff.svg" alt="Playground"></a>
-  <a href="https://wdnmd1265.github.io/audison/"><img src="https://img.shields.io/badge/docs-deployed-success.svg" alt="GitHub Pages"></a>
+  <a href="https://github.com/wdnmd1265/Audison/actions"><img src="https://img.shields.io/badge/tests-186%20passing-4CAF50.svg" alt="Tests"></a>
+  <a href="https://wdnmd1265.github.io/Audison/playground.html"><img src="https://img.shields.io/badge/playground-live-58a6ff.svg" alt="Playground"></a>
+  <a href="https://wdnmd1265.github.io/Audison/"><img src="https://img.shields.io/badge/docs-deployed-success.svg" alt="GitHub Pages"></a>
 </p>
 
 <p align="center">
@@ -106,7 +106,7 @@ That's the idea. Everything else — the 8 providers, the fallback network, the 
 └──────────────────────────────────────────────────────────┘
 ```
 
-> **[Try the interactive Playground](https://wdnmd1265.github.io/audison/playground.html)** — see real audits of real AI outputs. No installation. No API key.
+> **[Try the interactive Playground](https://wdnmd1265.github.io/Audison/playground.html)** — see real audits of real AI outputs. No installation. No API key.
 
 ---
 
@@ -132,7 +132,7 @@ That's the idea. Everything else — the 8 providers, the fallback network, the 
 
 ## Quick Start
 
-🌐 **Try instantly in your browser**: [wdnmd1265.github.io/audison/playground.html](https://wdnmd1265.github.io/audison/playground.html) — no install, no API key
+🌐 **Try instantly in your browser**: [wdnmd1265.github.io/Audison/playground.html](https://wdnmd1265.github.io/Audison/playground.html) — no install, no API key
 
 > **Try it instantly — no install:** `npx audison-demo`
 
@@ -477,7 +477,7 @@ python scripts/benchmark.py --list-disputed
 Contributions welcome. If you've tested the engine with a provider not yet in our compatibility list, that alone is a valuable PR.
 
 ```bash
-git clone https://github.com/wdnmd1265/audison.git
+git clone https://github.com/wdnmd1265/Audison.git
 cd audison
 pip install -e ".[html]"
 pytest tests/unit/ -v    # 186 tests
@@ -496,7 +496,7 @@ Audison is an open-source project built by and for developers who care about AI 
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** — How to get involved, from reporting bugs to submitting PRs
 - **[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)** — Our community standards (Contributor Covenant 2.1)
 - **[SECURITY.md](SECURITY.md)** — Vulnerability reporting process and supported versions
-- **[GitHub Discussions](https://github.com/wdnmd1265/audison/discussions)** — Ask questions, share ideas, and connect with other users
+- **[GitHub Discussions](https://github.com/wdnmd1265/Audison/discussions)** — Ask questions, share ideas, and connect with other users
 
 ### Ways to Contribute
 
@@ -520,7 +520,8 @@ Every contribution goes through dual-model adversarial review — including our 
 </p>
 
 <p align="center">
-  <a href="https://wdnmd1265.github.io/audison/playground.html"><strong>See it in action: playground.html</strong></a>
+  <a href="https://wdnmd1265.github.io/Audison/playground.html"><strong>See it in action: playground.html</strong></a>
   &nbsp;|&nbsp;
-  <a href="https://wdnmd1265.github.io/audison/">GitHub Pages — deployed</a>
+  <a href="https://wdnmd1265.github.io/Audison/">GitHub Pages — deployed</a>
 </p>
+<!-- mcp-name: io.github.wdnmd1265/audison -->

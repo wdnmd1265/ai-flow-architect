@@ -34,7 +34,7 @@ function getPipCommand() {
 
 // ── Step 1: Check Python ──────────────────────────────────────────
 print('');
-print(`${CYAN}${BOLD}Audison — Instant Demo${RESET}`);
+print(`${CYAN}${BOLD}Audison �?Instant Demo${RESET}`);
 print('');
 
 if (!checkCommand('python3') && !checkCommand('python')) {
@@ -105,6 +105,6 @@ try {
 // ── Step 5: Post-example guidance ──────────────────────────────────
 print('');
 print(`${BOLD}Want to audit your own code?${RESET}`);
-print(`  ${CYAN}→ Open Playground: https://wdnmd1265.github.io/audison/playground.html${RESET}`);
-print(`  ${CYAN}→ Install CLI:     pip install --user audison && audison init${RESET}`);
+print(`  ${CYAN}�?Open Playground: https://wdnmd1265.github.io/Audison/playground.html${RESET}`);
+print(`  ${CYAN}�?Install CLI:     pip install --user audison && audison init${RESET}`);
 print('');

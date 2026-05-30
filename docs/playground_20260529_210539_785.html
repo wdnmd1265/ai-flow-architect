@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audison â€” Playground</title>
-<meta name="description" content="Dual-model adversarial code audit. Try it in your browser â€” no install, no API key required for Demo mode.">
-<meta property="og:title" content="Audison â€” Dual-Model Adversarial Code Audit">
+<title>Audison â€?Playground</title>
+<meta name="description" content="Dual-model adversarial code audit. Try it in your browser â€?no install, no API key required for Demo mode.">
+<meta property="og:title" content="Audison â€?Dual-Model Adversarial Code Audit">
 <meta property="og:description" content="Two LLMs verify every finding. Zero hallucinated vulnerabilities. Try Demo mode instantly.">
-<meta property="og:image" content="https://wdnmd1265.github.io/audison/og-image.png">
+<meta property="og:image" content="https://wdnmd1265.github.io/Audison/og-image.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:type" content="website">
@@ -237,8 +237,8 @@ footer .note{font-size:11px;color:var(--text2);margin-top:16px}
 <div class="container">
 
 <header>
-  <h1>Audison <span>â€” Playground</span></h1>
-  <p class="subtitle">Dual-model adversarial code audit. Two LLMs cross-verify every finding â€” zero hallucinated vulnerabilities.</p>
+  <h1>Audison <span>â€?Playground</span></h1>
+  <p class="subtitle">Dual-model adversarial code audit. Two LLMs cross-verify every finding â€?zero hallucinated vulnerabilities.</p>
 </header>
 
 <!-- Mode Tabs -->
@@ -305,7 +305,7 @@ footer .note{font-size:11px;color:var(--text2);margin-top:16px}
   <button class="btn btn-primary" id="liveAuditBtn" onclick="runLiveAudit()">Audit My Code</button>
 
   <div id="liveApiHint" class="api-hint" style="display:none">
-    Need an API key? <a onclick="switchMode('demo')">Try Demo mode instead</a> â€” no key required.
+    Need an API key? <a onclick="switchMode('demo')">Try Demo mode instead</a> â€?no key required.
   </div>
 
   <div class="loading-area" id="liveLoading">
@@ -359,7 +359,7 @@ footer .note{font-size:11px;color:var(--text2);margin-top:16px}
       "model": "Claude 3.5 Sonnet",
       "verdict": "REVIEW",
       "confidence": 72,
-      "reason": "stripe.customers.createBalanceTransaction does not exist in the Stripe API (v2025-06). The correct approach is stripe.Customer.createBalanceTransaction(customer_id, ...) or stripe.Customer.createFundingInstruction(). This is a classic LLM hallucination â€” the method name sounds plausible but is fabricated."
+      "reason": "stripe.customers.createBalanceTransaction does not exist in the Stripe API (v2025-06). The correct approach is stripe.Customer.createBalanceTransaction(customer_id, ...) or stripe.Customer.createFundingInstruction(). This is a classic LLM hallucination â€?the method name sounds plausible but is fabricated."
     },
     "findings": [
       {"category": "HAL-001", "severity": "high", "description": "Non-existent Stripe API method: stripe.customers.createBalanceTransaction does not exist. Will raise AttributeError at runtime."},
@@ -380,7 +380,7 @@ footer .note{font-size:11px;color:var(--text2);margin-top:16px}
       "model": "GPT-4o",
       "verdict": "REJECT",
       "confidence": 15,
-      "reason": "Three critical issues: (1) MD5 is cryptographically broken and unsuitable for password hashing. (2) SQL injection vulnerability via f-string query construction on username. (3) No password salt â€” identical passwords produce identical hashes, vulnerable to rainbow table attacks."
+      "reason": "Three critical issues: (1) MD5 is cryptographically broken and unsuitable for password hashing. (2) SQL injection vulnerability via f-string query construction on username. (3) No password salt â€?identical passwords produce identical hashes, vulnerable to rainbow table attacks."
     },
     "brain2": {
       "model": "Claude 3.5 Sonnet",
@@ -391,7 +391,7 @@ footer .note{font-size:11px;color:var(--text2);margin-top:16px}
     "findings": [
       {"category": "SEC-003", "severity": "critical", "description": "MD5 hashing used for password storage. MD5 is cryptographically broken (collision attacks demonstrated since 2004). Use bcrypt, argon2id, or scrypt."},
       {"category": "SEC-001", "severity": "critical", "description": "SQL injection in both store_user() and verify_user() via f-string query construction. Attacker input admin' -- bypasses authentication entirely."},
-      {"category": "AUTH-002", "severity": "high", "description": "No password salt â€” identical passwords produce identical MD5 hashes. Vulnerable to rainbow table and dictionary attacks."}
+      {"category": "AUTH-002", "severity": "high", "description": "No password salt â€?identical passwords produce identical MD5 hashes. Vulnerable to rainbow table and dictionary attacks."}
     ],
     "disagreements": 0
   },
@@ -408,13 +408,13 @@ footer .note{font-size:11px;color:var(--text2);margin-top:16px}
       "model": "GPT-4o",
       "verdict": "REJECT",
       "confidence": 10,
-      "reason": "All three functions use string concatenation for SQL queries. search_products is vulnerable to LIKE-based injection. get_user allows numeric injection (e.g., user_id='1 OR 1=1'). delete_order is critically dangerous â€” injection here causes data loss."
+      "reason": "All three functions use string concatenation for SQL queries. search_products is vulnerable to LIKE-based injection. get_user allows numeric injection (e.g., user_id='1 OR 1=1'). delete_order is critically dangerous â€?injection here causes data loss."
     },
     "brain2": {
       "model": "Claude 3.5 Sonnet",
       "verdict": "REJECT",
       "confidence": 5,
-      "reason": "Unparameterized SQL in every function. The delete_order function is especially dangerous â€” an attacker injecting 1 OR 1=1 would delete all orders. search_products leaks data through LIKE injection. This code must never reach production."
+      "reason": "Unparameterized SQL in every function. The delete_order function is especially dangerous â€?an attacker injecting 1 OR 1=1 would delete all orders. search_products leaks data through LIKE injection. This code must never reach production."
     },
     "findings": [
       {"category": "SEC-001", "severity": "critical", "description": "SQL injection in search_products(): string concatenation in LIKE clause allows data exfiltration via UNION or blind injection techniques."},
@@ -436,7 +436,7 @@ footer .note{font-size:11px;color:var(--text2);margin-top:16px}
       "model": "GPT-4o",
       "verdict": "PASS",
       "confidence": 85,
-      "reason": "Uses bcrypt with 12 rounds â€” appropriate for production. Parameterized queries prevent SQL injection. Input validation checks both username and password length. Connection management with explicit close() is correct."
+      "reason": "Uses bcrypt with 12 rounds â€?appropriate for production. Parameterized queries prevent SQL injection. Input validation checks both username and password length. Connection management with explicit close() is correct."
     },
     "brain2": {
       "model": "Claude 3.5 Sonnet",
@@ -462,19 +462,19 @@ footer .note{font-size:11px;color:var(--text2);margin-top:16px}
       "model": "GPT-4o",
       "verdict": "REVIEW",
       "confidence": 42,
-      "reason": "Admin code path uses string formatting for SQL â€” vulnerable to injection. The role field comes from client-supplied data, creating a privilege escalation path. Inconsistent parameter binding between branches is a maintenance hazard."
+      "reason": "Admin code path uses string formatting for SQL â€?vulnerable to injection. The role field comes from client-supplied data, creating a privilege escalation path. Inconsistent parameter binding between branches is a maintenance hazard."
     },
     "brain2": {
       "model": "Claude 3.5 Sonnet",
       "verdict": "REVIEW",
       "confidence": 55,
-      "reason": "SQL injection in admin context via f-string. Client-supplied data['role'] controls authorization â€” this is a privilege escalation vulnerability (any user can set role='admin' in their request). The context parameter appears to come from client input, which is fundamentally insecure for authorization decisions."
+      "reason": "SQL injection in admin context via f-string. Client-supplied data['role'] controls authorization â€?this is a privilege escalation vulnerability (any user can set role='admin' in their request). The context parameter appears to come from client input, which is fundamentally insecure for authorization decisions."
     },
     "findings": [
       {"category": "SEC-001", "severity": "high", "description": "SQL injection in admin code path: email value interpolated via f-string without parameterization."},
       {"category": "AUTH-001", "severity": "high", "description": "Privilege escalation: data['role'] from client input controls permission assignment. Any user can send role='admin' to gain full access."},
-      {"category": "LOG-001", "severity": "medium", "description": "Inconsistent parameter binding between admin and non-admin branches â€” maintenance hazard that could lead to future injection bugs."},
-      {"category": "SEC-004", "severity": "high", "description": "context parameter likely sourced from client input â€” authorization decisions must never trust client-controlled values."}
+      {"category": "LOG-001", "severity": "medium", "description": "Inconsistent parameter binding between admin and non-admin branches â€?maintenance hazard that could lead to future injection bugs."},
+      {"category": "SEC-004", "severity": "high", "description": "context parameter likely sourced from client input â€?authorization decisions must never trust client-controlled values."}
     ],
     "disagreements": 1
   }
@@ -641,7 +641,7 @@ Review the code for:
 2. Correctness issues (API hallucinations, logic errors, edge cases)
 3. Compliance with the stated requirement
 
-Be strict. Flag everything suspicious. If the code looks correct, say so â€” but be specific about why.
+Be strict. Flag everything suspicious. If the code looks correct, say so â€?but be specific about why.
 
 Output ONLY valid JSON (no markdown, no code fences) in this exact format:
 {

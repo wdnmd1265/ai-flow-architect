@@ -1,12 +1,37 @@
 {
-  "mcpServers": {
-    "audison": {
-      "command": "uvx",
-      "args": ["audison[mcp]", "audison-mcp"],
-      "env": {
-        "OPENAI_API_KEY": "sk-...",
-        "ANTHROPIC_API_KEY": "sk-ant-..."
-      }
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.wdnmd1265/audison",
+  "title": "Audison",
+  "description": "Dual-model adversarial audit for AI-generated code. Two LLMs cross-examine code, detect hallucinations, and divergence between models surfaces untrustworthy outputs.",
+  "repository": {
+    "url": "https://github.com/wdnmd1265/audison",
+    "source": "github"
+  },
+  "version": "2.3.4",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "audison",
+      "version": "2.3.4",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "OPENAI_API_KEY",
+          "description": "OpenAI API Key for Brain #1",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
+        },
+        {
+          "name": "ANTHROPIC_API_KEY",
+          "description": "Anthropic API Key for Brain #2",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
+        }
+      ]
     }
-  }
+  ]
 }
