@@ -1,8 +1,12 @@
 """
 输入验证器 - 验证和清理输入
+
+.. deprecated:: 2.2.0
+    本模块未被任何活跃代码路径引用，保留仅作参考。
+    将在 V3.0 正式移除。
 """
 
-from typing import Dict, Any, Optional, List, Union
+from typing import Dict, Any, List, Union
 from pydantic import BaseModel, Field, validator
 from loguru import logger
 

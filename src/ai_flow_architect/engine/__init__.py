@@ -3,6 +3,9 @@
 
 提供独立的审查能力，可被 FlowArchitect 内部调用，
 也可独立对外提供 API / Skill / Action。
+
+.. note::
+    FlowArchitect（core.architect）已弃用。CLI/MCP/API 均直接使用 TrustEngine。
 """
 
 from .trust_report import (

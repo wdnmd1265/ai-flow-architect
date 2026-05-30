@@ -2,7 +2,7 @@
 缓存管理器 - 实现Token节省
 """
 
-from typing import Dict, Any, Optional, Union, List
+from typing import Dict, Any, Optional, List
 import hashlib
 import json
 import re

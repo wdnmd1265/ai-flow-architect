@@ -196,7 +196,11 @@ body {
   background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
   padding: 18px; position: relative;
 }
-.brain-card.conflict { border-color: var(--reject); box-shadow: 0 0 12px rgba(239,68,68,0.15); }
+.brain-card.conflict { border-color: var(--reject); box-shadow: 0 0 12px rgba(239,68,68,0.15); animation: conflict-pulse 2s ease-in-out infinite; }
+@keyframes conflict-pulse {
+  0%, 100% { border-color: var(--reject); box-shadow: 0 0 8px rgba(239,68,68,0.1); }
+  50% { border-color: #ff6b6b; box-shadow: 0 0 18px rgba(239,68,68,0.3); }
+}
 .brain-card .brain-label { font-size: 11px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
 .brain-card .brain-model { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
 .brain-card .brain-verdict { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 12px; margin-bottom: 8px; }
@@ -285,6 +289,28 @@ body {
 /* ─── Live Results ─── */
 .live-results { display: none; margin-top: 24px; }
 .live-results.active { display: block; }
+/* ─── V2.4 Divergence Label ─── */
+.divergence-label {
+  display: inline-block; background: var(--reject); color: #fff;
+  font-size: 11px; font-weight: 700; padding: 3px 12px; border-radius: 12px;
+  margin-top: 8px; letter-spacing: 0.5px;
+}
+/* ─── V2.4 Share Button ─── */
+.share-result-btn {
+  width: 100%; padding: 12px; background: var(--accent); color: #fff;
+  border: none; border-radius: var(--radius); font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: background 0.2s; margin-top: 14px;
+}
+.share-result-btn:hover { background: #6d28d9; }
+.share-result-btn.copied { background: var(--pass); }
+.share-preview-text {
+  margin-top: 8px; padding: 10px; background: var(--code-bg);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  font-family: "SF Mono", Consolas, monospace; font-size: 11px;
+  color: var(--text2); white-space: pre-wrap; max-height: 160px;
+  overflow-y: auto; display: none;
+}
+.share-preview-text.visible { display: block; }
 /* ─── CTA Bar ─── */
 .cta-bar {
   background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
@@ -480,6 +506,8 @@ function renderCase(idx) {
     /* Code Block with line numbers */
     '<div class="code-block active" id="tab-code">' + renderCodeLines(c.code) + '</div>' +
     '<div class="req-block" id="tab-req">' + esc(c.requirement) + '</div>' +
+    /* V2.4 Divergence Label */
+    (conflict ? '<div style="text-align:center;"><span class="divergence-label">⚡ ' + c.findings.length + ' DISAGREEMENT' + (c.findings.length > 1 ? 'S' : '') + '</span></div>' : '') +
     /* Audit Results */
     '<div class="audit-header">' +
       '<span class="verdict-badge ' + c.verdict + '">' + c.verdict + '</span>' +
@@ -515,7 +543,11 @@ function renderCase(idx) {
     '<div class="evidence-footer">' +
       '<span>SHA256: ' + c.evidence_sha256.substring(0, 16) + '...</span>' +
       '<span>Audited: ' + formatTimestamp(c.timestamp) + '</span>' +
-    '</div>';
+    '</div>' +
+    /* V2.4 Share Button */
+    '<button class="share-result-btn" onclick="shareAuditResult(this)" data-case="' + idx + '">Share Result</button>' +
+    '<button class="try-live-btn" onclick="switchMode(\'live\')">Try with your own code →</button>' +
+    '<pre class="share-preview-text" id="share-preview-' + idx + '"></pre>';
 
   panel.innerHTML = html;
 }
@@ -769,6 +801,8 @@ function renderLiveResults(b1, b2, model1Name, model2Name) {
         '<div class="progress-bar"><div class="progress-fill ' + confClass + '" style="width:' + confidence + '%"></div></div>' +
       '</div>' +
     '</div>' +
+    /* V2.4 Divergence Label */
+    (conflict ? '<div style="text-align:center;"><span class="divergence-label">⚡ ' + uniqueFindings.length + ' DISAGREEMENT' + (uniqueFindings.length > 1 ? 'S' : '') + '</span></div>' : '') +
     '<div class="brains-row">' +
       '<div class="brain-card' + (conflict ? ' conflict' : '') + '">' +
         '<div class="brain-label">Brain #1</div>' +
@@ -792,7 +826,10 @@ function renderLiveResults(b1, b2, model1Name, model2Name) {
     '<div class="evidence-footer">' +
       '<span>Live audit &middot; Dual-model adversarial review</span>' +
       '<span>' + new Date().toISOString().replace('T', ' ').substring(0, 19) + '</span>' +
-    '</div>';
+    '</div>' +
+    /* V2.4 Share Button */
+    '<button class="share-result-btn" onclick="shareLiveResult(this)" data-model1="' + esc(model1Name) + '" data-model2="' + esc(model2Name) + '" data-verdict1="' + (b1.verdict || 'REVIEW') + '" data-verdict2="' + (b2.verdict || 'REVIEW') + '" data-score1="' + (b1.score || 50) + '" data-score2="' + (b2.score || 50) + '" data-verdict="' + verdict + '" data-confidence="' + confidence + '" data-findings="' + esc(JSON.stringify(uniqueFindings)) + '">Share Result</button>' +
+    '<pre class="share-preview-text" id="share-preview-live"></pre>';
 
   results.innerHTML = html;
   results.classList.add('active');
@@ -833,6 +870,122 @@ function formatTimestamp(ts) {
    INIT
    ================================================================ */
 initDemo();
+
+/* ================================================================
+   V2.4 SHARE FUNCTIONS
+   ================================================================ */
+function shareAuditResult(btn) {
+  var idx = parseInt(btn.getAttribute('data-case'));
+  var c = DEMO_CASES[idx];
+  if (!c) return;
+
+  var conflict = c.brain1.verdict !== c.brain2.verdict;
+  var text = buildShareText(
+    c.brain1.model, c.brain2.model,
+    c.brain1.verdict, c.brain2.verdict,
+    c.brain1.score, c.brain2.score,
+    c.verdict, c.confidence,
+    conflict ? c.findings : [],
+    c.evidence_sha256
+  );
+
+  var preview = document.getElementById('share-preview-' + idx);
+  if (preview) { preview.textContent = text; preview.classList.add('visible'); }
+  copyAndFeedback(text, btn);
+}
+
+function shareLiveResult(btn) {
+  var model1 = btn.getAttribute('data-model1');
+  var model2 = btn.getAttribute('data-model2');
+  var verdict1 = btn.getAttribute('data-verdict1');
+  var verdict2 = btn.getAttribute('data-verdict2');
+  var score1 = parseInt(btn.getAttribute('data-score1'));
+  var score2 = parseInt(btn.getAttribute('data-score2'));
+  var verdict = btn.getAttribute('data-verdict');
+  var confidence = parseInt(btn.getAttribute('data-confidence'));
+  var findingsRaw = btn.getAttribute('data-findings');
+  var findings = [];
+  try { findings = JSON.parse(findingsRaw); } catch(e) {}
+
+  var conflict = verdict1 !== verdict2;
+  var text = buildShareText(
+    model1, model2,
+    verdict1, verdict2,
+    score1, score2,
+    verdict, confidence,
+    conflict ? findings : [],
+    'LIVE-' + Date.now().toString(16)
+  );
+
+  var preview = document.getElementById('share-preview-live');
+  if (preview) { preview.textContent = text; preview.classList.add('visible'); }
+  copyAndFeedback(text, btn);
+}
+
+function buildShareText(model1, model2, v1, v2, s1, s2, verdict, confidence, findings, sha) {
+  var lines = [
+    '🤖 AI Flow Architect Audit',
+    '',
+    'Brain #1 (' + model1 + '): ' + v1 + ' (' + s1 + '%)',
+    'Brain #2 (' + model2 + '): ' + v2 + ' (' + s2 + '%)',
+    ''
+  ];
+
+  if (findings.length > 0) {
+    lines.push('⚡ ' + findings.length + ' disagreement(s):');
+    findings.forEach(function(f) {
+      lines.push('  • ' + (f.description || f.category || ''));
+    });
+  } else {
+    lines.push('⚡ No disagreements — models agree');
+  }
+
+  lines.push('');
+  lines.push('Final: ' + verdict + ' (' + confidence + '%)');
+  lines.push('SHA256: ' + (sha ? sha.substring(0, 16) : 'N/A'));
+  lines.push('');
+  lines.push('🔗 github.com/wdnmd1265/ai-flow-architect');
+
+  return lines.join('\n');
+}
+
+function copyAndFeedback(text, btn) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function() {
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(function() {
+        btn.textContent = 'Share Result';
+        btn.classList.remove('copied');
+      }, 2000);
+    }).catch(function() {
+      fallbackCopyPlayground(text, btn);
+    });
+  } else {
+    fallbackCopyPlayground(text, btn);
+  }
+}
+
+function fallbackCopyPlayground(text, btn) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+  } catch(e) {
+    btn.textContent = 'Copy failed';
+  }
+  document.body.removeChild(ta);
+  setTimeout(function() {
+    btn.textContent = 'Share Result';
+    btn.classList.remove('copied');
+  }, 2000);
+}
 </script>
 </body>
 </html>

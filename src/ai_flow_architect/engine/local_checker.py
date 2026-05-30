@@ -8,7 +8,7 @@ Tier 1 本地初筛引擎（Local Checker）。
 import re
 import json
 from typing import List, Optional
-from dataclasses import dataclass, field
+from dataclasses import field
 from pydantic import BaseModel, Field
 
 

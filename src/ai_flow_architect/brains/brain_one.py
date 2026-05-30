@@ -1,5 +1,9 @@
 """
 一号脑 - 首席架构师
+
+.. deprecated:: 2.0
+    V1 遗留模块（蓝图生成脑）。V2 审查引擎使用 BrainTwo + BrainOpponent + BrainBlind。
+    本模块保留仅作参考和向后兼容，将在 V3.0 正式移除。
 """
 
 from typing import Dict, Any, List

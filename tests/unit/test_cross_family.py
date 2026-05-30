@@ -181,7 +181,7 @@ class TestTrustEngineCrossFamily:
         assert engine.enforce_cross_family is False
         assert engine.cross_family_strict is False
         assert engine.cross_family_validated is False
-        assert engine.brain_families == ("", "")
+        assert engine.brain_families == ["", ""]
 
     def test_enabled_warning_mode(self):
         """启用跨家族校验（warning 模式）"""
@@ -195,7 +195,7 @@ class TestTrustEngineCrossFamily:
         assert engine.cross_family_strict is False
         # 同家族，warning 模式不抛异常
         assert engine.cross_family_validated is False
-        assert engine.brain_families == ("openai", "openai")
+        assert engine.brain_families == ["openai", "openai"]
 
     def test_enabled_strict_mode_raises(self):
         """启用严格跨家族校验 + 同家族 → 抛出 CrossFamilyError"""
@@ -216,7 +216,7 @@ class TestTrustEngineCrossFamily:
             cross_family_strict=True,
         )
         assert engine.cross_family_validated is True
-        assert engine.brain_families == ("openai", "anthropic")
+        assert engine.brain_families == ["openai", "anthropic"]
 
 
 class TestTrustReportCrossFamily:

@@ -2,6 +2,7 @@
 上下文管理器 - 处理会话隔离
 """
 
+import time
 from typing import Dict, Any, Optional
 from pydantic import BaseModel, Field
 import uuid
@@ -15,7 +16,7 @@ class SessionContext(BaseModel):
     task_id: str = Field(..., description="任务ID")
     history: list = Field(default_factory=list, description="对话历史")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="元数据")
-    created_at: float = Field(default_factory=lambda: __import__('time').time(), description="创建时间")
+    created_at: float = Field(default_factory=lambda: time.time(), description="创建时间")
 
 
 class ContextManager:
@@ -101,7 +102,7 @@ class ContextManager:
         message = {
             "role": role,
             "content": content,
-            "timestamp": __import__('time').time(),
+            "timestamp": time.time(),
             "metadata": metadata or {},
         }
         

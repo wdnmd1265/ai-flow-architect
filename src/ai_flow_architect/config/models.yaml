@@ -255,6 +255,18 @@ models:
     cost_per_1k_completion: 0.0
     recommended_for: ["代码任务", "专家节点", "本地开发"]
 
+  codellama:
+    provider: "local"
+    display_name: "CodeLlama (Ollama)"
+    description: "Meta 代码专用模型，本地运行"
+    context_window: 16384
+    max_output_tokens: 4096
+    supports_functions: false
+    supports_vision: false
+    cost_per_1k_prompt: 0.0
+    cost_per_1k_completion: 0.0
+    recommended_for: ["代码审查", "brain2 质检", "本地开发"]
+
   # ====================
   # 通义千问（DashScope）模型
   # ====================
@@ -597,7 +609,8 @@ fallbacks:
 
   # Ollama 本地模型降级路径
   local:
-    llama3: "qwen2.5-coder"
+    llama3: "codellama"
+    codellama: "llama3"
     qwen2.5-coder: "llama3"
 
   # 自定义 OpenAI 兼容接口降级路径

@@ -631,17 +631,62 @@ class TestCLIErrorHandling:
 class TestCLIInitAndModels:
     """CLI init 和 models 命令测试"""
 
+    _saved_env = None
+    _saved_config = None
+
+    @pytest.fixture(autouse=True)
+    def _init_env_cleanup(self):
+        """Setup: 备份 .ai-flow 目录；teardown: 恢复并清理测试残留"""
+        config_dir = Path.home() / ".ai-flow"
+        env_path = config_dir / ".env"
+        config_path = config_dir / "config.yaml"
+
+        # 备份已有配置
+        if env_path.exists():
+            TestCLIInitAndModels._saved_env = env_path.read_text(encoding="utf-8")
+        if config_path.exists():
+            TestCLIInitAndModels._saved_config = config_path.read_text(encoding="utf-8")
+
+        # 删除测试前残留（确保全新 init）
+        if env_path.exists():
+            env_path.unlink()
+        if config_path.exists():
+            config_path.unlink()
+
+        yield
+
+        # 恢复已有配置
+        if TestCLIInitAndModels._saved_env is not None:
+            config_dir.mkdir(parents=True, exist_ok=True)
+            env_path.write_text(TestCLIInitAndModels._saved_env, encoding="utf-8")
+            TestCLIInitAndModels._saved_env = None
+        elif env_path.exists():
+            env_path.unlink()
+
+        if TestCLIInitAndModels._saved_config is not None:
+            config_dir.mkdir(parents=True, exist_ok=True)
+            config_path.write_text(TestCLIInitAndModels._saved_config, encoding="utf-8")
+            TestCLIInitAndModels._saved_config = None
+        elif config_path.exists():
+            config_path.unlink()
+
+        # 清理空目录
+        if config_dir.exists() and not any(config_dir.iterdir()):
+            config_dir.rmdir()
+
     def test_init_command(self):
-        """测试 init 命令"""
+        """测试 init 命令（模拟 input/getpass 完成交互式配置）"""
         from ai_flow_architect.cli import main
 
         test_args = ["ai-flow", "init"]
 
         with patch.object(sys, "argv", test_args):
-            try:
-                main()
-            except SystemExit as e:
-                assert e.code == 0
+            with patch("builtins.input", side_effect=["1", ""]):
+                with patch("getpass.getpass", return_value="sk-test-key"):
+                    try:
+                        main()
+                    except SystemExit as e:
+                        assert e.code == 0
 
     def test_models_command(self):
         """测试 models 命令"""

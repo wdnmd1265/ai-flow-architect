@@ -6,7 +6,7 @@
 跨家族对抗是护城河的核心。
 """
 
-from typing import Dict, Tuple, Optional
+from typing import Dict, Tuple
 import logging
 
 logger = logging.getLogger(__name__)

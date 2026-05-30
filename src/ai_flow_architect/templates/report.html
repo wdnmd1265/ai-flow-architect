@@ -235,6 +235,146 @@
     margin-bottom: 0.25rem;
   }
 
+  /* === V2.4 分歧横幅 === */
+  .divergence-banner {
+    background: #c0392b;
+    color: #fff;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+    text-align: center;
+    font-weight: 700;
+    font-size: 1.15rem;
+    letter-spacing: 0.03em;
+  }
+  .divergence-banner .count {
+    font-size: 2.5rem;
+    font-family: var(--mono);
+    display: block;
+    line-height: 1;
+    margin-bottom: 0.25rem;
+  }
+
+  /* === V2.4 双模型对比卡片 === */
+  .brain-compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  @media (max-width: 600px) {
+    .brain-compare { grid-template-columns: 1fr; }
+  }
+  .brain-card {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    padding: 1.25rem;
+  }
+  .brain-card.pass { border-color: var(--confidence); }
+  .brain-card.fail { border-color: var(--uncertain); }
+  .brain-card.conflict { border-color: var(--dispute); }
+  .brain-card .brain-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+  }
+  .brain-card .brain-model {
+    font-family: var(--mono);
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+  .brain-card .brain-verdict {
+    display: inline-block;
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 0.15rem 0.6rem;
+    margin-bottom: 0.5rem;
+  }
+  .brain-card .brain-score {
+    font-family: var(--mono);
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+  .brain-card .brain-detail {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 0.5rem;
+    line-height: 1.5;
+  }
+
+  /* === V2.4 分歧详情折叠面板 === */
+  .divergence-details {
+    margin-bottom: 1.5rem;
+  }
+  .divergence-item {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-left: 6px solid var(--uncertain);
+    margin-bottom: 0.5rem;
+  }
+  .divergence-item summary {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    user-select: none;
+  }
+  .divergence-item summary:hover { background: var(--surface-alt); }
+  .divergence-item .divergence-body {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+
+  /* === V2.4 分享按钮 === */
+  .share-section {
+    text-align: center;
+    margin: 2rem 0;
+    padding: 1.5rem;
+    background: var(--surface);
+    border: 2px solid var(--border);
+  }
+  .share-section h3 {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .share-btn {
+    display: inline-block;
+    background: #7c3aed;
+    color: #fff;
+    border: none;
+    padding: 0.75rem 2rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: var(--font);
+    transition: background 0.2s;
+  }
+  .share-btn:hover { background: #6d28d9; }
+  .share-btn.copied { background: #22c55e; }
+  .share-preview {
+    margin-top: 0.75rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    white-space: pre-wrap;
+    text-align: left;
+    background: var(--surface-alt);
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    max-height: 200px;
+    overflow-y: auto;
+    display: none;
+  }
+  .share-preview.visible { display: block; }
+
   /* === 通用章节 === */
   section { margin-bottom: 2.5rem; }
   section h2 {
@@ -547,6 +687,74 @@
   </div>
   {% endif %}
 
+</div>
+{% endif %}
+
+<!-- ====== V2.4 分歧可视化 ====== -->
+{% if divergence and divergence.has_divergence %}
+<div class="divergence-banner">
+  <span class="count">{{ divergence.count }}</span>
+  MODEL DISAGREEMENT{{ 'S' if divergence.count > 1 else '' }}
+  <div style="font-size:0.8rem;font-weight:400;margin-top:0.25rem;opacity:0.9;">
+    Two Brains reached different conclusions on this code
+  </div>
+</div>
+
+<div class="brain-compare">
+  {% for arb in report.arbiters[:2] %}
+  <div class="brain-card {{ 'pass' if arb.passed else 'fail' }} {{ 'conflict' if divergence.has_divergence else '' }}">
+    <div class="brain-label">Brain #{{ loop.index }}</div>
+    <div class="brain-model">{{ arb.model }}</div>
+    <span class="brain-verdict" style="background:{{ '#2ecc7120' if arb.passed else '#e74c3c20' }};color:{{ '#2ecc71' if arb.passed else '#e74c3c' }};">
+      {% if arb.passed %}PASS{% else %}FAIL{% endif %}
+    </span>
+    <div class="brain-score">{{ "%.0f"|format(arb.score) }}%</div>
+    {% if arb.issues %}
+    <div class="brain-detail">{{ arb.issues[0].get('description', arb.issues[0])|string|truncate(150) }}</div>
+    {% elif arb.suggestions %}
+    <div class="brain-detail">{{ arb.suggestions[0]|truncate(150) }}</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+{% if divergence.disagreements %}
+<div class="divergence-details">
+  <h3 style="font-size:0.9rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.75rem;color:var(--text-secondary);">
+    Disagreement Details
+  </h3>
+  {% for d in divergence.disagreements %}
+  <details class="divergence-item" {{ 'open' if loop.index <= 3 else '' }}>
+    <summary>
+      {% if d.type == 'finding' %}
+        [{{ d.get('severity', '?').upper() }}] {{ d.get('area', d.get('description', ''))[:80] }}
+      {% elif d.type == 'verdict' %}
+        Verdict Split
+      {% elif d.type == 'score' %}
+        Score Gap
+      {% else %}
+        Disagreement #{{ loop.index }}
+      {% endif %}
+    </summary>
+    <div class="divergence-body">
+      {% if d.type == 'finding' %}
+        <p>{{ d.get('description', '') }}</p>
+      {% elif d.type == 'verdict' %}
+        <p>{{ d.get('detail', '') }}</p>
+      {% elif d.type == 'score' %}
+        <p>{{ d.get('detail', '') }}</p>
+      {% endif %}
+    </div>
+  </details>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- V2.4 分享按钮 -->
+<div class="share-section">
+  <h3>Share this audit</h3>
+  <button class="share-btn" id="share-btn" onclick="copyShareText()">Copy Share Text</button>
+  <pre class="share-preview" id="share-preview">{{ share_text }}</pre>
 </div>
 {% endif %}
 
@@ -1029,6 +1237,56 @@
   Generated by <a href="https://github.com/wdnmd1265/ai-flow-architect" target="_blank">ai-flow-architect</a>
   &mdash; Two brains are better than one.
 </div>
+
+<script>
+function copyShareText() {
+  var preview = document.getElementById('share-preview');
+  var btn = document.getElementById('share-btn');
+  var text = preview.textContent;
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function() {
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(function() {
+        btn.textContent = 'Copy Share Text';
+        btn.classList.remove('copied');
+      }, 2000);
+    }).catch(function() {
+      fallbackCopy(text, btn);
+    });
+  } else {
+    fallbackCopy(text, btn);
+  }
+}
+
+function fallbackCopy(text, btn) {
+  var textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  try {
+    document.execCommand('copy');
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+  } catch(e) {
+    btn.textContent = 'Copy failed';
+  }
+  document.body.removeChild(textarea);
+  setTimeout(function() {
+    btn.textContent = 'Copy Share Text';
+    btn.classList.remove('copied');
+  }, 2000);
+}
+
+// Show share preview on page load
+(function() {
+  var preview = document.getElementById('share-preview');
+  if (preview) preview.classList.add('visible');
+})();
+</script>
 
 </body>
 </html>

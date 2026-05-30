@@ -1,7 +1,6 @@
 """Logging configuration with trace_id support using loguru contextvars."""
 
 from contextvars import ContextVar
-from loguru import logger
 import shortuuid
 
 _trace_id: ContextVar[str] = ContextVar("trace_id", default="-")

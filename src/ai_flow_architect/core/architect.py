@@ -1,5 +1,10 @@
 """
 主框架类 - 协调整个工作流
+
+.. deprecated:: 2.0
+    V1 FlowArchitect 流水线。CLI/MCP/API 均使用 V2 TrustEngine。
+    本模块保留仅作参考和向后兼容，将在 V3.0 正式移除。
+    活跃代码：engine/trust_engine.py
 """
 
 from typing import Optional, Dict, Any, List
@@ -763,8 +768,6 @@ class FlowArchitect:
         new_blueprint.scenario_label = f"【{direction}审查】"
         
         return new_blueprint
-        
-        return blueprint
     
     async def _phase_two(self, blueprint: Blueprint) -> Dict[str, Any]:
         """

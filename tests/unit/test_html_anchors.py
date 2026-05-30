@@ -98,17 +98,42 @@ class TestHTMLAnchorMatching:
 
 
 class TestHTMLNoJavaScript:
-    """纯静态 HTML 验证"""
+    """HTML 脚本策略验证：仅允许内联分享脚本，禁止外部引用和无关事件处理器。"""
 
-    def test_no_script_tag(self):
-        """模板不包含裸 <script> 标签（允许 jinja2 模板引用变量中含有 script 词但不属于标签）"""
+    def test_no_external_script_deps(self):
+        """模板不包含外部脚本引用（<script src=），但允许内联 <script> 块"""
         content = read_template()
-        # 匹配真实的 <script> 标签（非变量名中的 script）
-        script_tags = re.findall(r'<\s*script[\s>]', content, re.IGNORECASE)
-        assert len(script_tags) == 0, "模板中包含 <script> 标签，应为纯静态 HTML"
+        # 检测外部引用
+        external = re.findall(r'<\s*script[^>]*\bsrc\s*=', content, re.IGNORECASE)
+        assert len(external) == 0, f"模板中包含外部脚本引用: {external}"
 
-    def test_no_onclick_handler(self):
-        """模板不包含 onclick 等 JS 事件处理器"""
+        # 检测内联 <script> 块数量（至少应有 1 个分享功能脚本）
+        inline_scripts = re.findall(r'<\s*script[\s>]', content, re.IGNORECASE)
+        assert len(inline_scripts) == 1, (
+            f"模板应有且仅有 1 个内联 <script> 块，实际: {len(inline_scripts)}"
+        )
+
+        # 验证内联脚本内容仅包含分享相关函数
+        script_match = re.search(r'<script>(.*?)</script>', content, re.DOTALL)
+        assert script_match is not None, "未找到内联 <script> 内容"
+        script_body = script_match.group(1)
+        assert "copyShareText" in script_body, "内联脚本应包含 copyShareText 函数"
+        assert "navigator.clipboard" in script_body, "内联脚本应使用 navigator.clipboard"
+
+    def test_onclick_only_on_share_button(self):
+        """onclick 处理器仅存在于分享按钮上下文中"""
         content = read_template()
-        js_handlers = re.findall(r'\bon\w+\s*=', content)
-        assert len(js_handlers) == 0, f"模板中包含 JS 事件处理器: {js_handlers}"
+        # 提取所有 onclick= 出现的行
+        onclick_lines = []
+        for i, line in enumerate(content.split("\n"), 1):
+            if re.search(r'\bonclick\s*=', line):
+                onclick_lines.append((i, line.strip()))
+
+        assert len(onclick_lines) > 0, "模板中应至少有一个 onclick 处理器（分享按钮）"
+
+        for line_no, line in onclick_lines:
+            assert (
+                "copyShareText" in line or "share" in line.lower()
+            ), (
+                f"第 {line_no} 行的 onclick 不在分享按钮上下文中: {line}"
+            )

@@ -2,7 +2,7 @@
 Token计数器 - 计算和统计Token使用
 """
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 import tiktoken
 from loguru import logger
 

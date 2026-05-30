@@ -9,6 +9,41 @@
 
 （暂无）
 
+## [2.3.1] - 2026-05-29
+
+### 变更
+
+**架构整理（Phase A-D）**
+
+- APIPoolManager 成为 API Key 检测唯一来源：新增 `has_key_for_model()` + `get_required_env_var()`，cli.py 和 trust_engine.py 统一调用
+- `model_resolver.py` 职责收窄：只保留 `resolve_brain2()` + `get_model_provider()`，Key 相关逻辑移至 APIPoolManager
+- `_do_health()` 接真实数据：从 EvidenceDB 加载，3 条降级路径（DB 不存在/表为空/损坏）
+- `__import__('time')` 替换为标准 `import time`（5 处）
+- Tier 2 路由诚实标注：NOTE 说明未实现，实际路由层级 Tier 1→Tier 3→Tier 4
+
+**CLI 拆包**
+
+- `cli.py`（1492 行）拆为 `cli/` 子包（12 文件，最大 220 行）
+- 统一命令分发：`_delegate()` 用 `inspect.signature` 自动判断函数签名
+- 渲染常量提取至 `render.py`：`VERDICT_COLORS` / `VERDICT_LABELS` / `SEVERITY_COLORS` / `SEVERITY_LABELS`
+
+**代码整洁**
+
+- 清理 26 处未使用 import（涉及 18 个文件）
+- `engine/__init__.py` 补充 deprecated 标注说明
+- `templates/__init__.py` 补充注释
+- `conscience.py` 清理过期 TODO
+
+### 新增
+
+- `tests/unit/test_mcp_server.py`：11 个 MCP Server 测试
+- `src/ai_flow_architect/config/model_resolver.py`：模型解析器独立模块
+
+### 修复
+
+- `playground_server.py` 临时文件泄漏：`finally` 块检查 `tmp_path` 存在性后再删除
+- `cross_family.py` / `brain_blind.py` 类型一致性：`brain_families` 从 tuple 统一为 List[str]
+
 ## [2.3.0] - 2026-05-29
 
 ### 新增

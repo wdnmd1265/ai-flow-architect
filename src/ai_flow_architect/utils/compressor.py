@@ -1,8 +1,12 @@
 """
 上下文压缩器 - 减少Token消耗
+
+.. deprecated:: 2.2.0
+    本模块未被任何活跃代码路径引用，保留仅作参考。
+    将在 V3.0 正式移除。
 """
 
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, List
 from loguru import logger
 
 

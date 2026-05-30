@@ -8,8 +8,6 @@ APIPoolManager — API Key 池管理器
 import os
 import re
 import time
-import json
-import http.client
 import urllib.request
 import urllib.error
 from pathlib import Path
@@ -463,3 +461,84 @@ class APIPoolManager:
             }
 
         return None
+
+    # ================================================================
+    # API Key 检测（统一入口）
+    # ================================================================
+
+    def get_required_env_var(self, model: str) -> str:
+        """
+        返回模型所需的环境变量名。
+
+        查找顺序：models.yaml provider 定义 → 前缀映射回退。
+
+        Args:
+            model: 模型名称（如 gpt-4o）
+
+        Returns:
+            环境变量名（如 "OPENAI_API_KEY"），兜底返回 "OPENAI_API_KEY"
+        """
+        models = self.models.get("models", {})
+        providers = self.models.get("providers", {})
+
+        # 从 models.yaml 查 provider
+        model_cfg = models.get(model, {})
+        provider_name = model_cfg.get("provider", "")
+        if provider_name:
+            provider_cfg = providers.get(provider_name, {})
+            api_key_template = provider_cfg.get("api_key", "")
+            if api_key_template.startswith("${") and api_key_template.endswith("}"):
+                return api_key_template[2:-1]
+
+        # 前缀映射回退
+        prefix_map = {
+            "gpt-": "OPENAI_API_KEY",
+            "claude-": "ANTHROPIC_API_KEY",
+            "deepseek-": "DEEPSEEK_API_KEY",
+            "qwen-": "DASHSCOPE_API_KEY",
+            "glm-": "ZHIPU_API_KEY",
+            "moonshot-": "MOONSHOT_API_KEY",
+            "gemini-": "GOOGLE_API_KEY",
+            "mi-": "MIMO_API_KEY",
+            "nv-": "NVIDIA_API_KEY",
+        }
+        for prefix, env_var in prefix_map.items():
+            if model.startswith(prefix):
+                return env_var
+        return "OPENAI_API_KEY"
+
+    def has_key_for_model(self, model: str) -> bool:
+        """
+        检查某模型是否有可用 API Key。
+
+        查找顺序：apis.yaml → 环境变量 → 前缀映射回退。
+        "local" provider 无需 key，始终返回 True。
+
+        Args:
+            model: 模型名称（如 gpt-4o）
+
+        Returns:
+            True 如果该模型有可用的 API Key
+        """
+        models = self.models.get("models", {})
+        model_cfg = models.get(model, {})
+        provider_name = model_cfg.get("provider", "")
+
+        # 本地模型无需 key
+        if provider_name == "local":
+            return True
+
+        # 路径 1：apis.yaml 中有该 provider 的 key
+        if provider_name:
+            apis_providers = self.apis.get("providers", {})
+            if provider_name in apis_providers:
+                entry = apis_providers[provider_name]
+                if entry.get("api_key"):
+                    return True
+
+        # 路径 2：环境变量
+        env_var = self.get_required_env_var(model)
+        if os.getenv(env_var):
+            return True
+
+        return False

@@ -2,6 +2,7 @@
 专家基类 - 定义通用接口
 """
 
+import time
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
 from pydantic import BaseModel, Field
@@ -306,7 +307,7 @@ class BaseExpert(ABC):
         self.conversation_history.append({
             "role": role,
             "content": content,
-            "timestamp": __import__('time').time(),
+            "timestamp": time.time(),
         })
     
     def get_history(self) -> list:
@@ -388,7 +389,7 @@ class BaseExpert(ABC):
         formatted_output = {
             "expert": self.config.name,
             "output": raw_output,
-            "timestamp": __import__('time').time(),
+            "timestamp": time.time(),
             "metadata": {
                 "model": self.config.model,
                 "temperature": self.config.temperature,
@@ -413,7 +414,7 @@ class BaseExpert(ABC):
             "expert": self.config.name,
             "error": str(error),
             "error_type": type(error).__name__,
-            "timestamp": __import__('time').time(),
+            "timestamp": time.time(),
             "recovery_suggestion": "请检查输入并重试",
         }
         

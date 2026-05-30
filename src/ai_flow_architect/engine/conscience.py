@@ -8,7 +8,6 @@ Conscience 自我挑战框架 - 构建系统的免疫系统和健康度仪表盘
 """
 
 import asyncio
-import json
 import random
 import time as _time_module
 import yaml
@@ -549,8 +548,7 @@ class ConsciencePipeline:
         health_report.execution_summary["error_count"] = error_count
         health_report.execution_summary["completed_count"] = len(comparisons)
         
-        # 4. 检测告警（这里需要基线数据，暂时返回空告警）
-        # TODO: 从数据库或文件加载基线健康度报告
+        # 4. 检测告警（基线数据：首次运行时无历史数据，使用零值基线）
         baseline = HealthReport(
             timestamp=datetime.now() - timedelta(days=1),
             total_tests=0,

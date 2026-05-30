@@ -203,7 +203,11 @@ body {
   background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
   padding: 18px; position: relative;
 }
-.brain-card.conflict { border-color: var(--reject); box-shadow: 0 0 12px rgba(239,68,68,0.15); }
+.brain-card.conflict { border-color: var(--reject); box-shadow: 0 0 12px rgba(239,68,68,0.15); animation: conflict-pulse 2s ease-in-out infinite; }
+@keyframes conflict-pulse {
+  0%, 100% { border-color: var(--reject); box-shadow: 0 0 8px rgba(239,68,68,0.1); }
+  50% { border-color: #ff6b6b; box-shadow: 0 0 18px rgba(239,68,68,0.3); }
+}
 .brain-card .brain-label { font-size: 11px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
 .brain-card .brain-model { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
 .brain-card .brain-verdict { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 12px; margin-bottom: 8px; }
@@ -292,6 +296,35 @@ body {
 /* ─── Live Results ─── */
 .live-results { display: none; margin-top: 24px; }
 .live-results.active { display: block; }
+/* ─── V2.4 Divergence Label ─── */
+.divergence-label {
+  display: inline-block; background: var(--reject); color: #fff;
+  font-size: 11px; font-weight: 700; padding: 3px 12px; border-radius: 12px;
+  margin-top: 8px; letter-spacing: 0.5px;
+}
+/* ─── V2.4 Share Button ─── */
+.share-result-btn {
+  width: 100%; padding: 12px; background: var(--accent); color: #fff;
+  border: none; border-radius: var(--radius); font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: background 0.2s; margin-top: 14px;
+}
+.share-result-btn:hover { background: #6d28d9; }
+.share-result-btn.copied { background: var(--pass); }
+.share-preview-text {
+  margin-top: 8px; padding: 10px; background: var(--code-bg);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  font-family: "SF Mono", Consolas, monospace; font-size: 11px;
+  color: var(--text2); white-space: pre-wrap; max-height: 160px;
+  overflow-y: auto; display: none;
+}
+.share-preview-text.visible { display: block; }
+/* ─── V2.4 Try Live Button ─── */
+.try-live-btn {
+  width: 100%; padding: 12px; background: transparent; color: var(--text2);
+  border: 1px solid var(--border); border-radius: var(--radius); font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: border-color 0.2s, color 0.2s; margin-top: 8px;
+}
+.try-live-btn:hover { border-color: var(--accent); color: var(--text); }
 /* ─── CTA Bar ─── */
 .cta-bar {
   background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
@@ -370,10 +403,18 @@ body {
         <option value="gpt-4o">GPT-4o</option>
         <option value="gpt-4o-mini">GPT-4o-mini</option>
         <option value="claude-sonnet-4-20250514">Claude Sonnet 4</option>
+        <option value="ollama">Ollama (Local)</option>
       </select>
     </div>
     <div class="field" style="display:flex;align-items:flex-end;">
       <span class="provider-badge" id="provider-badge">Auto-detect</span>
+    </div>
+  </div>
+  <div id="ollama-notice" style="display:none; background:rgba(234,179,8,0.08); border:1px solid rgba(234,179,8,0.25); border-radius:8px; padding:14px 18px; margin-bottom:16px; font-size:13px; line-height:1.6;">
+    <div style="font-weight:700; color:#facc15; margin-bottom:6px;">Local Mode (Ollama)</div>
+    <div style="color:var(--text2);">
+      Requires Ollama running at <code style="background:var(--code-bg);padding:2px 6px;border-radius:4px;">localhost:11434</code> with <code style="background:var(--code-bg);padding:2px 6px;border-radius:4px;">llama3</code> and <code style="background:var(--code-bg);padding:2px 6px;border-radius:4px;">codellama</code> models pulled.<br>
+      <span style="color:#facc15;">Accuracy: ~50-60%</span> (cloud models ~85%+). More false positives/negatives expected. Results for reference only.
     </div>
   </div>
   <div class="live-inputs">
@@ -487,6 +528,8 @@ function renderCase(idx) {
     /* Code Block with line numbers */
     '<div class="code-block active" id="tab-code">' + renderCodeLines(c.code) + '</div>' +
     '<div class="req-block" id="tab-req">' + esc(c.requirement) + '</div>' +
+    /* V2.4 Divergence Label */
+    (conflict ? '<div style="text-align:center;"><span class="divergence-label">⚡ ' + c.findings.length + ' DISAGREEMENT' + (c.findings.length > 1 ? 'S' : '') + '</span></div>' : '') +
     /* Audit Results */
     '<div class="audit-header">' +
       '<span class="verdict-badge ' + c.verdict + '">' + c.verdict + '</span>' +
@@ -522,7 +565,11 @@ function renderCase(idx) {
     '<div class="evidence-footer">' +
       '<span>SHA256: ' + c.evidence_sha256.substring(0, 16) + '...</span>' +
       '<span>Audited: ' + formatTimestamp(c.timestamp) + '</span>' +
-    '</div>';
+    '</div>' +
+    /* V2.4 Share Button */
+    '<button class="share-result-btn" onclick="shareAuditResult(this)" data-case="' + idx + '">Share Result</button>' +
+    '<button class="try-live-btn" onclick="switchMode(\'live\')">Try with your own code →</button>' +
+    '<pre class="share-preview-text" id="share-preview-' + idx + '"></pre>';
 
   panel.innerHTML = html;
 }
@@ -563,29 +610,59 @@ document.getElementById('live-apikey').addEventListener('input', function() {
   }
 });
 
+document.getElementById('live-model').addEventListener('change', function() {
+  var isOllama = this.value === 'ollama';
+  var notice = document.getElementById('ollama-notice');
+  var keyInput = document.getElementById('live-apikey');
+  var badge = document.getElementById('provider-badge');
+
+  notice.style.display = isOllama ? 'block' : 'none';
+
+  if (isOllama) {
+    keyInput.disabled = true;
+    keyInput.placeholder = 'Not required for Ollama';
+    keyInput.value = '';
+    badge.textContent = 'Ollama';
+    badge.style.background = 'rgba(234,179,8,0.15)';
+    badge.style.color = '#facc15';
+  } else {
+    keyInput.disabled = false;
+    keyInput.placeholder = 'sk-... or sk-ant-...';
+    badge.textContent = 'Auto-detect';
+    badge.style.background = 'rgba(124,58,237,0.15)';
+    badge.style.color = '#c4b5fd';
+  }
+});
+
 async function runLiveAudit() {
   var key = document.getElementById('live-apikey').value.trim();
   var code = document.getElementById('live-code').value.trim();
   var req = document.getElementById('live-req').value.trim();
   var modelSelect = document.getElementById('live-model').value;
 
-  if (!key) {
+  var isOllama = modelSelect === 'ollama';
+
+  if (!isOllama && !key) {
     showLiveError('Need an API Key? Try <a href="#" onclick="switchMode(\'demo\');return false;" style="color:var(--accent);">Demo mode</a> — no key required.');
     return;
   }
   if (!code) { showLiveError('Please paste your code to audit.'); return; }
   if (!req) { showLiveError('Please describe the original requirement.'); return; }
 
-  var isAnthropic = key.startsWith('sk-ant-');
-  if (isAnthropic && !modelSelect.startsWith('claude')) {
-    modelSelect = 'claude-sonnet-4-20250514';
-  }
-  if (!isAnthropic && modelSelect.startsWith('claude')) {
-    modelSelect = 'gpt-4o';
+  if (!isOllama) {
+    var isAnthropic = key.startsWith('sk-ant-');
+    if (isAnthropic && !modelSelect.startsWith('claude')) {
+      modelSelect = 'claude-sonnet-4-20250514';
+    }
+    if (!isAnthropic && modelSelect.startsWith('claude')) {
+      modelSelect = 'gpt-4o';
+    }
   }
 
   // Save key to localStorage
-  try { localStorage.setItem('afa_apikey', key); } catch(e) {}
+  if (!isOllama) {
+    try { localStorage.setItem('afa_apikey', key); } catch(e) {}
+  }
 
   var btn = document.getElementById('audit-btn');
   var spinner = document.getElementById('live-spinner');
@@ -601,34 +678,43 @@ async function runLiveAudit() {
     var systemPrompt = buildSystemPrompt();
     var userContent = '## Requirement\n' + req + '\n\n## AI-Generated Code\n```\n' + code + '\n```';
 
-    var brain1Promise = callLLM(key, modelSelect, systemPrompt, userContent, isAnthropic);
-    var brain2Model = isAnthropic ? 'gpt-4o' : 'claude-sonnet-4-20250514';
-
-    var brain2Key = key;
-    if (isAnthropic) {
-      brain2Key = localStorage.getItem('afa_openai_key') || '';
-      if (!brain2Key) {
-        // Can't do cross-provider, fall back to same provider with different model
-        brain2Model = 'claude-sonnet-4-20250514';
-        brain2Key = key;
-      }
+    if (isOllama) {
+      // Ollama local mode: use llama3 as brain1, codellama as brain2
+      var brain1Model = 'llama3';
+      var brain2Model = 'codellama';
+      var brain1Promise = callOllama(brain1Model, systemPrompt, userContent);
+      var brain2Promise = callOllama(brain2Model, systemPrompt, userContent);
+      var responses = await Promise.all([brain1Promise, brain2Promise]);
+      var brain1Result = parseLLMResponse(responses[0], brain1Model + ' (Ollama)');
+      var brain2Result = parseLLMResponse(responses[1], brain2Model + ' (Ollama)');
+      renderLiveResults(brain1Result, brain2Result, brain1Model + ' (Ollama)', brain2Model + ' (Ollama)');
     } else {
-      brain2Key = localStorage.getItem('afa_anthropic_key') || '';
-      if (!brain2Key) {
-        brain2Model = 'gpt-4o-mini';
-        brain2Key = key;
+      var isAnthropic = key.startsWith('sk-ant-');
+      var brain1Promise = callLLM(key, modelSelect, systemPrompt, userContent, isAnthropic);
+      var brain2Model = isAnthropic ? 'gpt-4o' : 'claude-sonnet-4-20250514';
+
+      var brain2Key = key;
+      if (isAnthropic) {
+        brain2Key = localStorage.getItem('afa_openai_key') || '';
+        if (!brain2Key) {
+          brain2Model = 'claude-sonnet-4-20250514';
+          brain2Key = key;
+        }
+      } else {
+        brain2Key = localStorage.getItem('afa_anthropic_key') || '';
+        if (!brain2Key) {
+          brain2Model = 'gpt-4o-mini';
+          brain2Key = key;
+        }
       }
+
+      var brain2Promise = callLLM(brain2Key, brain2Model, systemPrompt, userContent,
+        brain2Key.startsWith('sk-ant-'));
+      var responses = await Promise.all([brain1Promise, brain2Promise]);
+      var brain1Result = parseLLMResponse(responses[0], modelSelect);
+      var brain2Result = parseLLMResponse(responses[1], brain2Model);
+      renderLiveResults(brain1Result, brain2Result, modelSelect, brain2Model);
     }
-
-    var brain2Promise = callLLM(brain2Key, brain2Model, systemPrompt, userContent,
-      brain2Key.startsWith('sk-ant-'));
-
-    var responses = await Promise.all([brain1Promise, brain2Promise]);
-
-    var brain1Result = parseLLMResponse(responses[0], modelSelect);
-    var brain2Result = parseLLMResponse(responses[1], brain2Model);
-
-    renderLiveResults(brain1Result, brain2Result, modelSelect, brain2Model);
   } catch (e) {
     showLiveError(e.message || 'Audit failed. Check your API key and try again.');
   } finally {
@@ -704,6 +790,31 @@ async function callLLM(apiKey, model, systemPrompt, userContent, isAnthropic) {
     var data2 = await resp.json();
     return data2.choices[0].message.content;
   }
+}
+
+async function callOllama(model, systemPrompt, userContent) {
+  var resp = await fetch('http://localhost:11434/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userContent }
+      ],
+      temperature: 0.3,
+      max_tokens: 2048
+    })
+  });
+  if (!resp.ok) {
+    var err = await resp.json().catch(function() { return {}; });
+    throw new Error('Ollama error: ' + (err.error?.message || resp.status) +
+      '. Make sure Ollama is running (ollama serve) and model "' + model + '" is pulled (ollama pull ' + model + ').');
+  }
+  var data = await resp.json();
+  return data.choices[0].message.content;
 }
 
 function parseLLMResponse(text, model) {
@@ -782,6 +893,8 @@ function renderLiveResults(b1, b2, model1Name, model2Name) {
         '<div class="progress-bar"><div class="progress-fill ' + confClass + '" style="width:' + confidence + '%"></div></div>' +
       '</div>' +
     '</div>' +
+    /* V2.4 Divergence Label */
+    (conflict ? '<div style="text-align:center;"><span class="divergence-label">⚡ ' + uniqueFindings.length + ' DISAGREEMENT' + (uniqueFindings.length > 1 ? 'S' : '') + '</span></div>' : '') +
     '<div class="brains-row">' +
       '<div class="brain-card' + (conflict ? ' conflict' : '') + '">' +
         '<div class="brain-label">Brain #1</div>' +
@@ -805,7 +918,10 @@ function renderLiveResults(b1, b2, model1Name, model2Name) {
     '<div class="evidence-footer">' +
       '<span>Live audit &middot; Dual-model adversarial review</span>' +
       '<span>' + new Date().toISOString().replace('T', ' ').substring(0, 19) + '</span>' +
-    '</div>';
+    '</div>' +
+    /* V2.4 Share Button */
+    '<button class="share-result-btn" onclick="shareLiveResult(this)" data-model1="' + esc(model1Name) + '" data-model2="' + esc(model2Name) + '" data-verdict1="' + (b1.verdict || 'REVIEW') + '" data-verdict2="' + (b2.verdict || 'REVIEW') + '" data-score1="' + (b1.score || 50) + '" data-score2="' + (b2.score || 50) + '" data-verdict="' + verdict + '" data-confidence="' + confidence + '" data-findings="' + esc(JSON.stringify(uniqueFindings)) + '">Share Result</button>' +
+    '<pre class="share-preview-text" id="share-preview-live"></pre>';
 
   results.innerHTML = html;
   results.classList.add('active');
@@ -846,6 +962,122 @@ function formatTimestamp(ts) {
    INIT
    ================================================================ */
 initDemo();
+
+/* ================================================================
+   V2.4 SHARE FUNCTIONS
+   ================================================================ */
+function shareAuditResult(btn) {
+  var idx = parseInt(btn.getAttribute('data-case'));
+  var c = DEMO_CASES[idx];
+  if (!c) return;
+
+  var conflict = c.brain1.verdict !== c.brain2.verdict;
+  var text = buildShareText(
+    c.brain1.model, c.brain2.model,
+    c.brain1.verdict, c.brain2.verdict,
+    c.brain1.score, c.brain2.score,
+    c.verdict, c.confidence,
+    conflict ? c.findings : [],
+    c.evidence_sha256
+  );
+
+  var preview = document.getElementById('share-preview-' + idx);
+  if (preview) { preview.textContent = text; preview.classList.add('visible'); }
+  copyAndFeedback(text, btn);
+}
+
+function shareLiveResult(btn) {
+  var model1 = btn.getAttribute('data-model1');
+  var model2 = btn.getAttribute('data-model2');
+  var verdict1 = btn.getAttribute('data-verdict1');
+  var verdict2 = btn.getAttribute('data-verdict2');
+  var score1 = parseInt(btn.getAttribute('data-score1'));
+  var score2 = parseInt(btn.getAttribute('data-score2'));
+  var verdict = btn.getAttribute('data-verdict');
+  var confidence = parseInt(btn.getAttribute('data-confidence'));
+  var findingsRaw = btn.getAttribute('data-findings');
+  var findings = [];
+  try { findings = JSON.parse(findingsRaw); } catch(e) {}
+
+  var conflict = verdict1 !== verdict2;
+  var text = buildShareText(
+    model1, model2,
+    verdict1, verdict2,
+    score1, score2,
+    verdict, confidence,
+    conflict ? findings : [],
+    'LIVE-' + Date.now().toString(16)
+  );
+
+  var preview = document.getElementById('share-preview-live');
+  if (preview) { preview.textContent = text; preview.classList.add('visible'); }
+  copyAndFeedback(text, btn);
+}
+
+function buildShareText(model1, model2, v1, v2, s1, s2, verdict, confidence, findings, sha) {
+  var lines = [
+    '🤖 AI Flow Architect Audit',
+    '',
+    'Brain #1 (' + model1 + '): ' + v1 + ' (' + s1 + '%)',
+    'Brain #2 (' + model2 + '): ' + v2 + ' (' + s2 + '%)',
+    ''
+  ];
+
+  if (findings.length > 0) {
+    lines.push('⚡ ' + findings.length + ' disagreement(s):');
+    findings.forEach(function(f) {
+      lines.push('  • ' + (f.description || f.category || ''));
+    });
+  } else {
+    lines.push('⚡ No disagreements — models agree');
+  }
+
+  lines.push('');
+  lines.push('Final: ' + verdict + ' (' + confidence + '%)');
+  lines.push('SHA256: ' + (sha ? sha.substring(0, 16) : 'N/A'));
+  lines.push('');
+  lines.push('🔗 github.com/wdnmd1265/ai-flow-architect');
+
+  return lines.join('\n');
+}
+
+function copyAndFeedback(text, btn) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function() {
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(function() {
+        btn.textContent = 'Share Result';
+        btn.classList.remove('copied');
+      }, 2000);
+    }).catch(function() {
+      fallbackCopyPlayground(text, btn);
+    });
+  } else {
+    fallbackCopyPlayground(text, btn);
+  }
+}
+
+function fallbackCopyPlayground(text, btn) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+  } catch(e) {
+    btn.textContent = 'Copy failed';
+  }
+  document.body.removeChild(ta);
+  setTimeout(function() {
+    btn.textContent = 'Share Result';
+    btn.classList.remove('copied');
+  }, 2000);
+}
 </script>
 </body>
 </html>

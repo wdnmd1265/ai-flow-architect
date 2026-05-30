@@ -9,10 +9,8 @@ import json
 import hashlib
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
-from pathlib import Path
 
 from pydantic import BaseModel, Field
-from loguru import logger
 
 from ..brains.brain_blind import BlindVerdict
 from .. import __version__ as _engine_version
@@ -117,9 +115,115 @@ class TrustReport(BaseModel):
     # 4 层模型路由（Phase 3 P2：ComplexityRouter）
     route_tier: int = Field(0, ge=0, le=4, description="路由层级 (0=未启用路由, 1-4=对应层级)")
     route_reason: str = Field("", description="路由到当前层级的原因")
+
+    # 内部缓存（不参与序列化）
+    _divergence_cache: Optional[Dict[str, Any]] = None
+
+    def model_post_init(self, __context: Any) -> None:
+        """初始化后计算 divergence 并缓存。"""
+        object.__setattr__(self, '_divergence_cache', self._compute_divergence())
     
     # to_json() 已移除 — 直接使用 Pydantic v2 内置的 model_dump_json(indent=2)
     # 调用方已全部迁移到 model_dump_json()
+    
+    @property
+    def divergence(self) -> Dict[str, Any]:
+        """返回缓存的分歧摘要（由 model_post_init 预计算）。"""
+        return self._divergence_cache or {"count": 0, "description": "", "disagreements": [], "has_divergence": False}
+
+    def _compute_divergence(self) -> Dict[str, Any]:
+        """
+        计算双模型分歧摘要（V2.4 分歧可视化）。
+        
+        判定逻辑：当任意两个 ArbiterVote 的 passed 不同，或 score 差距 > 20 时视为分歧。
+        取前两个 Arbiter 作为 Brain #1 / Brain #2 进行对比。
+        
+        Returns:
+            {"count": int, "description": str, "disagreements": [...], "has_divergence": bool}
+            若无仲裁员或仲裁员不足2个，返回 count=0 的空结构。
+        """
+        if len(self.arbiters) < 2:
+            return {"count": 0, "description": "", "disagreements": [], "has_divergence": False}
+        
+        a1 = self.arbiters[0]
+        a2 = self.arbiters[1]
+        disagreements = []
+        
+        # 判定分歧：passed 不同 或 score 差距 > 20
+        if a1.passed != a2.passed:
+            disagreements.append({
+                "type": "verdict",
+                "brain1": a1.model, "brain2": a2.model,
+                "detail": f"Brain #1 ({a1.model}): {'PASS' if a1.passed else 'FAIL'} | "
+                          f"Brain #2 ({a2.model}): {'PASS' if a2.passed else 'FAIL'}"
+            })
+        
+        if abs(a1.score - a2.score) > 20:
+            disagreements.append({
+                "type": "score",
+                "brain1": a1.model, "brain2": a2.model,
+                "detail": f"Score gap: {a1.score:.0f} vs {a2.score:.0f} (Δ={abs(a1.score - a2.score):.0f})"
+            })
+        
+        # 从 findings 中提取具体分歧点描述
+        for f in self.findings:
+            if f.source in ("arbiter", "opponent") or f.severity in ("high", "critical"):
+                disagreements.append({
+                    "type": "finding",
+                    "area": f.area,
+                    "severity": f.severity,
+                    "description": f.description
+                })
+        
+        count = len(disagreements)
+        if count > 0:
+            description = f"Brain #1 ({a1.model}) and Brain #2 ({a2.model}) disagreed on {count} finding(s)"
+        else:
+            description = ""
+        
+        return {
+            "count": count,
+            "description": description,
+            "disagreements": disagreements,
+            "has_divergence": count > 0,
+            "brain1": {"model": a1.model, "verdict": "PASS" if a1.passed else "FAIL", "score": a1.score},
+            "brain2": {"model": a2.model, "verdict": "PASS" if a2.passed else "FAIL", "score": a2.score},
+        }
+    
+    def build_share_text(self) -> str:
+        """生成一键分享文本（V2.4 统一模板，所有渠道共用）。"""
+        div = self.divergence
+        sha_short = self.evidence.hash[:16] if self.evidence else "N/A"
+        
+        lines = [
+            "🤖 AI Flow Architect Audit",
+            "",
+        ]
+        
+        if div["has_divergence"]:
+            b1 = div["brain1"]
+            b2 = div["brain2"]
+            lines.append(f"Brain #1 ({b1['model']}): {b1['verdict']} ({b1['score']:.0f}%)")
+            lines.append(f"Brain #2 ({b2['model']}): {b2['verdict']} ({b2['score']:.0f}%)")
+            lines.append("")
+            lines.append(f"⚡ {div['count']} disagreement(s):")
+            for d in div["disagreements"]:
+                desc = d.get("description", d.get("detail", str(d)))
+                lines.append(f"  • {desc}")
+        else:
+            for a in self.arbiters[:2]:
+                verdict = "PASS" if a.passed else "FAIL"
+                lines.append(f"Brain ({a.model}): {verdict} ({a.score:.0f}%)")
+            lines.append("")
+            lines.append("⚡ No disagreements — models agree")
+        
+        lines.append("")
+        lines.append(f"Final: {self.verdict.upper()} ({self.confidence:.0f}%)")
+        lines.append(f"SHA256: {sha_short}")
+        lines.append("")
+        lines.append("🔗 github.com/wdnmd1265/ai-flow-architect")
+        
+        return "\n".join(lines)
     
     def to_markdown(self) -> str:
         """导出为 Markdown 格式"""
@@ -133,7 +237,20 @@ class TrustReport(BaseModel):
             lines.append(f"**审查层级**: {tier_labels.get(self.route_tier, f'Tier {self.route_tier}')}")
             if self.route_reason:
                 lines.append(f"**路由理由**: {self.route_reason}")
-        lines.append(f"")
+        # 分歧摘要（V2.4）
+        div = self.divergence
+        if div["has_divergence"]:
+            lines.append(f"## 模型分歧")
+            lines.append(f"")
+            lines.append(f"{div['description']}")
+            for d in div["disagreements"]:
+                if d["type"] == "finding":
+                    lines.append(f"- **[{d.get('severity', '?').upper()}]** {d.get('description', '')}")
+                elif d["type"] == "verdict":
+                    lines.append(f"- {d['detail']}")
+                elif d["type"] == "score":
+                    lines.append(f"- {d['detail']}")
+            lines.append(f"")
         
         # 审查发现
         if self.findings:
@@ -284,6 +401,8 @@ class TrustReport(BaseModel):
             route_data=self._get_route_data() if self.route_tier > 0 else None,
             cross_examine_result=cross_examine_result,
             attack_result=attack_result,
+            divergence=self.divergence,
+            share_text=self.build_share_text(),
         )
 
     @staticmethod

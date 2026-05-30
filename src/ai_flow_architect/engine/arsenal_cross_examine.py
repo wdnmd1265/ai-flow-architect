@@ -6,12 +6,10 @@
 """
 
 import re
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
-import yaml
 from loguru import logger
 
 from ..utils.arsenal_client import ArsenalClient, CrossExamineResult

@@ -7,7 +7,6 @@ ArsenalClient — 验证武器库统一 LLM 客户端封装
 
 import asyncio
 import os
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple

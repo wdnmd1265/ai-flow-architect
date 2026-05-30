@@ -244,6 +244,28 @@ report.evidence_chain # SHA-256 hash + timestamp, fully verifiable
 | JSON | `ai-flow audit ... --json` | Pipe to other tools, CI/CD |
 | Markdown | `ai-flow audit ... --markdown` | Embed in docs, PR comments |
 
+### Local Mode (Ollama)
+
+For privacy-sensitive workflows, use local models via Ollama. Code never leaves your machine.
+
+```bash
+# Install Ollama
+# macOS / Linux:  curl -fsSL https://ollama.com/install.sh | sh
+# Windows:        https://ollama.com/download
+
+# Pull models
+ollama pull llama3
+ollama pull codellama
+
+# Run audit locally
+ai-flow audit your_code.py -r "requirement" --local
+
+# Or specify custom models
+ai-flow audit your_code.py -r "requirement" --local --model1 llama3 --model2 codellama
+```
+
+> **Accuracy Note**: Local models (~50-60% detection rate) are significantly less accurate than cloud models (85%+). More false positives and missed findings are expected. Use local mode when code privacy is critical, but use cloud mode (`ai-flow audit --help`) for production audit quality. The gap is due to smaller model sizes and weaker reasoning capabilities of locally-runnable models compared to frontier cloud models.
+
 ### Integrations
 
 | Integration | Effort | Guide |

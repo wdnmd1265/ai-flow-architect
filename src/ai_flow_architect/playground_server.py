@@ -11,7 +11,6 @@ Playground 本地服务器 — 浏览器打开即可使用。
 
 import json
 import os
-import sys
 import threading
 import webbrowser
 from http.server import HTTPServer, SimpleHTTPRequestHandler
@@ -79,7 +78,12 @@ def _run_attack(code: str) -> Dict[str, Any]:
 
 
 def _run_cross_examine(code: str, api_key: str) -> Dict[str, Any]:
-    """执行跨审查（简化版，单文件）"""
+    """执行跨审查（简化版，单文件）
+
+    .. note:: 当前为占位实现，返回硬编码结果。
+              完整的跨审查需要两个不同 provider 的 API Key，
+              请使用 ``ai-flow cross-examine`` CLI 命令。
+    """
     # 检测 provider
     provider = "openai"
     model = "gpt-4o-mini"
@@ -94,11 +98,12 @@ def _run_cross_examine(code: str, api_key: str) -> Dict[str, Any]:
 
     # 写临时文件
     import tempfile
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8") as f:
-        f.write(code)
-        tmp_path = f.name
-
+    tmp_path = None
     try:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8") as f:
+            f.write(code)
+            tmp_path = f.name
+
         config = CrossExamineConfig(
             model1=model,
             model2=model,  # 简化：同模型不同参数
@@ -117,7 +122,8 @@ def _run_cross_examine(code: str, api_key: str) -> Dict[str, Any]:
             "note": "Cross-Examine 需要两个不同 provider 的 API Key。请使用 ai-flow cross-examine CLI 命令。",
         }
     finally:
-        os.unlink(tmp_path)
+        if tmp_path and os.path.exists(tmp_path):
+            os.unlink(tmp_path)
 
 
 class PlaygroundHandler(SimpleHTTPRequestHandler):

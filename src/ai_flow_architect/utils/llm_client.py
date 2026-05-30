@@ -94,6 +94,11 @@ class LLMClient:
             API Key 字符串
         """
         provider_name = self.provider_config.get("name", "openai")
+
+        # Ollama 本地模式无需 API Key
+        if provider_name == "local":
+            return "ollama"
+
         api_key_template = self.provider_config.get("api_key", "")
 
         # 1. 尝试从 apis.yaml 读取
@@ -128,6 +133,12 @@ class LLMClient:
             Base URL 字符串
         """
         provider_name = self.provider_config.get("name", "openai")
+
+        # Ollama 本地模式：使用 endpoint 配置
+        if provider_name == "local":
+            endpoint = self.provider_config.get("endpoint", "http://localhost:11434")
+            return f"{endpoint}/v1"
+
         models_base_url = self.provider_config.get("base_url", "https://api.openai.com/v1")
         default_url = "https://api.openai.com/v1"
 

@@ -12,7 +12,6 @@ MCP Server: AI Flow Architect TrustEngine
 """
 
 import os
-import sys
 import json
 import asyncio
 from typing import Optional, Any
@@ -24,6 +23,7 @@ mcp = FastMCP("AI Flow Architect")
 
 # ── 懒加载 TrustEngine ───────────────────────────────────────
 _engine: Optional[Any] = None
+_engine_brain1: Optional[str] = None  # 缓存的 brain1，防止 brain1 变更后返回旧引擎
 _engine_lock = asyncio.Lock()
 _engine_init_error: Optional[str] = None
 
@@ -40,6 +40,9 @@ def _check_api_keys() -> bool:
         "ZHIPU_API_KEY",
         "MOONSHOT_API_KEY",
         "GOOGLE_API_KEY",
+        "CUSTOM_API_KEY",
+        "MIMO_API_KEY",
+        "NVIDIA_API_KEY",
     ]
     for var in key_vars:
         if os.getenv(var):
@@ -48,21 +51,26 @@ def _check_api_keys() -> bool:
 
 
 async def _get_engine(brain1: str = "gpt-4o"):
-    """懒加载 TrustEngine 实例。"""
-    global _engine, _engine_init_error
+    """懒加载 TrustEngine 实例。brain1 变更时重建引擎。"""
+    global _engine, _engine_brain1, _engine_init_error
 
     async with _engine_lock:
-        if _engine is not None:
+        # brain1 变更 → 清除缓存，重建引擎
+        if _engine is not None and _engine_brain1 == brain1:
             return _engine, None
 
-        if _engine_init_error is not None:
+        if _engine_init_error is not None and _engine_brain1 == brain1:
             return None, _engine_init_error
+
+        # 重置错误状态（brain1 变更时）
+        _engine_init_error = None
 
         try:
             from ai_flow_architect.engine import TrustEngine
 
             if not _check_api_keys():
                 _engine_init_error = "no_api_keys"
+                _engine_brain1 = brain1
                 return None, _engine_init_error
 
             _engine = TrustEngine(
@@ -71,10 +79,12 @@ async def _get_engine(brain1: str = "gpt-4o"):
                 enable_routing=True,
                 enforce_cross_family=True,
             )
+            _engine_brain1 = brain1
             return _engine, None
 
         except Exception as e:
             _engine_init_error = str(e)
+            _engine_brain1 = brain1
             return None, _engine_init_error
 
 

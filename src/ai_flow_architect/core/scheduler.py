@@ -1,6 +1,9 @@
 """
 任务调度器 - 管理专家执行顺序
 
+.. deprecated:: 2.0
+    V1 遗留模块，仅被 FlowArchitect 使用。将在 V3.0 正式移除。
+
 核心职责：
 1. 按蓝图顺序串行执行各步骤
 2. 先查缓存（避免重复调用）
@@ -10,7 +13,7 @@
 6. 智能跳步（复杂度判断）
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 import asyncio
 from loguru import logger
 

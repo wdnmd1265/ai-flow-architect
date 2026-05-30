@@ -182,4 +182,4 @@ results/
 .env.production
 .env.staging
 example_output.txt
-example_requirement.txt
+example_requirement.txtdocs/playground_*_*.html

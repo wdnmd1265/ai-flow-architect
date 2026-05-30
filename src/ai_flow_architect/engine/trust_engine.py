@@ -70,6 +70,8 @@ class TrustEngine:
             enable_routing: 是否启用 4 层模型路由（默认关闭，向后兼容）
         """
         self.brain1_model = brain1
+        # 先加载配置（所有后续方法都依赖它）
+        self._models_config: Dict[str, Any] = self._load_models_config_from_file()
         self.brain2_model = brain2 or self._resolve_brain2(brain1)
         self.tools_enabled = tools
         self.enable_db = enable_db
@@ -107,7 +109,7 @@ class TrustEngine:
         
         # 跨家族校验（如果启用）
         self.cross_family_validated = False
-        self.brain_families = ("", "")
+        self.brain_families: List[str] = ["", ""]
         if self.enforce_cross_family:
             try:
                 config = self._load_models_config()
@@ -118,7 +120,7 @@ class TrustEngine:
                     strict=self.cross_family_strict,
                 )
                 self.cross_family_validated = is_cross_family
-                self.brain_families = families
+                self.brain_families = list(families)
             except _cross_family.CrossFamilyError:
                 raise
             except Exception as e:
@@ -133,38 +135,24 @@ class TrustEngine:
             f"{' | 路由: enabled' if self.enable_routing else ''}"
         )
     
-    def _load_models_config(self) -> Dict[str, Any]:
-        """加载 models.yaml 配置文件。"""
-        import yaml
-        from pathlib import Path
+    def _load_models_config_from_file(self) -> Dict[str, Any]:
+        """从磁盘加载 models.yaml（仅在 __init__ 调用一次）。"""
+        from ..config.model_resolver import load_models_config
+        return load_models_config()
 
-        config_path = Path(__file__).parent.parent / "config" / "models.yaml"
-        try:
-            with open(config_path, "r", encoding="utf-8") as f:
-                return yaml.safe_load(f)
-        except Exception as e:
-            logger.warning(f"加载 models.yaml 失败: {e}，使用空配置")
-            return {}
+    def _load_models_config(self) -> Dict[str, Any]:
+        """返回缓存的 models.yaml 配置。"""
+        return self._models_config
 
     def _resolve_brain2(self, brain1_model: str) -> str:
         """根据 models.yaml 的 fallbacks 配置自动选择 brain2 模型。"""
-        config = self._load_models_config()
-        fallbacks = config.get("fallbacks", {})
-
-        for provider, mappings in fallbacks.items():
-            if provider == "default_fallback":
-                continue
-            if isinstance(mappings, dict) and brain1_model in mappings:
-                candidate = mappings[brain1_model]
-                if self._check_api_key(candidate):
-                    logger.info(
-                        f"检测到单 {provider} key：brain2 自动降级为 '{candidate}'。"
-                        f"如需最佳质检效果，请配置跨提供商的 API key。"
-                    )
-                    return candidate
-                break
-
-        return brain1_model
+        from ..config.model_resolver import resolve_brain2
+        result, _ = resolve_brain2(
+            brain1_model,
+            check_key_fn=self._check_api_key,
+            config=self._models_config,
+        )
+        return result
 
     def _resolve_blind_model(self) -> str:
         """
@@ -231,20 +219,17 @@ class TrustEngine:
         return default
 
     def _check_api_key(self, model: str) -> bool:
-        """检查模型对应的 API key 是否存在。"""
-        key_map = {
-            "gpt-": "OPENAI_API_KEY",
-            "claude-": "ANTHROPIC_API_KEY",
-            "deepseek-": "DEEPSEEK_API_KEY",
-            "qwen-": "DASHSCOPE_API_KEY",
-            "glm-": "ZHIPU_API_KEY",
-            "moonshot-": "MOONSHOT_API_KEY",
-            "gemini-": "GOOGLE_API_KEY",
-        }
-        for prefix, env_var in key_map.items():
-            if model.startswith(prefix):
-                return bool(os.getenv(env_var))
-        return False
+        """检查模型对应的 API key 是否存在。
+
+        查找顺序：apis.yaml → 环境变量 → 前缀映射回退。
+        """
+        from ..utils.api_pool import APIPoolManager
+        mgr = APIPoolManager()
+        try:
+            mgr.load()
+        except Exception:
+            pass
+        return mgr.has_key_for_model(model)
     
     def _determine_isolation_level(self) -> str:
         """
@@ -253,27 +238,23 @@ class TrustEngine:
         - full：不同 API 提供商，完全模型隔离
         - partial：同提供商不同模型，部分隔离
         - simulated：单 API 多角色模拟，尽力隔离
+        - local：Ollama 本地模式，完全本地隔离
         """
-        # 检查两个模型是否来自不同提供商
+        config = self._load_models_config()
+        models = config.get("models", {})
+
+        # 直接从 models.yaml 读 provider，不做 prefix 匹配
         providers = set()
+        both_local = True
         for model in [self.brain1_model, self.brain2_model]:
-            if model.startswith("gpt-"):
-                providers.add("openai")
-            elif model.startswith("claude-"):
-                providers.add("anthropic")
-            elif model.startswith("deepseek-"):
-                providers.add("deepseek")
-            elif model.startswith("qwen-"):
-                providers.add("dashscope")
-            elif model.startswith("glm-"):
-                providers.add("zhipu")
-            elif model.startswith("moonshot-"):
-                providers.add("moonshot")
-            elif model.startswith("gemini-"):
-                providers.add("google")
-            else:
-                providers.add("other")
-        
+            model_cfg = models.get(model, {})
+            provider = model_cfg.get("provider", "unknown")
+            if provider != "local":
+                both_local = False
+            providers.add(provider)
+
+        if both_local:
+            return "full"
         if len(providers) >= 2:
             return "full"
         elif self.brain1_model != self.brain2_model:
@@ -342,12 +323,10 @@ class TrustEngine:
                 return report
             
             # Tier 2: 工具锚定（单模型快速审查）
+            # NOTE: Tier 2 尚未实现，当前降级为 Tier 3。
+            # 实际路由层级：Tier 1（本地初筛）→ Tier 3（全量审查）→ Tier 4（多模型对抗）
             if route_decision.tier == 2:
-                # 使用 brain_one 进行单模型快速审查
-                audit_log.append("→ 执行 Tier 2 单模型快速审查...")
-                # 这里需要调用 brain_one 的简化审查流程
-                # 暂时降级为 Tier 3 处理，待 brain_one 实现
-                audit_log.append("  Tier 2 暂未实现，降级为 Tier 3 处理")
+                audit_log.append("→ Tier 2 暂未实现，降级为 Tier 3 处理")
                 route_decision.tier = 3
                 route_decision.reason += " (Tier 2 未实现，降级为 Tier 3)"
         
