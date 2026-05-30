@@ -275,7 +275,7 @@ audison audit your_code.py -r "requirement" --local --model1 llama3 --model2 cod
 | LangChain | 3 lines | `agent.run()` + `engine.audit()` |
 | CrewAI | 4 lines | `crew.kickoff()` + `engine.audit()` |
 | OpenAI SDK | 5 lines | `client.create()` + `engine.audit()` |
-| GitHub Action | YAML | Copy `.github/workflows/ai-review.example.yml` |
+| GitHub Action | YAML | Copy `.github/workflows/ai-audit.yml.example` |
 | MCP Server | 4 lines | `audit_code` / `audit_file` tools in Cursor/Claude Desktop |
 
 ### MCP Server (Cursor / Claude Desktop)
@@ -297,6 +297,46 @@ Configure in your AI editor's `mcp.json`:
 ```
 
 Then use `audit_code` and `audit_file` tools directly in your AI assistant to verify AI-generated code before it enters your codebase.
+
+### GitHub Action
+
+Automatically audit AI-generated code in every pull request. Two independent AI models cross-verify your code changes and post the result directly as a PR comment.
+
+**Quick Start:**
+
+1. Copy the example workflow to your repository:
+
+```bash
+cp .github/workflows/ai-audit.yml.example .github/workflows/ai-audit.yml
+```
+
+2. Add at least one API key as a repository secret:
+
+   `Settings → Secrets and variables → Actions → New repository secret`
+
+| Secret | Required | Description |
+|--------|----------|-------------|
+| `OPENAI_API_KEY` | Recommended | Primary audit model (GPT-4o) |
+| `ANTHROPIC_API_KEY` | Optional | Secondary model (Claude) for cross-provider verification |
+
+3. Create a pull request — the audit runs automatically and posts a comment.
+
+**Configuration:**
+
+| Input | Default | Description |
+|-------|---------|-------------|
+| `brain1` | `gpt-4o` | Primary audit model |
+| `brain2` | `claude-3-5-sonnet` | Secondary audit model |
+| `path` | changed files | File or directory to audit |
+| `requirement` | — | Custom audit requirement |
+| `fail_on` | `never` | Fail workflow: `reject` / `review` / `never` |
+| `comment_mode` | `both` | Display: `pr` / `summary` / `both` |
+| `api_key_openai` | — | OpenAI API Key |
+| `api_key_anthropic` | — | Anthropic API Key |
+
+**Multi-Provider Support:** Audison supports 10 API providers. Set any of these additional secrets to enable more models:
+
+`DASHSCOPE_API_KEY` · `DEEPSEEK_API_KEY` · `GOOGLE_API_KEY` · `ZHIPU_API_KEY` · `MOONSHOT_API_KEY` · `MIMO_API_KEY` · `NVIDIA_API_KEY` · `CUSTOM_API_KEY`
 
 ### Comparison
 
@@ -382,7 +422,7 @@ audison/
 
 ## Roadmap
 
-- [ ] **GitHub Action** — Automated PR review comments with --html report links
+- [x] **GitHub Action** — Automated PR review comments with dual-model cross-verification
 - [ ] **PyPI package** — `pip install audison`
 - [ ] **Persona marketplace** — Community-contributed adversarial review styles (`/personas`)
 - [ ] **Community showdown** — "Can you beat our opponent brain?" challenge
@@ -448,6 +488,26 @@ pytest tests/unit/ -v    # 186 tests
 ![OG Image](docs/og-image.png)
 
 ---
+
+## Community
+
+Audison is an open-source project built by and for developers who care about AI code quality.
+
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** — How to get involved, from reporting bugs to submitting PRs
+- **[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)** — Our community standards (Contributor Covenant 2.1)
+- **[SECURITY.md](SECURITY.md)** — Vulnerability reporting process and supported versions
+- **[GitHub Discussions](https://github.com/wdnmd1265/audison/discussions)** — Ask questions, share ideas, and connect with other users
+
+### Ways to Contribute
+
+| What | Effort | Impact |
+|------|--------|--------|
+| Test a new LLM provider | 30 min | Expands compatibility for everyone |
+| Report a hallucination edge case | 15 min | Improves detection accuracy |
+| Improve documentation | 2 hours | Helps new users onboard faster |
+| Submit a bug fix | Varies | Keeps the engine reliable |
+
+Every contribution goes through dual-model adversarial review — including our own. Eat your own dog food.
 
 ## License
 

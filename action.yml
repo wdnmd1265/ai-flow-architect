@@ -1,0 +1,171 @@
+name: 'Audison'
+description: 'Dual-model adversarial audit for AI-generated code'
+author: 'wdnmd1265'
+
+branding:
+  icon: 'shield'
+  color: 'purple'
+
+inputs:
+  api_key_openai:
+    description: 'OpenAI API Key for Brain #1'
+    required: false
+  api_key_anthropic:
+    description: 'Anthropic API Key for Brain #2'
+    required: false
+  api_key_dashscope:
+    description: 'DashScope API Key (Qwen)'
+    required: false
+  api_key_deepseek:
+    description: 'DeepSeek API Key'
+    required: false
+  api_key_google:
+    description: 'Google API Key (Gemini)'
+    required: false
+  api_key_zhipu:
+    description: 'Zhipu API Key (GLM)'
+    required: false
+  api_key_moonshot:
+    description: 'Moonshot API Key (Kimi)'
+    required: false
+  api_key_mimo:
+    description: 'MiMo API Key'
+    required: false
+  api_key_nvidia:
+    description: 'NVIDIA API Key'
+    required: false
+  api_key_custom:
+    description: 'Custom provider API Key'
+    required: false
+  brain1:
+    description: 'Model for Brain #1 (default: gpt-4o)'
+    required: false
+    default: 'gpt-4o'
+  brain2:
+    description: 'Model for Brain #2 (default: claude-3-5-sonnet)'
+    required: false
+    default: 'claude-3-5-sonnet'
+  path:
+    description: 'File or directory to audit (default: changed files in PR)'
+    required: false
+  requirement:
+    description: 'Requirement description for audit context'
+    required: false
+  fail_on:
+    description: 'Fail workflow on verdict: "reject" | "review" | "never"'
+    required: false
+    default: 'never'
+  comment_mode:
+    description: 'How to post results: "pr" (PR comment) | "summary" (job summary) | "both"'
+    required: false
+    default: 'both'
+
+outputs:
+  verdict:
+    description: 'Final verdict (PASS / REVIEW / REJECT)'
+  confidence:
+    description: 'Confidence score (0-100)'
+  divergence_count:
+    description: 'Number of model disagreements'
+  findings_count:
+    description: 'Total number of findings'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install Audison
+      shell: bash
+      run: pip install audison
+
+    - name: Run audit
+      shell: bash
+      id: audit
+      env:
+        OPENAI_API_KEY: ${{ inputs.api_key_openai }}
+        ANTHROPIC_API_KEY: ${{ inputs.api_key_anthropic }}
+        DASHSCOPE_API_KEY: ${{ inputs.api_key_dashscope }}
+        DEEPSEEK_API_KEY: ${{ inputs.api_key_deepseek }}
+        GOOGLE_API_KEY: ${{ inputs.api_key_google }}
+        ZHIPU_API_KEY: ${{ inputs.api_key_zhipu }}
+        MOONSHOT_API_KEY: ${{ inputs.api_key_moonshot }}
+        MIMO_API_KEY: ${{ inputs.api_key_mimo }}
+        NVIDIA_API_KEY: ${{ inputs.api_key_nvidia }}
+        CUSTOM_API_KEY: ${{ inputs.api_key_custom }}
+      run: |
+        # Determine target files
+        if [ -n "${{ inputs.path }}" ]; then
+          TARGET="${{ inputs.path }}"
+        else
+          # Default: all changed Python/JS/TS files in PR
+          TARGET=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '\.(py|js|ts|jsx|tsx)$' | tr '\n' ' ')
+        fi
+
+        if [ -z "$TARGET" ]; then
+          echo "No target files to audit. Skipping."
+          echo "verdict=SKIPPED" >> $GITHUB_OUTPUT
+          echo "confidence=0" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        # Run audit
+        REQ_FLAG=""
+        if [ -n "${{ inputs.requirement }}" ]; then
+          REQ_FLAG="-r ${{ inputs.requirement }}"
+        fi
+
+        RESULT=$(python -m scripts.action_entry $TARGET $REQ_FLAG --brain1 ${{ inputs.brain1 }} --brain2 ${{ inputs.brain2 }} 2>&1)
+        EXIT_CODE=$?
+
+        # Parse JSON outputs
+        VERDICT=$(echo "$RESULT" | python -c "import sys,json; print(json.load(sys.stdin)['verdict'])" 2>/dev/null || echo "ERROR")
+        CONFIDENCE=$(echo "$RESULT" | python -c "import sys,json; print(json.load(sys.stdin)['confidence'])" 2>/dev/null || echo "0")
+        DIVERGENCE=$(echo "$RESULT" | python -c "import sys,json; print(json.load(sys.stdin).get('divergence',{}).get('count',0))" 2>/dev/null || echo "0")
+        FINDINGS=$(echo "$RESULT" | python -c "import sys,json; print(len(json.load(sys.stdin).get('findings',[])))" 2>/dev/null || echo "0")
+
+        echo "verdict=$VERDICT" >> $GITHUB_OUTPUT
+        echo "confidence=$CONFIDENCE" >> $GITHUB_OUTPUT
+        echo "divergence_count=$DIVERGENCE" >> $GITHUB_OUTPUT
+        echo "findings_count=$FINDINGS" >> $GITHUB_OUTPUT
+
+        # Fail if configured
+        if [ "${{ inputs.fail_on }}" = "reject" ] && [ "$VERDICT" = "REJECT" ]; then
+          exit 1
+        elif [ "${{ inputs.fail_on }}" = "review" ] && { [ "$VERDICT" = "REVIEW" ] || [ "$VERDICT" = "REJECT" ]; }; then
+          exit 1
+        fi
+
+    - name: Post PR comment
+      if: github.event_name == 'pull_request' && (inputs.comment_mode == 'pr' || inputs.comment_mode == 'both')
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const verdict = '${{ steps.audit.outputs.verdict }}';
+          const confidence = '${{ steps.audit.outputs.confidence }}';
+
+          const verdictEmoji = verdict === 'PASS' ? ':white_check_mark:' : verdict === 'REVIEW' ? ':warning:' : ':red_circle:';
+
+          const body = `## ${verdictEmoji} Audison Audit: **${verdict}** (${confidence}%)
+
+          | Metric | Value |
+          |--------|-------|
+          | Verdict | ${verdict} |
+          | Confidence | ${confidence}% |
+          | Model Disagreements | ${{ steps.audit.outputs.divergence_count }} |
+          | Total Findings | ${{ steps.audit.outputs.findings_count }} |
+
+          > Audited by ${process.env.INPUT_BRAIN1} vs ${process.env.INPUT_BRAIN2}
+
+          [What is this?](https://github.com/wdnmd1265/audison)
+          `;
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: body
+          });

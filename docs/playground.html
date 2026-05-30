@@ -62,6 +62,16 @@
   "findings": [{"category": "HAL-004", "severity": "medium", "description": "Bare except catches all exceptions including KeyboardInterrupt and SyntaxError"}, {"category": "HAL-006", "severity": "low", "description": "Decorator silently masks errors on non-final attempts \u2014 behavior exceeds stated 'retry with backoff' scope"}],
   "evidence_sha256": "d0e3f6a9b2c5d8e1f4a7b0c3d6e9f2a5b8c1d4e7f0a3b6c9d2e5f8a1b4c",
   "timestamp": "2026-05-15T18:45:33Z"
+},
+{
+  "id": 6, "title": "Resource Reference Hallucination", "verdict": "REJECT", "confidence": 30,
+  "requirement": "Write a Python script that loads application config and connects to a database",
+  "code": "import json\nimport psycopg2\nimport nonexistent_lib\n\nwith open('/etc/app/config.prod.yml') as f:\n    config = json.load(f)\n\nconn = psycopg2.connect(\n    host=os.environ['DB_HOST'],\n    port=os.environ['DB_PORT'],\n    database=config['database']['name']\n)",
+  "brain1": {"model": "GPT-4o", "verdict": "PASS", "score": 65, "reason": "The script follows standard patterns for config loading and database connection. Uses json and psycopg2 correctly."},
+  "brain2": {"model": "Claude", "verdict": "REJECT", "score": 28, "reason": "Multiple HAL-005 issues: imports nonexistent_lib, reads a non-existent YAML file with json.load(), references os.environ without importing os, and uses config keys that may not exist. All are invented resource references."},
+  "findings": [{"category": "HAL-005", "severity": "critical", "description": "Imports nonexistent module 'nonexistent_lib' \u2014 will crash at import time"}, {"category": "HAL-005", "severity": "high", "description": "Opens non-existent file '/etc/app/config.prod.yml' as JSON instead of YAML"}, {"category": "HAL-005", "severity": "high", "description": "References 'os.environ' without importing 'os' module"}],
+  "evidence_sha256": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0",
+  "timestamp": "2026-05-30T10:15:00Z"
 }
 ]</script>
 <style>
@@ -731,7 +741,8 @@ function buildSystemPrompt() {
     '2. **HAL-002 (Parameter Hallucination)**: Wrong parameter names, types, or counts in function calls.\n' +
     '3. **HAL-003 (Security Stripping)**: Missing security measures — plaintext passwords, no hashing, no encryption.\n' +
     '4. **HAL-004 (Logic Errors)**: SQL injection, XSS, race conditions, too-broad exception handling.\n' +
-    '5. **HAL-006 (Context Drift)**: Code does things beyond what was requested, silently adds side effects.\n\n' +
+    '5. **HAL-005 (Resource Reference Hallucination)**: Non-existent file paths, URLs, libraries/modules, config keys, or environment variables that the AI invented.\n' +
+    '6. **HAL-006 (Context Drift)**: Code does things beyond what was requested, silently adds side effects.\n\n' +
     'Respond with ONLY a JSON object (no markdown fences, no extra text):\n' +
     '{\n' +
     '  "verdict": "PASS" | "REVIEW" | "REJECT",\n' +

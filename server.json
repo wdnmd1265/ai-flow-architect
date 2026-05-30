@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "audison": {
+      "command": "uvx",
+      "args": ["audison[mcp]", "audison-mcp"],
+      "env": {
+        "OPENAI_API_KEY": "sk-...",
+        "ANTHROPIC_API_KEY": "sk-ant-..."
+      }
+    }
+  }
+}

@@ -1,0 +1,78 @@
+name: Bug Report
+description: Report something that is broken or incorrect
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: A clear description of what went wrong.
+      placeholder: What happened? What did you expect?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: How can we reproduce the issue?
+      placeholder: |
+        1. Run `audison audit ...`
+        2. See error: `...`
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen instead?
+    validations:
+      required: false
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS 14+
+        - Ubuntu 24.04
+        - Ubuntu 22.04
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      placeholder: "e.g. 3.11.5"
+    validations:
+      required: true
+
+  - type: input
+    id: audison_version
+    attributes:
+      label: audison version
+      placeholder: "e.g. 2.3.2"
+    validations:
+      required: true
+
+  - type: input
+    id: models
+    attributes:
+      label: Models used
+      placeholder: "e.g. gpt-4o + claude-3-5-sonnet"
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Error traces, logs, or screenshots.
+    validations:
+      required: false

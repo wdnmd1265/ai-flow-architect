@@ -1,0 +1,51 @@
+name: Feature Request
+description: Suggest an idea for this project
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Is your feature request related to a problem?
+      description: A clear description of the problem.
+      placeholder: "I always have to manually do X when..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Describe the solution you'd like
+      description: What do you want to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Describe alternatives you've considered
+      description: Other approaches you've thought about.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Integration context
+      description: Where would this feature fit?
+      options:
+        - label: TrustEngine (standalone audit layer)
+        - label: FlowArchitect (full framework)
+        - label: CLI
+        - label: API
+        - label: MCP Server
+        - label: Playground
+        - label: Other
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Anything else we should know.
+    validations:
+      required: false

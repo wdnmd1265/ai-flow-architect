@@ -125,7 +125,21 @@ class TrustReport(BaseModel):
     
     # to_json() 已移除 — 直接使用 Pydantic v2 内置的 model_dump_json(indent=2)
     # 调用方已全部迁移到 model_dump_json()
-    
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        将 TrustReport 转换为纯 Python dict。
+
+        与 model_dump() 的区别：额外包含 divergence 属性
+        （model_dump 只序列化 Field，不序列化 @property）。
+
+        Returns:
+            包含所有报告字段和 divergence 摘要的 dict
+        """
+        data = self.model_dump()
+        data["divergence"] = self.divergence
+        return data
+
     @property
     def divergence(self) -> Dict[str, Any]:
         """返回缓存的分歧摘要（由 model_post_init 预计算）。"""

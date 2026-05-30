@@ -1,0 +1,49 @@
+# AI Code Audit — Example Workflow
+#
+# Copy this file to your repository's .github/workflows/ directory
+# to enable automatic AI code audit on every pull request.
+#
+# REQUIRED SECRETS (at least one):
+#   Settings → Secrets and variables → Actions → New repository secret
+#   - OPENAI_API_KEY   (recommended)
+#   - ANTHROPIC_API_KEY (for stronger cross-provider audits)
+#
+# OPTIONAL SECRETS:
+#   - DASHSCOPE_API_KEY / DEEPSEEK_API_KEY / GOOGLE_API_KEY
+#   - ZHIPU_API_KEY / MOONSHOT_API_KEY / MIMO_API_KEY
+#   - NVIDIA_API_KEY / CUSTOM_API_KEY
+
+name: AI Code Audit
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - '**.py'
+      - '**.js'
+      - '**.ts'
+      - '**.jsx'
+      - '**.tsx'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: AI Code Audit
+        uses: wdnmd1265/audison@v2
+        with:
+          # At least one API key is required
+          api_key_openai: ${{ secrets.OPENAI_API_KEY }}
+          api_key_anthropic: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Optional: fail the workflow on REVIEW or REJECT verdict
+          # fail_on: 'review'
+          # Optional: control comment behavior ('pr', 'summary', 'both')
+          comment_mode: 'both'

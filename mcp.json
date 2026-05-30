@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "audison": {
+      "command": "python",
+      "args": ["-m", "audison.mcp_server"],
+      "env": {
+        "OPENAI_API_KEY": "${OPENAI_API_KEY}",
+        "ANTHROPIC_API_KEY": "${ANTHROPIC_API_KEY}"
+      }
+    }
+  }
+}

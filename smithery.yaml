@@ -1,0 +1,17 @@
+name: audison
+description: Dual-model adversarial audit for AI-generated code. Two LLMs cross-examine code, detect hallucinations, and divergence between models surfaces untrustworthy outputs.
+version: 2.5.0
+repository: https://github.com/wdnmd1265/audison
+entrypoint: python -m audison.mcp_server
+tools:
+  - name: audit_code
+    description: Audit AI-generated code for hallucinations
+  - name: audit_file
+    description: Audit a source file for hallucinations
+requirements:
+  python: ">=3.10"
+  packages:
+    - audison
+env:
+  - OPENAI_API_KEY
+  - ANTHROPIC_API_KEY
